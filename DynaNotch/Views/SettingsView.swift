@@ -11,6 +11,15 @@ struct SettingsView: View {
     @AppStorage("idleOpacity")          private var idleOpacity          = 0.5
     @AppStorage("clickThroughExternal") private var clickThroughExternal = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @ObservedObject private var musicVM = MusicViewModel.shared
+
+    private var musicSubtitle: String {
+        if musicVM.installedMusicApps.isEmpty {
+            return "Auto-detects Spotify, Apple Music, YouTube Music"
+        } else {
+            return "Detected on your Mac: " + musicVM.installedMusicApps.joined(separator: ", ")
+        }
+    }
 
     private var displaySubtitle: String {
         switch displayMode {
@@ -169,7 +178,7 @@ struct SettingsView: View {
                     settingRow(
                         icon: "music.note", color: .pink,
                         title: "Music Widget",
-                        subtitle: "Show Now Playing from Spotify, Apple Music, YouTube Music"
+                        subtitle: musicSubtitle
                     ) { Toggle("", isOn: $showMusicWidget).labelsHidden() }
 
                     Divider().padding(.leading, 44)
