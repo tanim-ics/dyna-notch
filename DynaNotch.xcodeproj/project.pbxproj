@@ -1,0 +1,278 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5D217B8B4A1344DC9779C570 = {isa = PBXBuildFile; fileRef = A8E487072A254F43AFA919C7; };
+		BE2551E9979444898AF30BBC = {isa = PBXBuildFile; fileRef = F34C44C9259340599F19B2F3; };
+		2AF1EE8BCEC74E7C827817FA = {isa = PBXBuildFile; fileRef = F4505F8B49334910819EAE72; };
+		D590108827844D5A9053A581 = {isa = PBXBuildFile; fileRef = 6B45B0973EE64F0D98B313BA; };
+		0D33BF34A8024B1BB5ED6117 = {isa = PBXBuildFile; fileRef = 692A4FDE311843308F3FD6D2; };
+		4C25E102CCC8432B81B8DA1D = {isa = PBXBuildFile; fileRef = 244057F079CB43B7ACFEA94F; };
+		7FF4899BB68547119EF80ED9 = {isa = PBXBuildFile; fileRef = 428CDCA2C54142D7AF6A6268; };
+		24F54AA451404FDA8CCDF234 = {isa = PBXBuildFile; fileRef = 196DEA3DB63D4C898D4A438B; };
+		A39CD58509E7486992C32573 = {isa = PBXBuildFile; fileRef = 6DED01C35C9447FF905F87DE; };
+		991661A5719247A4BD625B0F = {isa = PBXBuildFile; fileRef = 05E2E49D4AF844998788080F; };
+		563EE32E95294FB4BBEE94DD = {isa = PBXBuildFile; fileRef = 26D07BDF94E4444C82B8979E; };
+		C3722E26BFC846188BFBFFDB = {isa = PBXBuildFile; fileRef = 51882203348343B29832056A; };
+		0D01CA3A96174B77ABC944FC = {isa = PBXBuildFile; fileRef = 8275A001E4954EA9A9C69F27; };
+		8D6FAA7C63554D9EB8900240 = {isa = PBXBuildFile; fileRef = E0BD25CA27184BBE808DD4BD; };
+		DE28D7A652B2451BA9CE2DA2 = {isa = PBXBuildFile; fileRef = 48B723A324604C28A2674C8F; };
+
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A8E487072A254F43AFA919C7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DynaNotchApp.swift"; sourceTree = "<group>"; };
+		F34C44C9259340599F19B2F3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate.swift"; sourceTree = "<group>"; };
+		F4505F8B49334910819EAE72 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotchWindowController.swift"; sourceTree = "<group>"; };
+		6B45B0973EE64F0D98B313BA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotchPanel.swift"; sourceTree = "<group>"; };
+		692A4FDE311843308F3FD6D2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotchViewModel.swift"; sourceTree = "<group>"; };
+		244057F079CB43B7ACFEA94F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MusicViewModel.swift"; sourceTree = "<group>"; };
+		428CDCA2C54142D7AF6A6268 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SystemEventsViewModel.swift"; sourceTree = "<group>"; };
+		196DEA3DB63D4C898D4A438B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotchContainerView.swift"; sourceTree = "<group>"; };
+		6DED01C35C9447FF905F87DE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MusicPlayerView.swift"; sourceTree = "<group>"; };
+		05E2E49D4AF844998788080F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HUDView.swift"; sourceTree = "<group>"; };
+		26D07BDF94E4444C82B8979E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotificationView.swift"; sourceTree = "<group>"; };
+		51882203348343B29832056A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
+		0771BAEBFBD7450BB7F4650F = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8275A001E4954EA9A9C69F27 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E0BD25CA27184BBE808DD4BD = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		48B723A324604C28A2674C8F = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		61D93A1B57604C4A826FE88F = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D6FAA7C63554D9EB8900240,
+				DE28D7A652B2451BA9CE2DA2,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A90A8AF417E74032B05E8577 = {
+			isa = PBXGroup;
+			children = (
+				137580790BCA4D059299391A,
+				450A5D4747C84CE9B10562CF,
+				646C946C27BD47BBAA73C214,
+				4BBB92503412451FB2A735F3,
+				D37A8F80812844A695A7E6F2,
+				8275A001E4954EA9A9C69F27,
+			);
+			name = DynaNotch;
+			path = DynaNotch;
+			sourceTree = "<group>";
+		};
+		137580790BCA4D059299391A = {
+			isa = PBXGroup;
+			children = (
+				A8E487072A254F43AFA919C7,
+				F34C44C9259340599F19B2F3,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		450A5D4747C84CE9B10562CF = {
+			isa = PBXGroup;
+			children = (
+				F4505F8B49334910819EAE72,
+				6B45B0973EE64F0D98B313BA,
+			);
+			path = Window;
+			sourceTree = "<group>";
+		};
+		646C946C27BD47BBAA73C214 = {
+			isa = PBXGroup;
+			children = (
+				692A4FDE311843308F3FD6D2,
+				244057F079CB43B7ACFEA94F,
+				428CDCA2C54142D7AF6A6268,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		4BBB92503412451FB2A735F3 = {
+			isa = PBXGroup;
+			children = (
+				196DEA3DB63D4C898D4A438B,
+				6DED01C35C9447FF905F87DE,
+				05E2E49D4AF844998788080F,
+				26D07BDF94E4444C82B8979E,
+				51882203348343B29832056A,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D37A8F80812844A695A7E6F2 = {
+			isa = PBXGroup;
+			children = (
+				0771BAEBFBD7450BB7F4650F,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		192779F2AFFB4E2BACCA06A2 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F17C8219C25E4098AC0AAFF0;
+			buildPhases = (
+				E8423D6837FA419098EAC491,
+				72FBCB2A489343609A9AB2AA,
+				61D93A1B57604C4A826FE88F,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = DynaNotch;
+			productName = DynaNotch;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		54D3BB8F061E4CC2AF75278B = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = D75CD066D29F416288EED022;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A90A8AF417E74032B05E8577;
+			productRefGroup = A90A8AF417E74032B05E8577;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (192779F2AFFB4E2BACCA06A2);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		72FBCB2A489343609A9AB2AA = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0D01CA3A96174B77ABC944FC,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E8423D6837FA419098EAC491 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D217B8B4A1344DC9779C570,
+				BE2551E9979444898AF30BBC,
+				2AF1EE8BCEC74E7C827817FA,
+				D590108827844D5A9053A581,
+				0D33BF34A8024B1BB5ED6117,
+				4C25E102CCC8432B81B8DA1D,
+				7FF4899BB68547119EF80ED9,
+				24F54AA451404FDA8CCDF234,
+				A39CD58509E7486992C32573,
+				991661A5719247A4BD625B0F,
+				563EE32E95294FB4BBEE94DD,
+				C3722E26BFC846188BFBFFDB,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A63838398FFB4798AF51A6C7 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		FC6BEA06299F4AD1A340AEED = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		53A6D2C75CED4CAAB32CAF36 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = DynaNotch/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tanim.dynanotch";
+				PRODUCT_NAME = DynaNotch;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		315619C0D4AC4B0FA8338927 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = DynaNotch/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tanim.dynanotch";
+				PRODUCT_NAME = DynaNotch;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D75CD066D29F416288EED022 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (A63838398FFB4798AF51A6C7, FC6BEA06299F4AD1A340AEED);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F17C8219C25E4098AC0AAFF0 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (53A6D2C75CED4CAAB32CAF36, 315619C0D4AC4B0FA8338927);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 54D3BB8F061E4CC2AF75278B;
+}
