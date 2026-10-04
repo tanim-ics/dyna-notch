@@ -4,6 +4,19 @@ import SwiftUI
 class NotchHostingView<Content: View>: NSHostingView<Content> {
     weak var panel: NotchPanel?
 
+    override class var requiresConstraintBasedLayout: Bool {
+        return false
+    }
+
+    override var needsUpdateConstraints: Bool {
+        get { return false }
+        set { /* No-op: prevent reentrant layout crash during display cycle flush */ }
+    }
+
+    override func updateConstraints() {
+        // Safe no-op
+    }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard let panel = panel else { return super.hitTest(point) }
 
@@ -88,6 +101,10 @@ class NotchPanel: NSPanel {
 
     override func updateConstraintsIfNeeded() {
         // Safe no-op for window auto-layout constraints
+    }
+
+    override func layoutIfNeeded() {
+        // Safe no-op to prevent display-cycle recursion
     }
 
     required init?(coder: NSCoder) { fatalError() }

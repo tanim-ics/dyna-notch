@@ -45,7 +45,6 @@ struct NotchContainerView: View {
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .opacity((vm.hovering || vm.isExpanded) ? 1.0 : vm.idleOpacity)
                 .animation(.easeInOut(duration: 0.25), value: vm.hovering)
-                .animation(.easeInOut(duration: 0.25), value: vm.isExpanded)
                 .animation(.easeInOut(duration: 0.25), value: vm.idleOpacity)
                 .onHover { vm.setHovering($0) }
                 .gesture(
@@ -162,7 +161,7 @@ struct NotchContainerView: View {
                     Spacer(minLength: 8)
 
                     // Current Elapsed Time / Total Song Duration
-                    Text("\(formatTime(musicVM.progress)) / \(formatTime(musicVM.duration))")
+                    Text("\(formatTime(musicVM.progress)) / \(musicVM.duration > 1 ? formatTime(musicVM.duration) : "--:--")")
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.75))
 

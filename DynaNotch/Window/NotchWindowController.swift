@@ -201,6 +201,8 @@ class NotchWindowController: NSWindowController {
         positionAtScreen(animated: false)
     }
 
+    private var lastPassThroughState: Bool?
+
     // MARK: – Focus Tracking & Hit Testing across displays
     private func setupFocusTracking() {
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .flagsChanged]) { [weak self] _ in
@@ -226,7 +228,31 @@ class NotchWindowController: NSWindowController {
         panel.isTucked = viewModel.isTucked
         panel.capsuleCornerRadius = viewModel.isExpanded ? 24 : 17
         panel.shouldPassThroughClicks = (viewModel.clickThroughExternal && !viewModel.isExpanded)
-        panel.updateMousePassThrough(at: NSEvent.mouseLocation, modifiers: NSEvent.modifierFlags)
+
+        let mouseLoc = NSEvent.mouseLocation
+        let modifiers = NSEvent.modifierFlags
+
+        let shouldIgnore: Bool
+        if panel.isTucked || modifiers.contains(.command) || modifiers.contains(.option) || panel.shouldPassThroughClicks {
+            shouldIgnore = true
+        } else {
+            let winFrame = panel.frame
+            // Fast bounding box: if mouse is not within 20px of the panel, pass through immediately
+            let paddedFrame = winFrame.insetBy(dx: -20, dy: -20)
+            if !NSMouseInRect(mouseLoc, paddedFrame, false) {
+                shouldIgnore = true
+            } else {
+                let windowPoint = panel.convertPoint(fromScreen: mouseLoc)
+                shouldIgnore = !panel.isPointInsideCapsule(windowPoint)
+            }
+        }
+
+        if lastPassThroughState != shouldIgnore {
+            lastPassThroughState = shouldIgnore
+            if panel.ignoresMouseEvents != shouldIgnore {
+                panel.ignoresMouseEvents = shouldIgnore
+            }
+        }
     }
 
     @objc private func checkFocusDisplay() {
@@ -266,7 +292,7 @@ class NotchWindowController: NSWindowController {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.28
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 0.58, 0.12, 1.0)
-            win.animator().setFrame(targetRect, display: true)
+            win.animator().setFrame(targetRect, display: false)
             win.animator().alphaValue = alpha
         }
         win.orderFrontRegardless()

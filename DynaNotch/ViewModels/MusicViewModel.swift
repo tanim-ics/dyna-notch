@@ -214,8 +214,12 @@ class MusicViewModel: ObservableObject {
                 let delta = now.timeIntervalSince(self.lastTickTime)
                 self.lastTickTime = now
 
-                guard self.isPlaying, self.duration > 0 else { return }
-                self.progress = min(self.progress + delta, self.duration)
+                guard self.isPlaying else { return }
+                if self.duration > 1 {
+                    self.progress = min(self.progress + delta, self.duration)
+                } else {
+                    self.progress += delta
+                }
             }
 
         // Periodic 1.2s scanner to synchronize active playing state
@@ -728,8 +732,10 @@ class MusicViewModel: ObservableObject {
         var tArtist = ""
         if clean.contains(" - ") {
             let parts = clean.components(separatedBy: " - ")
-            tArtist = parts[0].trimmingCharacters(in: .whitespaces)
-            tTitle = parts[1].trimmingCharacters(in: .whitespaces)
+            if parts.count >= 2 {
+                tArtist = parts[0].trimmingCharacters(in: .whitespaces)
+                tTitle = parts[1].trimmingCharacters(in: .whitespaces)
+            }
         }
 
         if foundUrl.contains("music.youtube.com") {
@@ -738,23 +744,39 @@ class MusicViewModel: ObservableObject {
             resolvedApp = "YouTube"
         }
 
+        var urlOffset: Double?
+        if let comps = URLComponents(string: foundUrl),
+           let tParam = comps.queryItems?.first(where: { $0.name == "t" })?.value {
+            let cleanT = tParam.replacingOccurrences(of: "s", with: "")
+            if let seconds = Double(cleanT) {
+                urlOffset = seconds
+            }
+        }
+
         DispatchQueue.main.async {
             self.appName = resolvedApp
             self.activePlayPauseEl = nil
             self.activeNextEl = nil
             self.activePrevEl = nil
 
-            let trackKey = "\(tTitle)|\(tArtist)"
+            let trackKey = clean
             let isNew = (trackKey != self.lastTrackKey)
             self.lastTrackKey = trackKey
 
-            self.title = tTitle
-            if !tArtist.isEmpty { self.artist = tArtist }
+            if isNew {
+                self.title = tTitle
+                if !tArtist.isEmpty { self.artist = tArtist }
+                if let off = urlOffset {
+                    self.progress = off
+                } else {
+                    self.progress = 0
+                }
+            }
             self.isPlaying = self.isAudioOutputRunning
             self.lastTickTime = Date()
 
             if isNew || self.albumArt == nil {
-                self.resolveArtwork(title: tTitle, artist: tArtist)
+                self.resolveArtwork(title: clean, artist: tArtist)
             }
         }
         return true
@@ -774,7 +796,11 @@ class MusicViewModel: ObservableObject {
                                   options: [.regularExpression, .caseInsensitive])
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let query = "\(cleanTitle) \(artist)".trimmingCharacters(in: .whitespacesAndNewlines)
+        var query = cleanTitle
+        if !artist.isEmpty && artist != "YouTube" && artist != "YouTube Music" && !cleanTitle.localizedCaseInsensitiveContains(artist) {
+            query = "\(cleanTitle) \(artist)"
+        }
+        query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
 
         // 1. iTunes Store API (High definition 600x600 music track search)
@@ -794,11 +820,17 @@ class MusicViewModel: ObservableObject {
                let results = json["results"] as? [[String: Any]],
                let first = results.first {
 
+                if let tName = first["trackName"] as? String, !tName.isEmpty {
+                    DispatchQueue.main.async {
+                        if self.title.contains(" - ") || self.title.isEmpty {
+                            self.title = tName
+                        }
+                    }
+                }
+
                 if let aName = first["artistName"] as? String, !aName.isEmpty {
                     DispatchQueue.main.async {
-                        if self.artist.isEmpty || self.artist == "YouTube" || self.artist == "YouTube Music" {
-                            self.artist = aName
-                        }
+                        self.artist = aName
                     }
                 }
 
@@ -810,9 +842,7 @@ class MusicViewModel: ObservableObject {
 
                 if let millis = (first["trackTimeMillis"] as? NSNumber)?.doubleValue ?? (first["trackTimeMillis"] as? Double), millis > 0 {
                     DispatchQueue.main.async {
-                        if self.duration <= 1 {
-                            self.duration = millis / 1000.0
-                        }
+                        self.duration = millis / 1000.0
                     }
                 }
 
@@ -835,9 +865,7 @@ class MusicViewModel: ObservableObject {
             guard let self, let data, let img = NSImage(data: data) else { return }
             DispatchQueue.main.async {
                 self.artworkCache[key] = img
-                if "\(self.title)|\(self.artist)" == key {
-                    self.albumArt = img
-                }
+                self.albumArt = img
             }
         }.resume()
     }
@@ -850,12 +878,43 @@ class MusicViewModel: ObservableObject {
             guard let self, let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataArr = json["data"] as? [[String: Any]],
-                  let first = dataArr.first,
-                  let album = first["album"] as? [String: Any],
-                  let coverUrlStr = (album["cover_xl"] as? String) ?? (album["cover_big"] as? String),
-                  let coverUrl = URL(string: coverUrlStr) else { return }
+                  let first = dataArr.first else { return }
 
-            self.downloadArtwork(from: coverUrl, key: key)
+            if let artistObj = first["artist"] as? [String: Any],
+               let aName = artistObj["name"] as? String, !aName.isEmpty {
+                DispatchQueue.main.async {
+                    if self.artist.isEmpty || self.artist == "YouTube" || self.artist == "YouTube Music" {
+                        self.artist = aName
+                    }
+                }
+            }
+
+            if let albObj = first["album"] as? [String: Any],
+               let aTitle = albObj["title"] as? String, !aTitle.isEmpty {
+                DispatchQueue.main.async {
+                    if self.album.isEmpty { self.album = aTitle }
+                }
+            }
+
+            if let dur = (first["duration"] as? NSNumber)?.doubleValue ?? (first["duration"] as? Double), dur > 0 {
+                DispatchQueue.main.async {
+                    self.duration = dur
+                }
+            }
+
+            if let tName = first["title"] as? String, !tName.isEmpty {
+                DispatchQueue.main.async {
+                    if self.title.contains(" - ") || self.title.isEmpty {
+                        self.title = tName
+                    }
+                }
+            }
+
+            let album = first["album"] as? [String: Any]
+            let coverUrlStr = (album?["cover_xl"] as? String) ?? (album?["cover_big"] as? String) ?? (album?["cover_medium"] as? String)
+            if let coverUrlStr, let coverUrl = URL(string: coverUrlStr) {
+                self.downloadArtwork(from: coverUrl, key: key)
+            }
         }.resume()
     }
 

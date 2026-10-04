@@ -52,7 +52,7 @@ struct MusicPlayerView: View {
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.7))
                     Spacer()
-                    Text(formatTime(musicVM.duration))
+                    Text(musicVM.duration > 1 ? formatTime(musicVM.duration) : "--:--")
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.7))
                 }
