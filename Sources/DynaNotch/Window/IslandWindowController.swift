@@ -4,7 +4,7 @@ import Combine
 import DynaNotchCore
 
 /// Owns the island panel: placement on the target screen, click-through toggling, hover tracking,
-/// outside clicks, two-finger swipes and full-screen suppression (CLAUDE.md §5, §6.3).
+/// outside clicks, two-finger swipes and full-screen suppression (CLAUDE.md §3 "Window", docs/CONTRACTS.md §6.3).
 final class IslandWindowController: NSObject {
     private let viewModel: IslandViewModel
     private let settings: AppSettings

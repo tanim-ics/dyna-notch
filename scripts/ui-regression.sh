@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/ui-regression.sh — scripted user scenarios against the installed, running DynaNotch (macOS only).
 #
-# Drives the app through dynanotch:// test hooks (see CLAUDE.md §9 "Scripted UI tests") and asserts on
+# Drives the app through dynanotch:// test hooks (see CLAUDE.md §5 "Test hooks") and asserts on
 # Snapshots/state.json after each step; every tab and Settings page must also render a non-trivial snapshot.
 # Live data (music, weather, clock) changes between runs, so it checks state + rendering, not exact pixels.
 #

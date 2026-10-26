@@ -1,0 +1,16 @@
+# <App> quality pass — scorecard (<date>)
+
+Machine, build, method (tool, window length, scenario).
+
+| Scenario | Before | After |
+|---|---|---|
+| Main use case | x % CPU · y wake-ups/s · energy z | … |
+| Idle | | |
+| Memory (RSS) | | |
+
+## What changed (cause → fix)
+## Bugs found
+## Sanitizers (TSan / ASan) — scenarios covered, findings
+## Accessibility — labels added, what a human still has to check
+## Tests added — unit, UI regression checks, scripts
+## Not done (and why)

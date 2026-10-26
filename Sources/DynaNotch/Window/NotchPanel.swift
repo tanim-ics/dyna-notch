@@ -1,6 +1,6 @@
 import AppKit
 
-/// Fixed-size, transparent, click-through panel that hosts the island canvas (CLAUDE.md §5).
+/// Fixed-size, transparent, click-through panel that hosts the island canvas (CLAUDE.md §3 "Window").
 /// It is never resized; SwiftUI animates the island inside it.
 final class NotchPanel: NSPanel {
     init(contentRect: NSRect) {

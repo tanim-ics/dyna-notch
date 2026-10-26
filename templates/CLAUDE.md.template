@@ -1,0 +1,35 @@
+# CLAUDE.md — <App>
+
+<One sentence: what it is, platform, for whom.> **Version <x.y.z> · status: <phase / round>.**
+
+This file holds what every change must respect (≤ 200 lines). Reference material:
+
+| Doc | What's in it | Update when |
+|---|---|---|
+| `docs/CONTRACTS.md` | Binding public APIs (core types, services, settings, test hooks) | Before changing an API |
+| `docs/ROADMAP.md` | Parity board / gap list with status + priority | A feature lands or is dropped |
+| `docs/UX.md` | Visual / motion spec | A screen changes |
+| `docs/DECISIONS.md` | Owner decisions, dated | The owner decides something |
+| `SCORECARD.md` | Performance, sanitizer, test results | After each quality pass |
+| `README.md` | Short user guide | User-visible behaviour changes |
+
+## 1. Product
+Goals · non-goals (with reasons) · network / privacy stance.
+
+## 2. Quick start
+| Task | Command |  (build+install, unit tests, all checks incl. `--ui`, health, live log)
+
+## 3. Architecture
+Module map (pure core vs app), data flow, state/priority rules, windowing, where data lives on disk.
+
+## 4. Engineering rules (binding)
+Concurrency · code style · energy budget · privacy & permissions · settings UX · signing.
+
+## 5. Testing — definition of done
+1. Unit tests green (new pure logic tested). 2. `scripts/check.sh --ui` green. 3. Used like a user in the installed
+build via test hooks, result observed, edge cases covered. 4. Roadmap / contracts updated. 5. No energy regression.
+Test-hook table.
+
+## 6. Working agreements
+Contract first · parallel agents only for large independent slices (ownership, own build dir, app lock) · usage budget ·
+git (commit when asked, checkpoint per slice) · never harm the owner's data · learning loop → app-dev-playbook skill.
