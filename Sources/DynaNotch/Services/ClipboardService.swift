@@ -70,6 +70,7 @@ final class ClipboardService: ObservableObject {
     // MARK: Public API
 
     func start() {
+        UserPresence.shared.start()
         guard !started else { return }
         started = true
         // Do not import whatever was on the clipboard before we started.
@@ -200,12 +201,15 @@ final class ClipboardService: ObservableObject {
 
     private func schedulePolling(fast: Bool) {
         pollTimer?.cancel()
-        pollTimer = Timer.publish(every: fast ? 0.15 : 0.5, on: .main, in: .common)
+        // macOS has no pasteboard-change notification, so this polls; the tolerance lets the system wake us together
+        // with the Caps Lock poll instead of separately.
+        pollTimer = Timer.publish(every: fast ? 0.15 : 0.5, tolerance: fast ? 0.05 : 0.25, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.poll() }
     }
 
     private func poll() {
+        guard !UserPresence.shared.isAway else { return }   // locked / display asleep: nothing is being copied
         let count = pasteboard.changeCount
         guard count != lastChangeCount else { return }
         let delta = count - lastChangeCount

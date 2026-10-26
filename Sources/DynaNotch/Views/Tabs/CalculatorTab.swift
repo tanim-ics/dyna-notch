@@ -120,6 +120,7 @@ struct CalculatorTab: View {
             Button("Insert Result") { store.append(entry.rawResult) }
         }
         .help("Click to copy \(entry.result)")
+        .accessibilityLabel("Click to copy \(entry.result)")
     }
 
     private func copyResult() {

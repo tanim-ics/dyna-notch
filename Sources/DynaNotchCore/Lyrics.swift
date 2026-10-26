@@ -45,6 +45,15 @@ public enum LRCParser {
             .map(\.element)
     }
 
+    /// Wall-clock moments when the visible line changes: `now`, then the start of every later line (at most `limit`),
+    /// given the song position `elapsed` at `now` and the playback `rate` (0 = paused → only `now`).
+    public static func changeDates(lines: [LyricLine], elapsed: TimeInterval, rate: Double, now: Date,
+                                   limit: Int = 200) -> [Date] {
+        guard rate > 0 else { return [now] }
+        let upcoming = lines.lazy.filter { $0.time > elapsed }.prefix(limit)
+        return [now] + upcoming.map { now.addingTimeInterval(($0.time - elapsed) / rate) }
+    }
+
     /// Last line with time <= t.
     public static func currentIndex(at time: TimeInterval, in lines: [LyricLine]) -> Int? {
         guard let first = lines.first, time >= first.time else { return nil }

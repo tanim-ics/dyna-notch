@@ -88,6 +88,7 @@ struct TabMenu: View {
         .fixedSize()
         .uiTestID("tabMenu")
         .help("All tabs")
+        .accessibilityLabel("All tabs")
     }
 }
 
@@ -239,6 +240,7 @@ struct BatteryPill: View {
         }
         .buttonStyle(PressableButtonStyle())
         .help("Batteries")
+        .accessibilityLabel("Batteries")
     }
 
     private var glyph: String {
@@ -321,6 +323,7 @@ struct ActionsMenu: View {
         .fixedSize()
         .uiTestID("actionsMenu")
         .help("Actions")
+        .accessibilityLabel("Actions")
     }
 }
 
@@ -381,6 +384,7 @@ struct PortsMenu: View {
         .fixedSize()
         .uiTestID("portsMenu")
         .help("Listening ports")
+        .accessibilityLabel("Listening ports")
         .onAppear { service.acquire() }
         .onDisappear { service.release() }
     }
@@ -424,6 +428,7 @@ struct SystemStatsMenu: View {
         .fixedSize()
         .uiTestID("systemStatsMenu")
         .help("System stats")
+        .accessibilityLabel("System stats")
         .onAppear { SystemSampling.acquire("headerStats") }
         .onDisappear { SystemSampling.release("headerStats") }
     }
@@ -493,6 +498,7 @@ struct KeepAwakeMenu: View {
         .fixedSize()
         .uiTestID("keepAwakeMenu")
         .help(helpText)
+        .accessibilityLabel(helpText)
     }
 
     private var helpText: String {
@@ -545,6 +551,7 @@ struct HeaderButton: View {
         }
         .buttonStyle(PressableButtonStyle())
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 
@@ -674,6 +681,7 @@ struct SoundButton: View {
         }
         .buttonStyle(PressableButtonStyle())
         .help(reading.map { "Sound · \(Format.percent($0.level))\($0.muted ? " · muted" : "")" } ?? "Sound")
+        .accessibilityLabel(reading.map { "Sound · \(Format.percent($0.level))\($0.muted ? " · muted" : "")" } ?? "Sound")
         .uiTestID("soundButton")
         .hoverRegion("hover.sound")
         .onAppear { reading = VolumeService.shared.read() }
@@ -701,6 +709,7 @@ struct SoundCard: View {
                 }
                 .buttonStyle(PressableButtonStyle())
                 .help(muted ? "Unmute" : "Mute")
+                .accessibilityLabel(muted ? "Unmute" : "Mute")
                 .uiTestID("sound.mute")
                 VolumeSlider(value: muted ? 0 : level, onChange: setLevel)
                     .frame(height: 22)

@@ -190,6 +190,7 @@ struct ClipRow: View {
             vm.paste(item, plainText: plain)
         }
         .help("Click to paste · ⌥-click pastes plain text")
+        .accessibilityLabel("Click to paste · ⌥-click pastes plain text")
     }
 
     private var previewText: String {
@@ -233,6 +234,7 @@ struct ClipRow: View {
             }
             .buttonStyle(.plain)
             .help("Copy this link without tracking parameters")
+            .accessibilityLabel("Copy this link without tracking parameters")
             .uiTestID("clipCleanLink.\(position)")
         }
     }
@@ -268,6 +270,7 @@ struct ClipRow: View {
                                 .fill(Color.white.opacity(0.1))
                         )
                         .help("Press \(index) to paste")
+                        .accessibilityLabel("Press \(index) to paste")
                 }
             }
             .frame(height: 20)

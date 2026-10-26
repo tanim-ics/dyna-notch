@@ -119,6 +119,17 @@ final class V3DataTests: XCTestCase {
         XCTAssertNil(LRCParser.currentIndex(at: 5, in: []))
     }
 
+    func testLyricChangeDates() {
+        let lines = LRCParser.parse("[00:01.00]a\n[00:03.00]b\n[00:07.00]c")
+        let now = Date(timeIntervalSince1970: 1000)
+        XCTAssertEqual(LRCParser.changeDates(lines: lines, elapsed: 2, rate: 1, now: now),
+                       [now, now + 1, now + 5])
+        XCTAssertEqual(LRCParser.changeDates(lines: lines, elapsed: 2, rate: 2, now: now), [now, now + 0.5, now + 2.5])
+        XCTAssertEqual(LRCParser.changeDates(lines: lines, elapsed: 2, rate: 0, now: now), [now])
+        XCTAssertEqual(LRCParser.changeDates(lines: lines, elapsed: 9, rate: 1, now: now), [now])
+        XCTAssertEqual(LRCParser.changeDates(lines: lines, elapsed: 0, rate: 1, now: now, limit: 1), [now, now + 1])
+    }
+
     func testLRCLibParser() {
         let json = #"{"id":1,"instrumental":false,"plainLyrics":"a\nb","syncedLyrics":"[00:01.00]a\n[00:02.00]b"}"#
         let r = LRCLibParser.parse(Data(json.utf8))

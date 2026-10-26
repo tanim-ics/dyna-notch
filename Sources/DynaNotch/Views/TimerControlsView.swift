@@ -63,6 +63,7 @@ struct TimerControlsView: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        .accessibilityLabel(help)
         .uiTestID(id)
     }
 }

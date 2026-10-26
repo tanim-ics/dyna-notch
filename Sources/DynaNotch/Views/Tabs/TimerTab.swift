@@ -126,6 +126,7 @@ struct PomodoroOnlyToggle: View {
         }
         .uiTestID("timer.pomodoroOnly")
         .help(settings.pomodoroOnly ? "Show Standard and Stopwatch again" : "Hide Standard and Stopwatch")
+        .accessibilityLabel(settings.pomodoroOnly ? "Show Standard and Stopwatch again" : "Hide Standard and Stopwatch")
     }
 }
 
@@ -182,6 +183,7 @@ struct StandardTimerSetup: View {
             }
             .uiTestID("timer.repeat")
             .help("Start the same timer again when it finishes")
+            .accessibilityLabel("Start the same timer again when it finishes")
         }
     }
 
@@ -409,6 +411,7 @@ struct PomodoroStatsRow: View {
             stat(symbol: "sum", value: stats.total, label: "total", color: PanelStyle.secondary)
         }
         .help("Completed focus sessions")
+        .accessibilityLabel("Completed focus sessions")
     }
 
     private func stat(symbol: String, value: Int, label: String, color: Color) -> some View {

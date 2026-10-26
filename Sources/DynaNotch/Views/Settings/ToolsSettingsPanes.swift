@@ -11,7 +11,7 @@ struct KnockSettingsPane: View {
 
     @ObservedObject private var knock = KnockMonitor.shared
     @State private var axGranted = Permissions.accessibilityGranted
-    private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    private let poll = SettingsTicker.tick
 
     var body: some View {
         SettingsPageView(page: .knock) {

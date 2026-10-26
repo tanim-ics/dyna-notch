@@ -2,13 +2,22 @@ import AppKit
 import SwiftUI
 
 /// Owns the AppKit settings window hosting `SettingsRootView` (CLAUDE.md §6.3).
-final class SettingsWindowController: NSObject {
+final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let viewModel: IslandViewModel
     private var window: NSWindow?
 
     init(viewModel: IslandViewModel) {
         self.viewModel = viewModel
         super.init()
+    }
+
+    /// Closing drops the SwiftUI content so its status timers (permissions, suggestions…) stop; show() rebuilds it.
+    func windowWillClose(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let window = self?.window, !window.isVisible else { return }
+            window.contentViewController = nil
+            self?.window = nil
+        }
     }
 
     func show() {
@@ -42,6 +51,7 @@ final class SettingsWindowController: NSObject {
         window.isReleasedWhenClosed = false
         // Never reopened by macOS window restoration at launch (only when the user asks for Settings).
         window.isRestorable = false
+        window.delegate = self
 
         let root = SettingsRootView()
             .environmentObject(viewModel)

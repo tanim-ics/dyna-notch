@@ -200,6 +200,7 @@ struct BluetoothActivity: View {
             trailing
         }
         .help(name)
+        .accessibilityLabel(name)
     }
 
     @ViewBuilder
@@ -260,6 +261,7 @@ struct FocusActivity: View {
                 .foregroundStyle(enabled ? IslandColors.focus : Color.white.opacity(0.6))
         }
         .help(name)
+        .accessibilityLabel(name)
     }
 }
 
@@ -284,6 +286,7 @@ struct CalendarActivity: View {
                 .minimumScaleFactor(0.7)
         }
         .help(title)
+        .accessibilityLabel(title)
     }
 }
 
@@ -307,6 +310,7 @@ struct TimerFinishedActivity: View {
                 .minimumScaleFactor(0.7)
         }
         .help(label.isEmpty ? "Timer finished" : "\(label) finished")
+        .accessibilityLabel(label.isEmpty ? "Timer finished" : "\(label) finished")
     }
 }
 
@@ -382,6 +386,7 @@ struct DownloadActivity: View {
                 .minimumScaleFactor(0.7)
         }
         .help(name)
+        .accessibilityLabel(name)
     }
 }
 
@@ -410,6 +415,7 @@ struct SensorActivity: View {
                 .minimumScaleFactor(0.7)
         }
         .help(sensor == .camera ? "Camera" : "Microphone")
+        .accessibilityLabel(sensor == .camera ? "Camera" : "Microphone")
     }
 }
 
@@ -435,5 +441,6 @@ struct ToggleActivity: View {
                 .lineLimit(1)
         }
         .help(label)
+        .accessibilityLabel(label)
     }
 }

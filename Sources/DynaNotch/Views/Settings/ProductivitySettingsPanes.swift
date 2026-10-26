@@ -109,7 +109,7 @@ struct ClipboardSettingsPane: View {
     @ObservedObject var clipboard = ClipboardService.shared
     @State private var accessibilityGranted = Permissions.accessibilityGranted
 
-    private let permissionPoll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    private let permissionPoll = SettingsTicker.tick
     private static let limits = [40, 50, 100, 200, 500]
 
     var body: some View {

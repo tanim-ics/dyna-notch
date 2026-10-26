@@ -148,6 +148,7 @@ private struct ShortcutTile: View {
         .onTapGesture { shortcuts.run(name) }
         .opacity(shortcuts.running != nil && !isRunning ? 0.5 : 1)
         .help("Run “\(name)”")
+        .accessibilityLabel("Run “\(name)”")
         .contextMenu {
             Button("Run") { shortcuts.run(name) }
             Button("Edit in Shortcuts") { shortcuts.openInShortcutsApp(name) }

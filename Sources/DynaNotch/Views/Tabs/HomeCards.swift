@@ -289,6 +289,7 @@ struct SavedLinksCard: View {
                         }
                         .buttonStyle(.plain)
                         .help(link.url)
+                        .accessibilityLabel(link.url)
                         .uiTestID("home.link.\(link.title)")
                     }
                 }
@@ -334,6 +335,7 @@ struct ColorsCard: View {
                             }
                             .buttonStyle(PressableButtonStyle())
                             .help("Copy \(value)")
+                            .accessibilityLabel("Copy \(value)")
                         }
                     }
                     Text(copied.map { "Copied \($0)" } ?? "Click to copy")
@@ -406,6 +408,7 @@ struct CodingAgentsCard: View {
                 .foregroundStyle(PanelStyle.tertiary)
         }
         .help(session.tool)
+        .accessibilityLabel(session.tool)
     }
 }
 
@@ -458,6 +461,7 @@ struct BluetoothCard: View {
         .buttonStyle(.plain)
         .disabled(busy)
         .help(device.isConnected ? "Disconnect \(device.name)" : "Connect \(device.name)")
+        .accessibilityLabel(device.isConnected ? "Disconnect \(device.name)" : "Connect \(device.name)")
         .uiTestID("home.bt.\(device.name)")
     }
 }

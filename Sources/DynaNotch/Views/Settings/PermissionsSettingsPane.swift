@@ -84,7 +84,7 @@ struct PermissionsSettingsPane: View {
 
     @State private var tick = 0
     @State private var showHelp = false
-    private let poll = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
+    private let poll = SettingsTicker.tick
 
     var body: some View {
         let _ = tick   // re-evaluated by the poll so statuses stay live

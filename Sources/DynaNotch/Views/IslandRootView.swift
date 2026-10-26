@@ -75,6 +75,8 @@ struct IslandRootView: View {
             // collapsing is driven by mouse-leave and outside clicks (window controller).
             if !isExpanded { vm.tap() }
         }, including: vm.showsTimerControls ? .subviews : .all)   // timer controls handle their own taps
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("DynaNotch")
         // Closed Pill Size scales the whole closed island (content included) from its top edge.
         .scaleEffect(hoverScale * vm.pillScale, anchor: .top)
         .opacity(restingOpacity)

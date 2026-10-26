@@ -67,6 +67,7 @@ struct PanelIconButton: View {
         }
         .buttonStyle(PressableButtonStyle())
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 

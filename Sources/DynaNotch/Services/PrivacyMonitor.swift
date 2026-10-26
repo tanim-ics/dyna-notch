@@ -5,7 +5,8 @@ import Foundation
 import os
 import DynaNotchCore
 
-/// Reports when any app starts/stops using the camera or microphone (1.5 s poll, main queue).
+/// Reports when any app starts/stops using the camera or microphone. Driven by CoreAudio / CoreMediaIO
+/// "running somewhere" change listeners; a 15 s poll is only a safety net (main queue).
 final class PrivacyMonitor {
     static let shared = PrivacyMonitor()
 
@@ -20,10 +21,85 @@ final class PrivacyMonitor {
     func start() {
         guard !started else { return }
         started = true
-        timer = Timer.publish(every: 1.5, on: .main, in: .common)
+        timer = Timer.publish(every: 15, tolerance: 3, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.poll() }
+        installListeners()
         poll()
+    }
+
+    // MARK: Listeners (instead of a fast poll)
+
+    private var micDevice = AudioObjectID(kAudioObjectUnknown)
+    private var cameraDevices = Set<CMIOObjectID>()
+
+    private func installListeners() {
+        // Default input device changes → watch the new device.
+        var defaultInput = AudioObjectPropertyAddress(
+            mSelector: AudioObjectPropertySelector(kAudioHardwarePropertyDefaultInputDevice),
+            mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+            mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &defaultInput, .main) { [weak self] _, _ in
+            self?.watchMicrophone()
+            self?.poll()
+        }
+        watchMicrophone()
+
+        // Camera list changes → watch new cameras.
+        var cmioDevices = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+        _ = CMIOObjectAddPropertyListenerBlock(CMIOObjectID(kCMIOObjectSystemObject), &cmioDevices, .main) { [weak self] _, _ in
+            self?.watchCameras()
+            self?.poll()
+        }
+        watchCameras()
+    }
+
+    private func watchMicrophone() {
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var address = AudioObjectPropertyAddress(
+            mSelector: AudioObjectPropertySelector(kAudioHardwarePropertyDefaultInputDevice),
+            mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+            mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+        var device = AudioObjectID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &device) == 0,
+              device != AudioObjectID(kAudioObjectUnknown), device != micDevice else { return }
+        micDevice = device
+        var running = AudioObjectPropertyAddress(
+            mSelector: AudioObjectPropertySelector(kAudioDevicePropertyDeviceIsRunningSomewhere),
+            mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+            mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+        AudioObjectAddPropertyListenerBlock(device, &running, .main) { [weak self] _, _ in self?.poll() }
+    }
+
+    private func watchCameras() {
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+        let system = CMIOObjectID(kCMIOObjectSystemObject)
+        var size: UInt32 = 0
+        guard CMIOObjectGetPropertyDataSize(system, &address, 0, nil, &size) == 0, size > 0 else { return }
+        var devices = [CMIOObjectID](repeating: 0, count: Int(size) / MemoryLayout<CMIOObjectID>.size)
+        var used: UInt32 = 0
+        let status = devices.withUnsafeMutableBufferPointer { buffer -> OSStatus in
+            guard let base = buffer.baseAddress else { return -1 }
+            return CMIOObjectGetPropertyData(system, &address, 0, nil, size, &used, base)
+        }
+        guard status == 0 else { return }
+        for device in devices.prefix(Int(used) / MemoryLayout<CMIOObjectID>.size) where !cameraDevices.contains(device) {
+            var running = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeWildcard),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementWildcard))
+            guard CMIOObjectHasProperty(device, &running) else { continue }
+            if CMIOObjectAddPropertyListenerBlock(device, &running, .main, { [weak self] _, _ in self?.poll() }) == 0 {
+                cameraDevices.insert(device)
+            }
+        }
     }
 
     // MARK: Private (main queue)

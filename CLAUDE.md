@@ -1177,6 +1177,15 @@ Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit 
 - Parallel agents must build with distinct `swift build --scratch-path <dir>` to avoid SwiftPM lock contention.
 - Persistent app data lives in `~/Library/Application Support/DynaNotch/` (clipboard.json, Clips/, Snapshots/) and UserDefaults
   keys `dn.data.*` (notes, todos, shelf). Settings keys stay `dn.<property>`.
+- **Energy rules (binding, from SCORECARD.md):** no `TimelineView(.animation)` / per-frame SwiftUI loops for decorative
+  motion — use Core Animation layers (`Views/LayerAnimations.swift`); never store `Timer.publish(…).autoconnect()` in a
+  View (use a shared ticker such as `SettingsTicker`); prefer system notifications / listeners over polling, and give
+  any remaining poll a `tolerance`. Check with `scripts/health.sh` (idle CPU ≤ 0.2 %, wake-ups ≤ 4/s).
+- Quality tools: `scripts/check.sh --ui` (adds the 94-check `scripts/ui-regression.sh` against the running app),
+  `scripts/health.sh [days]` (crash/hang reports, log errors, idle measurement). Sanitizer runs: build with
+  `swift build -Xswiftc -sanitize=thread|address --scratch-path .build-tsan`, copy the binary into a copy of the app,
+  and launch it with `open -n -a <copy> --env DYLD_INSERT_LIBRARIES=<toolchain libclang_rt.*_osx_dynamic.dylib>`
+  (running the binary from a shell makes the shell the TCC-responsible app and macOS kills it).
 - Commands: `./build.sh` (test, build, install, launch), `./build.sh --dmg`, `./build.sh --no-install`, `swift test`, `scripts/check.sh`, logs: `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
 
 ---

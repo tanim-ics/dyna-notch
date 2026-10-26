@@ -808,3 +808,13 @@ enum SettingsLinks {
         NSWorkspace.shared.open(url)
     }
 }
+
+/// One shared 2 s tick for every Settings page's status read-outs (permissions, suggestions, live values).
+/// A `Timer.publish(…).autoconnect()` stored in a view is re-created with every view init and kept ticking after
+/// the page was left — with all pages visited that was ~25 wake-ups/s.
+enum SettingsTicker {
+    static let tick: AnyPublisher<Date, Never> = Timer.publish(every: 2, tolerance: 0.5, on: .main, in: .common)
+        .autoconnect()
+        .share()
+        .eraseToAnyPublisher()
+}

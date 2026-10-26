@@ -317,6 +317,7 @@ struct HomeWeatherBlock: View {
         }
         .onTapGesture { weather.refresh() }
         .help("Updated \(snapshot.fetchedAt.formatted(date: .omitted, time: .shortened)) · click to refresh")
+        .accessibilityLabel("Updated \(snapshot.fetchedAt.formatted(date: .omitted, time: .shortened)) · click to refresh")
     }
 
     private var unitLetter: String {

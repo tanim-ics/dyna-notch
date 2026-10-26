@@ -37,7 +37,8 @@ final class FullscreenDetector: ObservableObject {
             }
             observers.append(token)
         }
-        Timer.publish(every: 1.5, on: .main, in: .common)
+        // App / Space switches (entering full screen creates a Space) drive this; the poll is only a safety net.
+        Timer.publish(every: 10, tolerance: 2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.evaluate() }
             .store(in: &cancellables)

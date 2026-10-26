@@ -15,7 +15,7 @@ final class CapsLockMonitor {
     func start() {
         guard timer == nil else { return }
         isOn = NSEvent.modifierFlags.contains(.capsLock)
-        timer = Timer.publish(every: 0.25, tolerance: 0.05, on: .main, in: .common)
+        timer = Timer.publish(every: 0.5, tolerance: 0.25, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.poll() }
     }

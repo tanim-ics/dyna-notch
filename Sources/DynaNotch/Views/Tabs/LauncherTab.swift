@@ -113,6 +113,7 @@ private struct AppCell: View {
         .onHover { hovering = $0 }
         .onTapGesture(perform: action)
         .help(app.name)
+        .accessibilityLabel(app.name)
         .contextMenu {
             Button("Open") { action() }
             if app.bundleID != nil {

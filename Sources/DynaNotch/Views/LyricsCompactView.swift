@@ -6,6 +6,18 @@ import DynaNotchCore
 struct LyricsCompactView: View {
     @EnvironmentObject var vm: IslandViewModel
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var lyrics: LyricsService
+    @EnvironmentObject var nowPlaying: NowPlayingService
+
+    /// Redraw exactly when the next lyric line starts (not on a 4 Hz timer); rebuilt when the track, its position
+    /// or its lyrics change, since those publish and re-evaluate this body.
+    private var lineChanges: [Date] {
+        let now = Date()
+        let snapshot = nowPlaying.snapshot
+        let rate = snapshot.isPlaying ? (snapshot.playbackRate > 0 ? snapshot.playbackRate : 1) : 0
+        return LRCParser.changeDates(lines: lyrics.lines, elapsed: snapshot.elapsed(at: now) + settings.lyricsOffset,
+                                     rate: rate, now: now)
+    }
 
     private var radii: IslandRadii { IslandLayout.radii(for: .lyrics, hudStyle: settings.hudStyle) }
 
@@ -18,7 +30,7 @@ struct LyricsCompactView: View {
             } trailing: {
                 NowPlayingIndicator()
             }
-            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+            TimelineView(.explicit(lineChanges)) { context in
                 CompactLyricLine(date: context.date)
             }
             .padding(.horizontal, radii.top + 10)

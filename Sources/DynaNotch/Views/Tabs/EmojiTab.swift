@@ -55,6 +55,7 @@ struct EmojiTab: View {
                 }
                 .buttonStyle(.plain)
                 .help(g.title)
+                .accessibilityLabel(g.title)
             }
         }
     }
@@ -125,6 +126,7 @@ private struct EmojiCell: View {
             .onHover { hovering = $0 }
             .onTapGesture { action(NSEvent.modifierFlags.contains(.option)) }
             .help(help.isEmpty ? "Click to copy · ⌥-click to paste" : "\(help) · click to copy, ⌥-click to paste")
+            .accessibilityLabel(help.isEmpty ? "Click to copy · ⌥-click to paste" : "\(help) · click to copy, ⌥-click to paste")
     }
 }
 

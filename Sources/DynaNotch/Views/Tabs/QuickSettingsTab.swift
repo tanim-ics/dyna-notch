@@ -136,5 +136,6 @@ struct QuickSettingTile: View {
         .buttonStyle(PressableButtonStyle())
         .animation(.easeInOut(duration: 0.15), value: isOn)
         .help("\(title): \(isOn ? "On" : "Off")")
+        .accessibilityLabel("\(title): \(isOn ? "On" : "Off")")
     }
 }

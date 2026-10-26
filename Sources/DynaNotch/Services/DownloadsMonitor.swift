@@ -4,7 +4,8 @@ import os
 import DynaNotchCore
 
 /// Watches ~/Downloads for browser partial files appearing (started) and completing (finished).
-/// Polls once per second while `AppSettings.shared.downloadActivity` is on; listing runs off the main thread.
+/// While `AppSettings.shared.downloadActivity` is on, a file-system event source on the folder triggers a re-scan
+/// (entries added / removed / renamed); a 30 s poll is only a safety net. Listing runs off the main thread.
 final class DownloadsMonitor {
     static let shared = DownloadsMonitor()
 
@@ -14,6 +15,8 @@ final class DownloadsMonitor {
     private var started = false                     // main queue
     private var settingObserver: AnyCancellable?    // main queue
     private var timer: AnyCancellable?              // main queue
+    private var folderSource: DispatchSourceFileSystemObject?   // main queue
+    private var scanPending = false                 // queue only
     private var tracker = DownloadTracker()         // queue only
 
     private static var downloadsURL: URL {
@@ -38,14 +41,37 @@ final class DownloadsMonitor {
         if on {
             guard timer == nil else { return }
             queue.async { [weak self] in self?.tracker = DownloadTracker() }   // re-seed: no events for old files
-            timer = Timer.publish(every: 1, on: .main, in: .common)
+            timer = Timer.publish(every: 30, tolerance: 5, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in self?.scheduleScan() }
+            watchFolder()
             scheduleScan()
         } else {
             timer?.cancel()
             timer = nil
+            folderSource?.cancel()
+            folderSource = nil
         }
+    }
+
+    /// Directory vnode events: a download starting, being renamed when it finishes, or removed.
+    private func watchFolder() {
+        let fd = open(DownloadsMonitor.downloadsURL.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete],
+                                                               queue: queue)
+        source.setEventHandler { [weak self] in
+            // Coalesce bursts (browsers touch the folder several times per download).
+            guard let self = self, !self.scanPending else { return }
+            self.scanPending = true
+            self.queue.asyncAfter(deadline: .now() + 0.3) {
+                self.scanPending = false
+                self.scan()
+            }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        folderSource = source
     }
 
     private func scheduleScan() {

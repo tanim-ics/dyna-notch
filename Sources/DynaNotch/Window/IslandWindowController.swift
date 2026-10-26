@@ -266,11 +266,20 @@ final class IslandWindowController: NSObject {
             }
             .store(in: &cancellables)
 
-        // Safety poll in case a mouse-moved event was missed.
-        Timer.publish(every: 0.2, on: .main, in: .common)
+        // Safety poll in case a mouse-moved event was missed: fast only while the pointer is on the island or the panel
+        // is open (to catch the pointer leaving), slow otherwise (mouse-moved monitors do the work).
+        setHoverPoll(fast: false)
+    }
+
+    private var hoverPoll: AnyCancellable?
+    private var hoverPollIsFast: Bool?
+
+    private func setHoverPoll(fast: Bool) {
+        guard hoverPollIsFast != fast else { return }
+        hoverPollIsFast = fast
+        hoverPoll = Timer.publish(every: fast ? 0.2 : 2, tolerance: fast ? 0.05 : 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.updateHover() }
-            .store(in: &cancellables)
     }
 
     private func installMonitors() {
@@ -492,6 +501,7 @@ final class IslandWindowController: NSObject {
             viewModel.setHovering(inside)
         }
         updateHeaderHover(inside: inside)
+        setHoverPoll(fast: inside || presentation == .expanded || isFileDragActive || testPointer != nil)
     }
 
     /// Battery / sound header buttons open their card on hover (see `HoverRegions`).

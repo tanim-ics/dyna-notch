@@ -138,6 +138,7 @@ private struct ReminderRow: View {
             }
             .buttonStyle(.plain)
             .help("Complete")
+            .accessibilityLabel("Complete")
 
             Text(item.title.isEmpty ? "Untitled" : item.title)
                 .font(.system(size: 11, weight: .medium))

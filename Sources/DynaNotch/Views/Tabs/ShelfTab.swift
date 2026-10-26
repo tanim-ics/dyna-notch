@@ -54,6 +54,7 @@ struct ShelfTab: View {
                 }
                 .foregroundStyle(PanelStyle.tertiary)
                 .help("Settings › Tabs › Shelf retention")
+                .accessibilityLabel("Settings › Tabs › Shelf retention")
                 .uiTestID("shelfRetention")
             }
             if !shelf.items.isEmpty {
@@ -131,6 +132,7 @@ struct ShelfTile: View {
         .onDrag { dragProvider() }
         .contextMenu { menu }
         .help(shelf.url(for: item).path)
+        .accessibilityLabel(shelf.url(for: item).path)
     }
 
     private func dragProvider() -> NSItemProvider {

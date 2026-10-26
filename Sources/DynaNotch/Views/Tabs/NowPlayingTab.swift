@@ -276,6 +276,7 @@ struct OutputDeviceMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(currentName)
+        .accessibilityLabel(currentName)
     }
 
     private var currentName: String {

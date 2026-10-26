@@ -10,7 +10,7 @@ struct GeneralSettingsPane: View {
     @State private var launchAtLogin: Bool = LaunchAtLogin.isEnabled
     @State private var suggestions: [SettingsSuggestion] = []
 
-    private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    private let poll = SettingsTicker.tick
 
     var body: some View {
         SettingsPageView(page: .general) {

@@ -7,6 +7,7 @@
 #   4. clang -fsyntax-only on the MediaRemote adapter (only when Foundation headers exist, i.e. macOS)
 #   5. bash -n on the shell scripts
 #   6. Info.plist validation (python3 plistlib, plus plutil on macOS)
+#   7. with --ui: scripts/ui-regression.sh against the installed, running app (macOS)
 #
 # Exits non-zero if any check fails. Compatible with bash 3.2.
 
@@ -141,44 +142,7 @@ if [ ! -f "$PLIST" ]; then
     fail "$PLIST missing"
 else
     if command -v python3 >/dev/null 2>&1; then
-        if out="$(python3 -I - "$PLIST" 2>&1 <<'PY'
-import plistlib, sys
-path = sys.argv[1]
-with open(path, "rb") as fh:
-    p = plistlib.load(fh)
-expected = {
-    "CFBundleExecutable": "DynaNotch",
-    "CFBundleIdentifier": "com.tanim.dynanotch",
-    "CFBundleName": "DynaNotch",
-    "CFBundleDisplayName": "DynaNotch",
-    "CFBundlePackageType": "APPL",
-    "CFBundleShortVersionString": "2.0.0",
-    "CFBundleVersion": "200",
-    "CFBundleIconFile": "AppIcon",
-    "LSMinimumSystemVersion": "14.0",
-    "LSUIElement": True,
-    "NSPrincipalClass": "NSApplication",
-    "NSHighResolutionCapable": True,
-    "LSApplicationCategoryType": "public.app-category.utilities",
-}
-problems = []
-for k, v in expected.items():
-    if p.get(k) != v:
-        problems.append("%s = %r (expected %r)" % (k, p.get(k), v))
-for k in ("NSAppleEventsUsageDescription", "NSBluetoothAlwaysUsageDescription",
-          "NSCalendarsFullAccessUsageDescription", "NSCalendarsUsageDescription",
-          "NSHumanReadableCopyright"):
-    if not isinstance(p.get(k), str) or not p.get(k):
-        problems.append("%s missing" % k)
-for k, v in p.items():
-    if isinstance(v, str) and "$(" in v:
-        problems.append("%s contains unexpanded variable %r" % (k, v))
-if problems:
-    print("\n".join(problems))
-    sys.exit(1)
-print("%d keys OK" % len(p))
-PY
-)"; then
+        if out="$(python3 -I "$ROOT/scripts/check_plist.py" "$PLIST" 2>&1)"; then
             pass "plistlib $PLIST ($out)"
         else
             fail "plistlib $PLIST"
@@ -190,6 +154,18 @@ PY
     if [ "$(uname -s)" = "Darwin" ] && command -v plutil >/dev/null 2>&1; then
         run_logged "plutil -lint $PLIST" "$LOG_DIR/plutil.log" plutil -lint "$PLIST"
     fi
+fi
+
+# ---------------------------------------------------------------------------
+section "UI regression (scripted user scenarios)"
+if [ "${1:-}" = "--ui" ]; then
+    if [ "$(uname -s)" = "Darwin" ] && pgrep -x DynaNotch >/dev/null 2>&1; then
+        run_logged "scripts/ui-regression.sh" "$LOG_DIR/ui-regression.log" "$ROOT/scripts/ui-regression.sh"
+    else
+        skip "scripts/ui-regression.sh" "needs macOS with DynaNotch running (./build.sh)"
+    fi
+else
+    skip "scripts/ui-regression.sh" "pass --ui to run it against the installed app"
 fi
 
 # ---------------------------------------------------------------------------

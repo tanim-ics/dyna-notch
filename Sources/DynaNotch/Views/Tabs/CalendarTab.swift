@@ -394,6 +394,7 @@ private struct AgendaEventRow: View {
         .onTapGesture(perform: onEdit)
         .uiTestID("calendar.event.\(item.title)")
         .help("Click to edit")
+        .accessibilityLabel("Click to edit")
     }
 
     private var timeText: String {
@@ -423,6 +424,7 @@ private struct AgendaReminderRow: View {
             }
             .buttonStyle(.plain)
             .help("Complete")
+            .accessibilityLabel("Complete")
             Text(item.title.isEmpty ? "Untitled" : item.title)
                 .font(.system(size: 11))
                 .foregroundStyle(Color.white.opacity(ticking ? 0.4 : 0.9))

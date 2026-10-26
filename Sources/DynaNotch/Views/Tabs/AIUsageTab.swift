@@ -40,6 +40,7 @@ struct AIUsageHeader: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(PanelStyle.tertiary)
                     .help("Personal info hidden (Settings › AI Usage)")
+                    .accessibilityLabel("Personal info hidden (Settings › AI Usage)")
             }
             PanelIconButton(symbol: "arrow.clockwise", size: 10, frame: 20, help: "Refresh") {
                 usage.refresh()

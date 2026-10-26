@@ -199,7 +199,7 @@ struct SettingsRootView: View {
     @State private var search: String = ""
     @State private var suggestionCount = 0
 
-    private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    private let poll = SettingsTicker.tick
 
     var body: some View {
         NavigationSplitView {

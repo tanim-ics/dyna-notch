@@ -158,6 +158,7 @@ private struct EngineChip: View {
         }
         .buttonStyle(PressableButtonStyle())
         .help(isDefault ? "\(engine.name) (default)" : engine.name)
+        .accessibilityLabel(isDefault ? "\(engine.name) (default)" : engine.name)
     }
 }
 

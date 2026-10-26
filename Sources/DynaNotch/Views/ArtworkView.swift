@@ -24,20 +24,16 @@ struct ArtworkView: View {
 
     var body: some View {
         Group {
-            if style == .circle {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isPlaying)) { context in
-                    circleArt(angle: angle(at: context.date))
-                }
+            if style == .circle, let image = image {
+                // Spins on the render server (see LayerAnimations.swift), not in a 30 fps TimelineView.
+                SpinningDiscLayer(image: image, isPlaying: isPlaying)
+            } else if style == .circle {
+                circleArt(angle: 0)
             } else {
                 roundedArt
             }
         }
         .frame(width: size, height: size)
-    }
-
-    private func angle(at date: Date) -> Double {
-        guard isPlaying else { return 0 }
-        return (date.timeIntervalSinceReferenceDate * 18).truncatingRemainder(dividingBy: 360)
     }
 
     private var roundedArt: some View {
@@ -46,6 +42,7 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
+    /// Static disc (no artwork yet).
     private func circleArt(angle: Double) -> some View {
         ZStack {
             imageContent

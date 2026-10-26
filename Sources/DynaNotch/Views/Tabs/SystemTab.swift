@@ -83,6 +83,7 @@ struct SystemSectionRail: View {
                 }
                 .buttonStyle(.plain)
                 .help(item.title)
+                .accessibilityLabel(item.title)
             }
             Spacer(minLength: 0)
         }

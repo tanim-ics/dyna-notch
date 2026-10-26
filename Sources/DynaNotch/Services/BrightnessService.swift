@@ -55,10 +55,28 @@ final class BrightnessService {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.cachedDisplayID = nil }
         guard getFn != nil else { return }
-        pollCancellable = Timer.publish(every: 0.2, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in self?.poll() }
-        poll()
+        // Only needed to notice brightness-key changes when the media-key tap can't see the keys (no Accessibility);
+        // with the tap active, it posts the HUD itself and this poll stops.
+        tapCancellable = MediaKeyTap.shared.$isActive
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] tapActive in self?.setPolling(!tapActive) }
+    }
+
+    private var tapCancellable: AnyCancellable?
+
+    private func setPolling(_ on: Bool) {
+        if on {
+            guard pollCancellable == nil else { return }
+            pollCancellable = Timer.publish(every: 0.5, tolerance: 0.2, on: .main, in: .common)
+                .autoconnect()
+                .sink { [weak self] _ in self?.poll() }
+            poll()
+        } else {
+            pollCancellable?.cancel()
+            pollCancellable = nil
+            lastLevel = read()
+        }
     }
 
     func read() -> Double? {
