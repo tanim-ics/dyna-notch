@@ -135,6 +135,32 @@ public enum IslandLayout {
         return CGSize(width: size.width * s, height: size.height * s)
     }
 
+    // MARK: Pill size (Settings → Appearance → Pill Width / Pill Height)
+
+    /// Settings → Appearance → Pill Height range; the default is a little thicker than the 32 pt notch.
+    public static let pillHeightRange: ClosedRange<CGFloat> = 28...44
+    public static let defaultPillHeight: CGFloat = 36
+    /// Widest resting pill the Pill Width slider allows.
+    public static let pillMaxWidth: CGFloat = 420
+
+    /// Resting pill width range: never narrower than the MacBook's camera notch.
+    public static func pillWidthRange(notchWidth: CGFloat) -> ClosedRange<CGFloat> {
+        let low = min(max(notchWidth, 1), pillMaxWidth)
+        return low...pillMaxWidth
+    }
+
+    /// Layout metrics of a floating pill that rests **on screen** `width` wide (clamped to `pillWidthRange(notchWidth:)`)
+    /// and `height` tall (clamped to `pillHeightRange`) once drawn at Closed Pill Size `scale`: the layout is divided by
+    /// the scale, so the scale only resizes the content inside. Compact presentations add their side columns, so no
+    /// pill is narrower than the notch.
+    public static func pillMetrics(width: CGFloat, height: CGFloat, notchWidth: CGFloat, scale: CGFloat = 1) -> NotchMetrics {
+        let s = clamp(scale, pillScaleRange)
+        let w = clamp(width, pillWidthRange(notchWidth: notchWidth)) / s
+        let h = clamp(height, pillHeightRange) / s
+        let ears = 2 * radii(for: .idle, hudStyle: .compact).top
+        return NotchMetrics(width: max(0, w - ears), height: h, hasPhysicalNotch: false)
+    }
+
     // MARK: v3.4 panel size (Settings → Appearance → Panel)
 
     /// Settings → Appearance → Panel width range.

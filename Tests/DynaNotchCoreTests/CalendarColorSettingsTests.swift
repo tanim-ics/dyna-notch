@@ -147,7 +147,8 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(DisplayMode.main.title, "Main display")
         XCTAssertEqual(DisplayMode.followMouse.title, "Follow mouse")
         XCTAssertEqual(DisplayMode.external.title, "External display")
-        XCTAssertEqual(DisplayMode.allCases.count, 4)
+        XCTAssertEqual(DisplayMode.allDisplays.title, "Every display")
+        XCTAssertEqual(DisplayMode.allCases.count, 5)
     }
 
     func testArtworkAndVisualizerTitles() {
@@ -169,7 +170,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(SettingsKey.showMenuBarIcon, "dn.showMenuBarIcon")
         XCTAssertEqual(SettingsKey.calendarLeadMinutes, "dn.calendarLeadMinutes")
         XCTAssertEqual(SettingsKey.hudStyle, "dn.hudStyle")
-        XCTAssertEqual(SettingsKey.all.count, 152)
+        XCTAssertEqual(SettingsKey.all.count, 154)
         XCTAssertEqual(Set(SettingsKey.all).count, SettingsKey.all.count)
         XCTAssertTrue(SettingsKey.all.allSatisfy { $0.hasPrefix("dn.") && $0.count > 3 })
     }
@@ -189,7 +190,7 @@ final class SettingsTests: XCTestCase {
                      "shelfRemoveOnDragOut", "weatherEnabled", "weatherCity", "temperatureUnit", "aiUsageEnabled",
                      "downloadActivity", "privacyActivity", "capsLockActivity", "notifyActivity",
                      "islandMaterial", "hasSeenWelcome",
-                     "materialPreset", "panelTranslucency", "animationStyle", "animationSpeed", "colorCodedLevels", "closedPillClock", "timeFormat", "helloIntro", "defaultTab", "openOnCurrentActivity", "idleTimeout", "invisibleUntilHover", "notificationDuration", "lyricsOffset", "pomodoroAutoContinue", "breakLookAway", "breakStandUp", "standUpMinutes", "breakDrinkWater", "drinkWaterMinutes", "lowBatteryThreshold", "fullChargeActivity", "accessoryAlerts", "clipboardIgnoredApps", "clipboardAutoClearMinutes", "pasteWithNumbers", "meetingAlert", "meetingAlertMinutes", "screenTimeEnabled", "quickSearchEngine", "launcherApps", "colorFormat", "driveActivity", "screenshotToShelf", "headerButtons", "notchDisplayStyle", "pillScale", "pillHeightOffset", "screenSharingPrivacy", "hideWhileMirroring", "fullscreenScope", "autoCollapse", "quietDuringFocus", "peekOnHover", "mediaKeysControlPlayer", "preventMusicAutoLaunch", "meetingOnlyWithLink", "hiddenCalendars", "calendarHotkeys", "timerHoverControls", "clipboardCaptureSound", "shelfRetention", "screenshotFolder", "unplugActivity", "fullChargeLevel", "clockContent", "clockWithActivities", "panelWidth", "panelSizing", "panelMaxHeight", "panelFillHex", "pillMatchesPanel", "trackInfoMode", "desktopLyrics", "edgeGlow", "alertSounds", "hotkeyBindings", "knockEnabled", "knockKey", "knockActions", "copyTwiceToOpen", "offerCleanCopy", "customSearchEngines", "homeCards", "homeColumns", "worldClocks", "savedLinks", "repeatTimer", "repeatAlarm", "pomodoroOnly", "aiLimitWarnings", "aiLimitWarnPercent", "aiMenuBarReadout", "aiHidePersonalInfo", "batteryInMenuBar", "drainWarnings", "dmgInstallOffer", "nextMeetingInMenuBar", "listeningHistory", "defaultMusicApp"]
+                     "materialPreset", "panelTranslucency", "animationStyle", "animationSpeed", "colorCodedLevels", "closedPillClock", "timeFormat", "helloIntro", "defaultTab", "openOnCurrentActivity", "idleTimeout", "invisibleUntilHover", "notificationDuration", "lyricsOffset", "pomodoroAutoContinue", "breakLookAway", "breakStandUp", "standUpMinutes", "breakDrinkWater", "drinkWaterMinutes", "lowBatteryThreshold", "fullChargeActivity", "accessoryAlerts", "clipboardIgnoredApps", "clipboardAutoClearMinutes", "pasteWithNumbers", "meetingAlert", "meetingAlertMinutes", "screenTimeEnabled", "quickSearchEngine", "launcherApps", "colorFormat", "driveActivity", "screenshotToShelf", "headerButtons", "notchDisplayStyle", "pillScale", "pillHeightOffset", "screenSharingPrivacy", "hideWhileMirroring", "fullscreenScope", "autoCollapse", "quietDuringFocus", "peekOnHover", "mediaKeysControlPlayer", "preventMusicAutoLaunch", "meetingOnlyWithLink", "hiddenCalendars", "calendarHotkeys", "timerHoverControls", "clipboardCaptureSound", "shelfRetention", "screenshotFolder", "unplugActivity", "fullChargeLevel", "clockContent", "clockWithActivities", "panelWidth", "panelSizing", "panelMaxHeight", "panelFillHex", "pillMatchesPanel", "trackInfoMode", "desktopLyrics", "edgeGlow", "alertSounds", "hotkeyBindings", "knockEnabled", "knockKey", "knockActions", "copyTwiceToOpen", "offerCleanCopy", "customSearchEngines", "homeCards", "homeColumns", "worldClocks", "savedLinks", "repeatTimer", "repeatAlarm", "pomodoroOnly", "aiLimitWarnings", "aiLimitWarnPercent", "aiMenuBarReadout", "aiHidePersonalInfo", "batteryInMenuBar", "drainWarnings", "dmgInstallOffer", "nextMeetingInMenuBar", "listeningHistory", "defaultMusicApp", "pillWidth", "pillHeight"]
         XCTAssertEqual(SettingsKey.all, names.map { "dn." + $0 })
     }
 }

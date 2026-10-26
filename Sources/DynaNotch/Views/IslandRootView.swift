@@ -51,7 +51,8 @@ struct IslandRootView: View {
     }
 
     private var shape: IslandShape {
-        IslandShape(isPill: vm.isPill, topRadius: vm.radii.top, bottomRadius: vm.radii.bottom)
+        IslandShape(isPill: vm.isPill, topRadius: vm.radii.top, bottomRadius: vm.radii.bottom,
+                    pillRowHeight: vm.notch.height)
     }
 
     private var hoverScale: CGFloat {
@@ -188,6 +189,8 @@ struct IslandShape: Shape {
     var isPill: Bool
     var topRadius: CGFloat
     var bottomRadius: CGFloat
+    /// Pill Height: a pill at least this tall rounds its ends to at least half of it, so a thick pill stays a capsule.
+    var pillRowHeight: CGFloat = 0
 
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { AnimatablePair(topRadius, bottomRadius) }
@@ -199,7 +202,9 @@ struct IslandShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         if isPill {
-            let radius = min(rect.height / 2, bottomRadius + 6)
+            let radius = min(rect.height / 2, max(bottomRadius + 6, pillRowHeight / 2))
+            // Continuous corners at half the height read as squarish ends; a full-height radius draws a true capsule.
+            if radius >= rect.height / 2 { return Capsule(style: .circular).path(in: rect) }
             return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect)
         }
         return NotchShape(topRadius: topRadius, bottomRadius: bottomRadius).path(in: rect)

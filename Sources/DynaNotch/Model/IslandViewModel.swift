@@ -87,8 +87,13 @@ final class IslandViewModel: ObservableObject {
 
     private static let peekDuration: TimeInterval = 2.8
 
-    init(settings: AppSettings = .shared) {
+    /// Show On → Every display: extra islands (`isPrimary == false`) mirror the activities but leave sounds, the edge
+    /// glow, media keys and shortcuts to the primary island so nothing happens twice.
+    let isPrimary: Bool
+
+    init(settings: AppSettings = .shared, isPrimary: Bool = true) {
         self.settings = settings
+        self.isPrimary = isPrimary
         if settings.rememberLastTab, let tab = PanelTab(rawValue: settings.lastTab) {
             selectedTab = tab
         }
@@ -268,8 +273,10 @@ final class IslandViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        MediaKeyTap.shared.handler = { [weak self] event, flags in
-            self?.handleMediaKey(event, flags) ?? false
+        if isPrimary {
+            MediaKeyTap.shared.handler = { [weak self] event, flags in
+                self?.handleMediaKey(event, flags) ?? false
+            }
         }
 
         nowPlaying.start()
@@ -321,10 +328,15 @@ final class IslandViewModel: ObservableObject {
         applyNotchShape()
     }
 
-    /// A pill below the notch lays out like a non-notch island (no gap for the camera housing).
+    /// Settings → Appearance → Pill Width can't go below this: the MacBook's camera notch (185 pt without one).
+    var pillMinWidth: CGFloat { ScreenLocator.physicalNotchWidth() }
+
+    /// A pill lays out like a non-notch island (no gap for the camera housing), sized by Pill Width / Pill Height.
     private func applyNotchShape() {
-        let effective = floatsBelowNotch
-            ? NotchMetrics(width: NotchMetrics.fallback.width, height: NotchMetrics.fallback.height, hasPhysicalNotch: false)
+        let usesPill = floatsBelowNotch || (!screenNotch.hasPhysicalNotch && settings.nonNotchStyle == .pill)
+        let effective = usesPill
+            ? IslandLayout.pillMetrics(width: CGFloat(settings.pillWidth), height: CGFloat(settings.pillHeight),
+                                       notchWidth: pillMinWidth, scale: CGFloat(settings.pillScale))
             : screenNotch
         guard effective != notch else { return }
         notch = effective
@@ -589,6 +601,7 @@ final class IslandViewModel: ObservableObject {
     /// Side effects of a posted activity: its alert sound (Settings → Popups → Sounds) and, for battery / timer
     /// alerts, the screen-edge glow (Settings → Popups → Edge Glow).
     private func didPost(_ kind: ActivityKind, category: AlertCategory? = nil) {
+        guard isPrimary else { return }
         if let category = category ?? IslandViewModel.alertCategory(for: kind) {
             // Settings → Timer → Sound off silences timer alerts whatever Sounds → Timers says.
             if !(category == .timers && !settings.timerSound) {
@@ -1005,7 +1018,7 @@ final class IslandViewModel: ObservableObject {
                 guard let self = self, self.settings.fullChargeActivity else { return }
                 self.postNotification(title: "Fully Charged", body: "100 %", symbol: "battery.100percent.bolt",
                                       category: .battery)
-                EdgeGlowController.shared.flash(.systemGreen)
+                if self.isPrimary { EdgeGlowController.shared.flash(.systemGreen) }
             }
             .store(in: &cancellables)
 
@@ -1033,7 +1046,7 @@ final class IslandViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        AppActions.shared.viewModel = self
+        if isPrimary { AppActions.shared.viewModel = self }
     }
 
     /// ⌃⌥N / knock / palette: open (focused for typing) or close the panel.

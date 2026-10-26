@@ -74,6 +74,49 @@ u "ui/action?name=hide" 3.0; check "hide: hidden" "$(state presentation)" "hidde
 u "ui/action?name=hide" 1.0; check "hide: back" "$(state isUserHidden)" "False"
 u collapse 0.6
 
+echo "==> Floating pill width / height (restores the owner's shape and sizes)"
+pref() { defaults read com.tanim.dynanotch "$1" 2>/dev/null || echo "$2"; }
+if [ "$(state isOnNotchDisplay)" = "True" ]; then SHAPE=dn.notchDisplayStyle; SHAPE_DEF=notch; else SHAPE=dn.nonNotchStyle; SHAPE_DEF=pill; fi
+OLD_SHAPE=$(pref $SHAPE $SHAPE_DEF); OLD_PW=$(pref dn.pillWidth 185); OLD_PH=$(pref dn.pillHeight 36); OLD_PS=$(pref dn.pillScale 1)
+u "set?$SHAPE=pill&dn.pillWidth=185&dn.pillHeight=36&dn.pillScale=1" 1.0
+MIN=$(state pillMinWidth); MINI=${MIN%.*}
+check "pill: is pill" "$(state isPill)" "True"
+check "pill: default height 36" "$(state notchHeight)" "36"
+check "pill: default width = notch" "$(state notchWidth)" "$((MINI - 12))"
+u "set?dn.pillWidth=100&dn.pillHeight=10" 1.0
+check "pill: width floor = notch" "$(state notchWidth)" "$((MINI - 12))"
+check "pill: height floor 28" "$(state notchHeight)" "28"
+u "set?dn.pillWidth=300&dn.pillHeight=42" 1.0
+check "pill: custom width 300" "$(state notchWidth)" "288"
+check "pill: custom height 42" "$(state notchHeight)" "42"
+rm -f "$SNAP/reg-pill-custom.png"; u "snapshot/reg-pill-custom" 1.2
+rendered "pill: custom renders" "$SNAP/reg-pill-custom.png" 2000
+u "set?dn.pillScale=0.85" 1.0
+REST=$(state notchWidth); HGT=$(state notchHeight)
+check "pill: content scale keeps outline" "$(python3 -c "print(round(($REST + 12) * 0.85), round($HGT * 0.85))")" "300 42"
+u "set?$SHAPE=$OLD_SHAPE&dn.pillWidth=$OLD_PW&dn.pillHeight=$OLD_PH&dn.pillScale=$OLD_PS" 1.0
+
+echo "==> Show On: Every display / Follow mouse (restores the owner's choice)"
+OLD_DM=$(pref dn.displayMode notchOrMain); OLD_NN=$(pref dn.showOnNonNotchDisplays 1)
+[ "$OLD_NN" = "1" ] && OLD_NN=true; [ "$OLD_NN" = "0" ] && OLD_NN=false
+islands() { rm -f "$STATE"; u state 0.5; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); i=d.get('islands',[]); print(len(i), sum(1 for x in i if x.get('visible')), sum(1 for x in i if sys.argv[2] in x.get('presentation','')), sum(1 for x in i if x.get('isUserHidden')))" "$STATE" "$1" 2>/dev/null; }
+SCREENS=$(system_profiler SPDisplaysDataType 2>/dev/null | grep -c "Resolution:")
+EXTRA=$((SCREENS - 1)); [ "$EXTRA" -lt 0 ] && EXTRA=0
+u "set?dn.displayMode=allDisplays&dn.showOnNonNotchDisplays=true" 2.0
+check "every display: one island per extra display" "$(islands x)" "$EXTRA $EXTRA"
+u "notify?title=Regression&body=every%20display" 1.0
+check "every display: notify reaches all" "$(islands notification)" "$EXTRA $EXTRA $EXTRA"
+u "ui/action?name=hide" 2.0; check "every display: hide hides all" "$(islands x | cut -d' ' -f4)" "$EXTRA"
+u "ui/action?name=hide" 1.5; check "every display: show again" "$(islands x | cut -d' ' -f4)" "0"
+if [ "$EXTRA" -gt 0 ]; then
+    rm -f "$SNAP/reg-extra.png"; u "snapshot-extra/reg-extra" 1.2
+    rendered "every display: extra renders" "$SNAP/reg-extra.png" 2000
+fi
+u "set?dn.displayMode=followMouse" 1.5
+check "follow mouse: single island" "$(islands x)" "0 0"
+u "set?dn.displayMode=$OLD_DM&dn.showOnNonNotchDisplays=$OLD_NN" 1.5
+check "show on: restored" "$(state displayMode)" "$OLD_DM"
+
 echo "==> Settings pages"
 PAGES="general appearance behavior popups allTools tabs home knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"
 for p in $PAGES; do

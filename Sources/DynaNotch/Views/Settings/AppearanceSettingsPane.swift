@@ -7,6 +7,18 @@ struct AppearanceSettingsPane: View {
     private var isGlass: Bool { settings.islandMaterial == .glass }
     private var usesPill: Bool { settings.nonNotchStyle == .pill || settings.notchDisplayStyle == .pill }
 
+    /// Pill Width starts at the camera notch's width (185 pt on Macs without one).
+    private var pillWidthRange: ClosedRange<Double> {
+        let r = IslandLayout.pillWidthRange(notchWidth: ScreenLocator.physicalNotchWidth())
+        return Double(r.lowerBound)...Double(r.upperBound)
+    }
+
+    /// Shows (and edits) the width actually used: a stored value below the notch reads as the notch width.
+    private var pillWidthBinding: Binding<Double> {
+        Binding(get: { min(max(settings.pillWidth, pillWidthRange.lowerBound), pillWidthRange.upperBound) },
+                set: { settings.pillWidth = $0 })
+    }
+
     var body: some View {
         SettingsPageView(page: .appearance) {
             islandSection
@@ -20,7 +32,7 @@ struct AppearanceSettingsPane: View {
                 SettingsKey.islandMaterial, SettingsKey.materialPreset, SettingsKey.panelTranslucency,
                 SettingsKey.closedPillClock, SettingsKey.colorCodedLevels, SettingsKey.animationStyle,
                 SettingsKey.animationSpeed, SettingsKey.nonNotchStyle, SettingsKey.notchDisplayStyle, SettingsKey.showOnNonNotchDisplays,
-                SettingsKey.hapticFeedback, SettingsKey.pillScale, SettingsKey.pillHeightOffset,
+                SettingsKey.hapticFeedback, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.pillWidth, SettingsKey.pillHeight,
                 SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth,
                 SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel,
             ])
@@ -239,8 +251,18 @@ struct AppearanceSettingsPane: View {
                           detail: "Shows the time inside the resting pill. Needs the Floating pill shape.",
                           isOn: $settings.closedPillClock, testID: "setting-closedPillClock")
                 .disabled(!usesPill)
-            SliderRow(symbol: "capsule.fill", color: .blue, title: "Closed Pill Size",
-                      detail: "Scale the resting pill up or down. Needs the Floating pill shape.",
+            SliderRow(symbol: "arrow.left.and.right", color: .blue, title: "Pill Width",
+                      detail: "Width of the resting pill; never narrower than the MacBook's notch. Activities add to it. Needs the Floating pill shape.",
+                      value: pillWidthBinding, range: pillWidthRange, step: 5,
+                      format: { String(format: "%.0f pt", $0) }, testID: "setting-pillWidth")
+                .disabled(!usesPill)
+            SliderRow(symbol: "arrow.up.and.down.square", color: .blue, title: "Pill Height",
+                      detail: "Thickness of the pill. Taller also makes the open panel's top row taller. Needs the Floating pill shape.",
+                      value: $settings.pillHeight, range: 28...44, step: 1,
+                      format: { String(format: "%.0f pt", $0) }, testID: "setting-pillHeight")
+                .disabled(!usesPill)
+            SliderRow(symbol: "capsule.fill", color: .blue, title: "Pill Content Size",
+                      detail: "Scale the icons and text inside the resting pill; Pill Width and Height keep its outline. Needs the Floating pill shape.",
                       value: $settings.pillScale, range: 0.8...1.3, step: 0.05, format: SettingsFormat.percent,
                       testID: "setting-pillScale")
                 .disabled(!usesPill)

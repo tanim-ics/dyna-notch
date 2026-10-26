@@ -6,6 +6,7 @@ import DynaNotchCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var viewModel: IslandViewModel?
     private var islandController: IslandWindowController?
+    private var screensCoordinator: IslandScreensCoordinator?
     private var statusItemController: StatusItemController?
     private var settingsController: SettingsWindowController?
     private var openSettingsObserver: NSObjectProtocol?
@@ -23,6 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         island.show()
 
         vm.start()
+
+        // Show On → Every display: extra islands on the other displays.
+        let coordinator = IslandScreensCoordinator(primary: vm, primaryController: island)
+        screensCoordinator = coordinator
+        coordinator.start()
 
         settingsController = SettingsWindowController(viewModel: vm)
         statusItemController = StatusItemController(viewModel: vm)
@@ -103,7 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "tab":
                 if let tab = PanelTab(rawValue: argument) { viewModel?.open(tab: tab) }
             case "notify":
-                if let notification = NotifyURL.parse(url) { viewModel?.notify(notification) }
+                if let notification = NotifyURL.parse(url) {
+                    // Every island shows it (Show On → Every display); only the primary one plays the sound.
+                    viewModel?.notify(notification)
+                    screensCoordinator?.extraViewModels.forEach { $0.notify(notification) }
+                }
             case "snapshot-palette":
                 // dynanotch://snapshot-palette/<name> → Snapshots/<name>.png (palette must be shown)
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -245,6 +255,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "visibleWidth": Double(vm.visibleIslandSize.width),
                     "visibleHeight": Double(vm.visibleIslandSize.height),
                     "pillScale": Double(vm.pillScale),
+                    "pillWidth": AppSettings.shared.pillWidth,
+                    "pillHeight": AppSettings.shared.pillHeight,
+                    "pillMinWidth": Double(vm.pillMinWidth),
+                    "accessibility": Permissions.accessibilityGranted,
+                    "displayMode": AppSettings.shared.displayMode.rawValue,
+                    "islands": screensCoordinator?.extraStates ?? [],
                     "showsTimerControls": vm.showsTimerControls,
                     "sharingType": islandController?.sharingTypeName ?? "none",
                     "suppression": islandController?.suppressionReason ?? "none",
@@ -287,6 +303,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Let pending animations settle first.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                     self?.islandController?.snapshot(to: file)
+                }
+            case "snapshot-extra":
+                // dynanotch://snapshot-extra/<name> → the first extra island (Show On → Every display)
+                let name = argument.isEmpty ? "extra" : argument
+                let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                    ?? URL(fileURLWithPath: NSTemporaryDirectory())
+                let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                    _ = self?.screensCoordinator?.firstExtraController?.snapshot(to: file)
                 }
             case "timer":
                 // dynanotch://timer/25 → 25-minute countdown, dynanotch://timer/stop → reset

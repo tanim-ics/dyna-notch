@@ -132,15 +132,16 @@ struct BehaviorSettingsPane: View {
 
     private var visibilitySection: some View {
         Section("Visibility") {
-            SettingStackedRow(symbol: "display.2", color: .blue, title: "Show On",
-                              detail: "Which display shows the island when several are connected. External falls back to the built-in display when none is plugged in.") {
+            SettingRow(symbol: "display.2", color: .blue, title: "Show On",
+                       detail: displayModeDetail) {
                 Picker("Show island on", selection: $settings.displayMode) {
                     ForEach(DisplayMode.allCases, id: \.self) { mode in
                         Text(shortTitle(mode)).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 .labelsHidden()
+                .fixedSize()
                 .uiTestID("setting-displayMode")
             }
             SettingToggle(symbol: "eye.slash.fill", color: .gray, title: "Invisible Until Hover",
@@ -186,12 +187,24 @@ struct BehaviorSettingsPane: View {
         }
     }
 
+    /// What the selected Show On choice does, and its cost.
+    private var displayModeDetail: String {
+        switch settings.displayMode {
+        case .notchOrMain: return "One island, on the MacBook's notch display (the main display if there is none)."
+        case .main: return "One island, on the display with the menu bar."
+        case .external: return "One island, on an external display; the built-in display when none is plugged in."
+        case .followMouse: return "One island that moves to whichever display your pointer is on."
+        case .allDisplays: return "An island on every display, each opening on its own. Uses a little more memory and energy per display."
+        }
+    }
+
     private func shortTitle(_ mode: DisplayMode) -> String {
         switch mode {
         case .notchOrMain: return "Built-in"
         case .main: return "Main"
         case .external: return "External"
         case .followMouse: return "Follow Mouse"
+        case .allDisplays: return "Every Display"
         }
     }
 

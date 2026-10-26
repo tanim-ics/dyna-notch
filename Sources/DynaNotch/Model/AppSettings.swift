@@ -434,6 +434,22 @@ final class AppSettings: ObservableObject {
             defaults.set(pillHeightOffset, forKey: SettingsKey.pillHeightOffset)
         }
     }
+    // MARK: Pill size (CONTRACTS §6.9) — resting pill width (clamped to ≥ the notch where used) and height.
+
+    @Published var pillWidth: Double = 185 {
+        didSet {
+            let clamped = AppSettings.clamp(pillWidth, 150, 420)
+            if clamped != pillWidth { pillWidth = clamped }
+            defaults.set(pillWidth, forKey: SettingsKey.pillWidth)
+        }
+    }
+    @Published var pillHeight: Double = 36 {
+        didSet {
+            let clamped = AppSettings.clamp(pillHeight, 28, 44)
+            if clamped != pillHeight { pillHeight = clamped }
+            defaults.set(pillHeight, forKey: SettingsKey.pillHeight)
+        }
+    }
     @Published var screenSharingPrivacy: Bool = false {
         didSet { defaults.set(screenSharingPrivacy, forKey: SettingsKey.screenSharingPrivacy) }
     }
@@ -657,7 +673,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.calendarEnabled,
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
         SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
-        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp,
+        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -772,6 +788,8 @@ final class AppSettings: ObservableObject {
         headerButtons = defaults.string(forKey: SettingsKey.headerButtons) ?? "battery,output,keepAwake,actions,pin,lock"
         pillScale = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillScale) as? Double ?? 1.0, 0.8, 1.3)
         pillHeightOffset = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillHeightOffset) as? Double ?? 0, -6, 12)
+        pillWidth = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillWidth) as? Double ?? 185, 150, 420)
+        pillHeight = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillHeight) as? Double ?? 36, 28, 44)
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -946,6 +964,8 @@ final class AppSettings: ObservableObject {
         headerButtons = defaults.string(forKey: SettingsKey.headerButtons) ?? "battery,output,keepAwake,actions,pin,lock"
         pillScale = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillScale) as? Double ?? 1.0, 0.8, 1.3)
         pillHeightOffset = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillHeightOffset) as? Double ?? 0, -6, 12)
+        pillWidth = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillWidth) as? Double ?? 185, 150, 420)
+        pillHeight = AppSettings.clamp(defaults.object(forKey: SettingsKey.pillHeight) as? Double ?? 36, 28, 44)
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -1141,6 +1161,8 @@ final class AppSettings: ObservableObject {
         headerButtons = "battery,output,keepAwake,actions,pin,lock"
         pillScale = 1.0
         pillHeightOffset = 0
+        pillWidth = 185
+        pillHeight = 36
         screenSharingPrivacy = false
         hideWhileMirroring = false
         fullscreenScope = .allApps

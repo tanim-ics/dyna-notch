@@ -36,8 +36,8 @@ keyed network services, App Store / notarised distribution, licensing. Network u
 | Task | Command |
 |---|---|
 | Test, build, sign, install, launch | `./build.sh` (`--skip-tests`, `--no-install`, `--dmg`, `--debug`) |
-| Unit tests (Core, 224) | `swift test` |
-| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 94 UI checks against the running app |
+| Unit tests (Core, 234) | `swift test` |
+| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 110 UI checks against the running app |
 | Health (crashes, hangs, log errors, idle energy) | `scripts/health.sh [days]` |
 | Live log | `log stream --predicate 'subsystem == "com.tanim.dynanotch"'` |
 

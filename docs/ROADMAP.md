@@ -166,6 +166,9 @@ did **not** already cover, plus bugs the owner reported. Priority: **P1** = next
 | Hello was a full-screen takeover | ✅ now an island pop-up that grows out of the notch (hello → welcome → tips) and shrinks back |
 | Settings hard to scan | ✅ Notchy-style rows: page subtitle, icon + title + description per row, dimmed dependants, −/+ sliders, Suggestions card, Restore… per page |
 | Tab menu items Launcher…System did nothing | ✅ those items sit below the panel, so picking one left the pointer outside and the panel collapsed (and "open on current activity" then reset the tab). The panel now holds while its menus track + 3 s grace until the pointer returns; a tab you picked wins over "open on current activity" for 10 min |
+| Floating pill too thin, width not adjustable | ✅ default height 36 pt (was 32 / menu-bar height); Settings → Appearance → **Pill Width** (≥ the MacBook notch width) and **Pill Height** sliders, live; sizes are on screen, so Closed Pill Size became **Pill Content Size** (scales only the icons/text) and thick pills draw true capsule ends (`IslandLayout.pillMetrics`, CONTRACTS §6.9) |
+| No island on external displays (2026-10-27) | ✅ Show On → **Every Display** (an island per display, each opens on its own, hide hides all, sounds once) or Follow Mouse; picker is now a menu with a per-choice description |
+| General badge stayed after allowing Accessibility | ⏳ owner action: a stale Accessibility entry (an older build) — the suggestion now says to remove it with − and allow again |
 | Pill / Notch choice only applied after relaunch | ✅ the window controller observes both shape settings and re-applies + repositions at once (verified by clicking the real Settings card) |
 | Settings content overlapped the title bar | ✅ standard (non-transparent) title bar; page header scrolls inside the Form |
 
@@ -199,7 +202,7 @@ lives ("Stays on this Mac").
 | Behavior | Hide While Mirroring | P1 | ✅ | `CGDisplayIsInMirrorSet` |
 | Behavior | Full-screen apps: All / only the app playing media | P1 | ✅ | compare frontmost bundle with NowPlaying bundle |
 | Behavior | Auto Collapse toggle (separate from delay) | P1 | ✅ | gate `collapseDelay` |
-| Behavior | Show On: All / Built-in / Main / External (4 modes, ours has 3) | P2 | ✅ | `ScreenLocator` |
+| Behavior | Show On: All / Built-in / Main / External (4 modes, ours has 3) | P2 | ✅ | `ScreenLocator`; 2026-10-27: + **Every Display** (one island per display, `IslandScreensCoordinator`, CONTRACTS §6.10) next to Follow Mouse |
 | Behavior | Hide if menus overlap the island | P3 | ⏳ | AX menu-bar item frames (Accessibility) |
 | Behavior | Hide in Mission Control | P3 | ⏳ | heuristic `CGWindowListCopyWindowInfo` |
 | Behavior | Shortcut recorder chips (reset ⟲ / clear ✕) + per-tab shortcuts | P2 | ✅ | Carbon `RegisterEventHotKey` per binding |

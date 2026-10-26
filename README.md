@@ -53,6 +53,8 @@ Use only one of the two ways at a time, so there is a single DynaNotch in `/Appl
   - **AI Usage**: your Claude Code and Codex usage, read from local files.
 - **Quick buttons**: battery pill (your Mac, AirPods, mouse and keyboard batteries), sound output, Keep Awake,
   actions menu (stopwatch, Pomodoro, screenshot, colour picker, mute mic), pin open, lock screen.
+- **Floating pill** instead of the notch shape if you prefer (Settings → Appearance): set its width (never narrower than
+  the MacBook's notch) and height with the Pill Width / Pill Height sliders.
 - **Glass panel** that blurs your desktop (or plain black: Settings → Panel), and an iPhone-style *hello* on first launch.
 
 ## Using it
@@ -85,7 +87,11 @@ Optional: **Calendar** (events), **Location** (weather; or type a city in Settin
   (or run `tccutil reset Calendar com.tanim.dynanotch`) and allow it once more.
 - **Build fails with odd cache errors.** Run `rm -rf .build build && ./build.sh`. Logs are in `build/logs/`.
 - **No music showing.** Play something, then check `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
-- **Island missing on an external display.** Settings → General → "Show island on" → Main display or Follow mouse.
+- **Island missing on an external display.** Settings → Behavior → Show On → **Every Display** (an island on each
+  display) or **Follow Mouse** (one island that moves to the display you're using). Also turn on Appearance → "Show on
+  Displays Without a Notch", or the resting pill stays hidden there.
+- **Accessibility is on but General still asks for it.** An older build is listed: select DynaNotch in System Settings →
+  Privacy & Security → Accessibility, remove it with −, then click Allow… in DynaNotch again.
   It also hides in full-screen apps by default.
 
 ## Extras

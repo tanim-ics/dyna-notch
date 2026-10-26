@@ -6,7 +6,7 @@ enum ScreenLocator {
     static func targetScreen(mode: DisplayMode) -> NSScreen? {
         let screens = NSScreen.screens
         switch mode {
-        case .notchOrMain:
+        case .notchOrMain, .allDisplays:
             if let notched = screens.first(where: { $0.safeAreaInsets.top > 0 }) {
                 return notched
             }
@@ -23,6 +23,16 @@ enum ScreenLocator {
         }
     }
 
+    /// CoreGraphics display ID of a screen (nil for a screen without one).
+    static func displayID(_ screen: NSScreen) -> CGDirectDisplayID? {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
+        return CGDirectDisplayID(number.uint32Value)
+    }
+
+    static func screen(displayID: CGDirectDisplayID) -> NSScreen? {
+        NSScreen.screens.first(where: { ScreenLocator.displayID($0) == displayID })
+    }
+
     static func isBuiltIn(_ screen: NSScreen) -> Bool {
         guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
         return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
@@ -35,6 +45,15 @@ enum ScreenLocator {
             let f = screen.frame
             return location.x >= f.minX && location.x <= f.maxX && location.y >= f.minY && location.y <= f.maxY
         })
+    }
+
+    /// Width of the camera notch on the first notched screen (any screen, so a pill on an external display matches
+    /// the MacBook's notch), else `NotchMetrics.fallback.width`.
+    static func physicalNotchWidth() -> CGFloat {
+        guard let notched = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) else {
+            return NotchMetrics.fallback.width
+        }
+        return metrics(for: notched).width
     }
 
     static func metrics(for screen: NSScreen) -> NotchMetrics {

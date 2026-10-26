@@ -15,7 +15,7 @@ Process: follow `~/.claude/skills/app-dev-playbook` (phases, definition of done,
 
 **Commands**
 - `./build.sh --skip-tests` — build, sign, install to /Applications, relaunch (needed before any UI test)
-- `swift test` · `scripts/check.sh --ui` (94 UI checks, needs the app running) · `scripts/health.sh [days]`
+- `swift test` · `scripts/check.sh --ui` (110 UI checks, needs the app running) · `scripts/health.sh [days]`
 - Lock for install + UI tests when several agents run: `source scripts/applock.sh; applock <name> … appunlock`
 
 **Testing like a user** (all through URL hooks, see the table in CLAUDE.md §5): `open -g "dynanotch://state"` then

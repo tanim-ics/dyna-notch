@@ -8,6 +8,8 @@ import DynaNotchCore
 final class IslandWindowController: NSObject {
     private let viewModel: IslandViewModel
     private let settings: AppSettings
+    /// Show On → Every display: an extra island stays on this display (nil = the primary island, placed by Show On).
+    let pinnedDisplay: CGDirectDisplayID?
     private var panel: NotchPanel
     private let hostingView: NotchHostingView<AnyView>
 
@@ -48,9 +50,10 @@ final class IslandWindowController: NSObject {
     private static let horizontalThreshold: CGFloat = 45
     private static let verticalThreshold: CGFloat = 35
 
-    init(viewModel: IslandViewModel) {
+    init(viewModel: IslandViewModel, pinnedDisplay: CGDirectDisplayID? = nil) {
         self.viewModel = viewModel
         self.settings = AppSettings.shared
+        self.pinnedDisplay = pinnedDisplay
 
         let contentRect = NSRect(origin: .zero, size: IslandLayout.canvasSize)
         panel = NotchPanel(contentRect: contentRect)
@@ -123,8 +126,29 @@ final class IslandWindowController: NSObject {
         installObservers()
         installMonitors()
         startFullscreenDetection()
-        DesktopLyricsController.shared.start(screenProvider: { [weak self] in self?.currentScreen })
+        if pinnedDisplay == nil {
+            DesktopLyricsController.shared.start(screenProvider: { [weak self] in self?.currentScreen })
+        }
     }
+
+    /// Removes an extra island (its display went away or Show On changed): stops observers, monitors and polls.
+    func tearDown() {
+        cancellables.removeAll()
+        hoverPoll = nil
+        for monitor in monitors { NSEvent.removeMonitor(monitor) }
+        monitors.removeAll()
+        if let observer = screenObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = keyObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = workspaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        screenObserver = nil
+        keyObserver = nil
+        workspaceObserver = nil
+        isShown = false
+        panel.orderOut(nil)
+    }
+
+    /// Display the island is on now (state dump, Every display bookkeeping).
+    var currentDisplayID: CGDirectDisplayID? { currentScreen.flatMap { ScreenLocator.displayID($0) } }
 
     /// Scripted UI tests: the island panel and a pointer position in canvas points (top-left origin).
     var testWindow: NSWindow { panel }
@@ -158,7 +182,12 @@ final class IslandWindowController: NSObject {
     // MARK: Positioning
 
     private func reposition() {
-        guard let screen = ScreenLocator.targetScreen(mode: settings.displayMode) else { return }
+        if let pinned = pinnedDisplay, ScreenLocator.screen(displayID: pinned) == nil {
+            panel.orderOut(nil)   // the coordinator removes this island in a moment
+            return
+        }
+        guard let screen = pinnedDisplay.flatMap({ ScreenLocator.screen(displayID: $0) })
+            ?? ScreenLocator.targetScreen(mode: settings.displayMode) else { return }
         currentScreen = screen
         viewModel.setNotch(ScreenLocator.metrics(for: screen))
         // The canvas is fixed while the island animates; it only grows for a wider / taller panel setting.
@@ -203,8 +232,12 @@ final class IslandWindowController: NSObject {
             .store(in: &cancellables)
 
         // Island shape (Notch / Floating pill) applies at once: re-measure, re-layout and redraw.
-        Publishers.Merge(settings.$notchDisplayStyle.map { _ in () }, settings.$nonNotchStyle.map { _ in () })
-            .dropFirst(2)
+        // Pill Width / Height / Closed Pill Size too: the effective metrics (and the canvas height) follow them.
+        Publishers.Merge5(settings.$notchDisplayStyle.map { _ in () }, settings.$nonNotchStyle.map { _ in () },
+                          settings.$pillWidth.removeDuplicates().map { _ in () },
+                          settings.$pillHeight.removeDuplicates().map { _ in () },
+                          settings.$pillScale.removeDuplicates().map { _ in () })
+            .dropFirst(5)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
@@ -394,9 +427,12 @@ final class IslandWindowController: NSObject {
     /// Full screen (Settings → Behavior → Full-screen apps: All / Playing media app) and Hide While Mirroring.
     private func startFullscreenDetection() {
         let detector = FullscreenDetector.shared
-        detector.start(screenProvider: { [weak self] in self?.currentScreen })
+        if pinnedDisplay == nil {
+            detector.start(screenProvider: { [weak self] in self?.currentScreen })
+        }
         let triggers: [AnyPublisher<Void, Never>] = [
             detector.$isFullscreen.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            detector.$fullscreenDisplays.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
             settings.$hideInFullscreen.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
             settings.$fullscreenScope.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
             settings.$hideWhileMirroring.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
@@ -416,7 +452,9 @@ final class IslandWindowController: NSObject {
 
     private func updateSuppression() {
         var reason = "none"
-        let fullscreen = testFullscreen ?? FullscreenDetector.shared.isFullscreen
+        let detector = FullscreenDetector.shared
+        let ownFullscreen = pinnedDisplay.map { detector.fullscreenDisplays.contains($0) } ?? detector.isFullscreen
+        let fullscreen = testFullscreen ?? ownFullscreen
         if fullscreen && settings.hideInFullscreen {
             switch settings.fullscreenScope {
             case .allApps:

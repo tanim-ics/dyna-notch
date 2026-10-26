@@ -8,6 +8,8 @@ final class FullscreenDetector: ObservableObject {
     static let shared = FullscreenDetector()
 
     @Published private(set) var isFullscreen: Bool = false
+    /// Every display covered by another app's full-screen window (Show On → Every display: each island checks its own).
+    @Published private(set) var fullscreenDisplays: Set<CGDirectDisplayID> = []
 
     private var screenProvider: (() -> NSScreen?)?
     private var cancellables = Set<AnyCancellable>()
@@ -48,20 +50,26 @@ final class FullscreenDetector: ObservableObject {
     // MARK: Private (main queue)
 
     private func evaluate() {
-        let value = computeFullscreen()
+        let displays = computeFullscreenDisplays()
+        if displays != fullscreenDisplays { fullscreenDisplays = displays }
+        let target = screenProvider?().flatMap { ScreenLocator.displayID($0) }
+        let value = target.map { displays.contains($0) } ?? false
         if value != isFullscreen { isFullscreen = value }
     }
 
-    private func computeFullscreen() -> Bool {
-        guard let provider = screenProvider, let screen = provider() else { return false }
-        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
-        let displayID = CGDirectDisplayID(number.uint32Value)
-        let displayBounds = CGDisplayBounds(displayID)
-        guard displayBounds.width > 0, displayBounds.height > 0 else { return false }
+    /// One window-list pass for all displays.
+    private func computeFullscreenDisplays() -> Set<CGDirectDisplayID> {
+        let displays: [(CGDirectDisplayID, CGRect)] = NSScreen.screens.compactMap { screen in
+            guard let id = ScreenLocator.displayID(screen) else { return nil }
+            let b = CGDisplayBounds(id)
+            return b.width > 0 && b.height > 0 ? (id, b) : nil
+        }
+        guard !displays.isEmpty else { return [] }
 
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return false }
+        guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
 
+        var result = Set<CGDirectDisplayID>()
         for window in list {
             guard let layer = (window[kCGWindowLayer as String] as? NSNumber)?.intValue, layer == 0 else { continue }
             guard let pid = (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value, pid != ownPID else { continue }
@@ -71,9 +79,11 @@ final class FullscreenDetector: ObservableObject {
             if let alpha = (window[kCGWindowAlpha as String] as? NSNumber)?.doubleValue, alpha <= 0.01 { continue }
             guard let boundsDict = window[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary) else { continue }
-            if FullscreenDetector.matches(bounds, displayBounds) { return true }
+            for (id, displayBounds) in displays where FullscreenDetector.matches(bounds, displayBounds) {
+                result.insert(id)
+            }
         }
-        return false
+        return result
     }
 
     private static func matches(_ a: CGRect, _ b: CGRect) -> Bool {

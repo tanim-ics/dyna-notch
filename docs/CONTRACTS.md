@@ -735,3 +735,33 @@ serialised with the scratchpad `applock.sh` lock.
   (not during the first 3 s after launch, when it can only be a restored window); the app menu's "Settings… ⌘," is
   replaced to open the real window; the real window has `isRestorable = false`.
 - Test hooks: state.json `headerCard`; `dynanotch://ui/appMenuSettings`, `dynanotch://ui/systemSettingsAction`.
+
+### 6.9 Pill width / height (2026-10-26, owner request)
+- Settings (AppSettings "MARK: Pill size", keys in `SettingsKey.all`): `pillWidth: Double = 185` (`dn.pillWidth`, stored
+  150–420) and `pillHeight: Double = 36` (`dn.pillHeight`, 28–44). Both apply live and are covered by Appearance → Restore
+  Defaults. They act only where the island is a floating pill (`notchDisplayStyle == .pill` on a notch display,
+  `nonNotchStyle == .pill` elsewhere); the merged notch shape keeps the measured notch.
+- Core `IslandLayout`: `pillHeightRange` (28…44), `defaultPillHeight` (36), `pillMaxWidth` (420),
+  `pillWidthRange(notchWidth:)` (notch width … 420), `pillMetrics(width:height:notchWidth:scale:) -> NotchMetrics` — layout
+  metrics of a pill whose **on-screen resting (idle) size** is `width` × `height` (clamped) at Closed Pill Size `scale`:
+  `metrics.width = width / scale − 2 × idle top radius`, `height / scale`. So `pillScale` (relabelled "Pill Content Size")
+  now only resizes the content inside; compact presentations add their side columns, so no pill is narrower than the notch.
+- App: `ScreenLocator.physicalNotchWidth()` — measured width of the first screen with a camera notch, else
+  `NotchMetrics.fallback.width` (185). `vm.pillMinWidth` exposes it; the open panel's header row follows the pill height.
+- state.json: `pillWidth`, `pillHeight`, `pillMinWidth`. Settings controls: `setting-pillWidth`, `setting-pillHeight`.
+
+### 6.10 Every display + Follow mouse (2026-10-27, owner request)
+- Core `DisplayMode` += `.allDisplays` ("Every display", raw `allDisplays`). `DisplayMode.extraDisplays(all:primary:)`
+  → the display IDs (order kept, duplicates dropped) that get an extra island: every display but the primary in
+  `.allDisplays`, none otherwise. Behavior → Show On becomes a menu picker (5 options).
+- `.allDisplays`: the **primary** island (`AppDelegate.viewModel`, `isPrimary == true`) sits where `.notchOrMain` puts it;
+  `IslandScreensCoordinator` (Window/) creates one `IslandViewModel(isPrimary: false)` + `IslandWindowController(viewModel:
+  pinnedDisplay:)` per extra display and rebuilds them on screen changes and when the mode changes. Extra islands show the
+  same activities, hover / expand on their own, and keep each display's own shape setting. Only the primary island plays
+  alert sounds, flashes the edge glow, owns the media-key handler, desktop lyrics and the state/test hooks.
+  `AppActions.viewModel` follows the pointer (the island on the display under the mouse); Hide applies to every island.
+- `FullscreenDetector.fullscreenDisplays: Set<CGDirectDisplayID>` (all displays in one window-list pass); a pinned
+  island hides when its own display is full screen.
+- `.followMouse` (existing): the single island moves to the display under the pointer.
+- state.json: `islands` = [{screen, presentation, isPill, visible}] for the extra islands; hook
+  `dynanotch://snapshot-extra/<name>` renders the first extra island.

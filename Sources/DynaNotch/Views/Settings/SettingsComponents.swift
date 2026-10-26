@@ -558,7 +558,7 @@ enum SettingsSuggestions {
             result.append(SettingsSuggestion(
                 id: "accessibility", symbol: "accessibility", color: .blue,
                 title: "Allow Accessibility",
-                detail: "Lets DynaNotch replace the volume / brightness HUD and paste clipboard items.",
+                detail: "Lets DynaNotch replace the volume / brightness HUD and paste clipboard items. Already switched on but this stays? Select DynaNotch in that list, remove it with −, then click Allow… again (an old build is listed).",
                 actionTitle: "Allow…",
                 action: {
                     Permissions.requestAccessibility()

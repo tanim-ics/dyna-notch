@@ -24,3 +24,12 @@
   current lyric line under the notch. **Notification** activity: peek-like title/body under the notch.
 - Dragging files towards the notch opens the panel on the Shelf tab. Esc closes the panel; a pinned panel ignores mouse-leave and outside
   clicks. ⌃⌥N toggles the panel, ⌃⌥V opens Clipboard (both focus the panel for typing).
+- **Floating pill size** (2026-10-26): the resting pill is **Pill Width** wide (default and minimum = the MacBook's camera
+  notch width, 185 pt without a notch; max 420) and **Pill Height** tall (default 36 pt — a little thicker than the 32 pt
+  notch; 28–44). Compact activities add their side columns to that width; the corner radius stays capsule-like
+  (`min(h/2, bottom + 6)`). The open panel's header row is as tall as the pill (÷ content scale). Sizes are on screen: Closed Pill Size, relabelled
+  **Pill Content Size**, now scales only the icons and text inside the pill, never its outline.
+- **Show On** (Behavior, menu picker): Built-in · Main · External · Follow Mouse (one island moves to the pointer's display)
+  · **Every Display** (2026-10-27): the primary island where Built-in puts it plus one island per other display, each
+  in that display's shape (Notch / Floating pill), hovering and opening on its own. Activities and notifications show on
+  all of them; sounds and edge glow happen once; shortcuts act on the island under the pointer; Hide hides all.

@@ -8,6 +8,11 @@ final class AppActions {
     static let shared = AppActions()
 
     weak var viewModel: IslandViewModel?
+    /// Show On → Every display: the island on the display under the pointer (set by `IslandScreensCoordinator`).
+    var activeViewModel: (() -> IslandViewModel?)?
+
+    /// The island an action applies to: the one under the pointer, else the primary island.
+    private var target: IslandViewModel? { activeViewModel?() ?? viewModel }
 
     private let logger = Logger(subsystem: "com.tanim.dynanotch", category: "actions")
 
@@ -42,7 +47,7 @@ final class AppActions {
         default:
             break
         }
-        guard let vm = viewModel else { return }
+        guard let vm = target else { return }
         switch action {
         case .togglePanel:
             vm.togglePanelFromKeyboard()
@@ -66,13 +71,13 @@ final class AppActions {
         case .lockScreen: ScreenLock.lock()
         case .toggleKeepAwake: perform(.toggleKeepAwake)
         case .screenshot: QuickActions.captureScreenshot()
-        case .timer: viewModel?.openFocused(.timer)
+        case .timer: target?.openFocused(.timer)
         }
     }
 
     /// Per-tab shortcut: opens that tab, or closes the panel when it is already showing it.
     func toggleTab(_ tab: PanelTab) {
-        guard let vm = viewModel else { return }
+        guard let vm = target else { return }
         if vm.presentation == .expanded && vm.visibleTab == tab {
             vm.collapse()
         } else {
@@ -82,7 +87,7 @@ final class AppActions {
 
     /// Opens the panel on `tab` (command palette "Open Timer").
     func open(tab: PanelTab) {
-        viewModel?.openFocused(tab)
+        target?.openFocused(tab)
     }
 
     /// Opens the Settings window, optionally on one page.

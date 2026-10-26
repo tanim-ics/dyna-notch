@@ -4,7 +4,7 @@ import CoreGraphics
 #endif
 
 public enum DisplayMode: String, Equatable, Hashable, CaseIterable {
-    case notchOrMain, main, external, followMouse
+    case notchOrMain, main, external, followMouse, allDisplays
 
     public var title: String {
         switch self {
@@ -12,7 +12,16 @@ public enum DisplayMode: String, Equatable, Hashable, CaseIterable {
         case .main: return "Main display"
         case .external: return "External display"
         case .followMouse: return "Follow mouse"
+        case .allDisplays: return "Every display"
         }
+    }
+
+    /// Displays that get an extra island besides the primary one: every other display in `.allDisplays`
+    /// (order kept, duplicates dropped), none in the single-island modes.
+    public func extraDisplays(all: [UInt32], primary: UInt32?) -> [UInt32] {
+        guard self == .allDisplays else { return [] }
+        var seen = Set<UInt32>()
+        return all.filter { $0 != primary && seen.insert($0).inserted }
     }
 }
 
@@ -93,6 +102,8 @@ public enum SettingsKey {
     public static let notchDisplayStyle = "dn.notchDisplayStyle"
     public static let pillScale = "dn.pillScale"
     public static let pillHeightOffset = "dn.pillHeightOffset"
+    public static let pillWidth = "dn.pillWidth"
+    public static let pillHeight = "dn.pillHeight"
     public static let screenSharingPrivacy = "dn.screenSharingPrivacy"
     public static let hideWhileMirroring = "dn.hideWhileMirroring"
     public static let fullscreenScope = "dn.fullscreenScope"
@@ -234,7 +245,7 @@ public enum SettingsKey {
             weatherEnabled, weatherCity, temperatureUnit, aiUsageEnabled,
             downloadActivity, privacyActivity, capsLockActivity, notifyActivity,
             islandMaterial, hasSeenWelcome,
-            materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp,
+            materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp, pillWidth, pillHeight,
         ]
     }
 }
