@@ -18,7 +18,7 @@ v3 (2026-10-26): the tech lead wrote Core + tests + model/window/app integration
 v3 services and one UI agent built the panel tabs/settings in parallel, each building with its own `--scratch-path` and owning
 disjoint folders.
 
-README.md is the owner's short user guide (install = `./build.sh`); keep it brief and put design detail here instead.
+README.md is the owner's short user guide (install = `./build.sh` or Homebrew); keep it brief and put design detail here instead.
 
 Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit tests green, every app file passes `swiftc -parse`), two independent compile reviews clean, and on the Mac `./build.sh` produces and launches `DynaNotch.app`.
 
@@ -42,3 +42,10 @@ iPhone-style "hello" on first launch. Keep §2c as the living done/due board —
 3. Permissions must survive rebuilds (stable ad-hoc designated requirement in `build.sh`).
 4. Settings must be intuitive: follow the Settings UX rules in §2e for every page and every new setting.
 5. §2e is the living gap list from the Notchy recording; pick work from it by priority (P1 first) and flip rows to ✅.
+
+## 13. Owner decisions (2026-10-26, Homebrew)
+1. Offer a Homebrew install. The repo is its own tap (`Formula/dynanotch.rb`, HEAD-only, builds from source with
+   `build.sh --skip-tests --no-install`). Not a cask: casks need a notarised download, which is a non-goal.
+2. The adapter dylib's install name is `@rpath/libMediaRemoteAdapter.dylib` and the formula sets `preserve_rpath`;
+   otherwise Homebrew rewrites the dylib ID after install, re-signs it and breaks the app bundle's seal.
+3. SwiftPM needs `--disable-sandbox` inside Homebrew's sandbox; build.sh takes it from `DYNANOTCH_SWIFTPM_FLAGS`.

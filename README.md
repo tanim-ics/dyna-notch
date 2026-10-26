@@ -5,7 +5,29 @@ Hover over the notch to open a panel with your music, timers, clipboard, files, 
 
 ## Install
 
-You need macOS 14 or later and Xcode (or the Command Line Tools: `xcode-select --install`).
+You need macOS 14 or later and Xcode 16 or later. Pick one of the two ways below.
+
+### With Homebrew
+
+The repository is its own Homebrew tap. Homebrew builds DynaNotch from source on your Mac (about a minute):
+
+```bash
+brew tap tanim-ics/dyna-notch https://github.com/tanim-ics/dyna-notch.git
+brew install --HEAD dynanotch
+ln -sfn "$(brew --prefix)/opt/dynanotch/DynaNotch.app" /Applications/DynaNotch.app
+open /Applications/DynaNotch.app
+```
+
+Update to the latest commit, then quit and reopen DynaNotch:
+
+```bash
+brew upgrade --fetch-HEAD dynanotch
+```
+
+The repository is private, so `git` must be able to sign in to GitHub (for example after `gh auth login`).
+There is no `brew install --cask`: a cask needs a notarised download, and DynaNotch is built and signed on your own Mac.
+
+### From the source folder
 
 ```bash
 cd ~/Desktop/dyna-notch
@@ -16,6 +38,8 @@ That's it: it tests, builds, installs DynaNotch to `/Applications` and starts it
 Run the same command again to update after pulling changes.
 
 Want a DMG to copy to another Mac? Use `./build.sh --dmg`.
+
+Use only one of the two ways at a time, so there is a single DynaNotch in `/Applications`.
 
 ## What it does
 
@@ -82,6 +106,8 @@ Quit DynaNotch from the menu-bar icon, then:
 rm -rf /Applications/DynaNotch.app ~/Library/Application\ Support/DynaNotch
 defaults delete com.tanim.dynanotch
 ```
+
+If you installed with Homebrew, also run `brew uninstall dynanotch && brew untap tanim-ics/dyna-notch`.
 
 ## For developers
 

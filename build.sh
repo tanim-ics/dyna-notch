@@ -6,6 +6,7 @@
 # Environment:
 #   SIGN_IDENTITY   codesign identity (name or SHA-1 hash). Default: first "Apple Development"
 #                   identity in your keychain, otherwise ad-hoc ("-").
+#   DYNANOTCH_SWIFTPM_FLAGS  extra flags for swift build (the Homebrew formula passes --disable-sandbox).
 #
 # Compatible with macOS /bin/bash 3.2.
 
@@ -152,7 +153,9 @@ rm -f "$ADAPTER_OUT"
 
 build_adapter() {
     # $@ = arch flags
+    # An @rpath install name (not the build path) so Homebrew's relocation leaves the signed dylib alone.
     xcrun clang -dynamiclib -fobjc-arc -O2 "$@" -mmacosx-version-min="$MIN_MACOS" \
+        -install_name @rpath/libMediaRemoteAdapter.dylib \
         -framework Foundation -o "$ADAPTER_OUT" "$ADAPTER_SRC" >>"$ADAPTER_LOG" 2>&1
 }
 
@@ -187,7 +190,8 @@ fi
 step "Building $APP_NAME (swift build -c $CONFIG)"
 SWIFT_LOG="$LOG_DIR/swift-build.log"
 set +e
-swift build -c "$CONFIG" --product "$APP_NAME" 2>&1 | tee "$SWIFT_LOG" | sed 's/^/    /'
+# shellcheck disable=SC2086  # word-splitting of the extra flags is intended
+swift build -c "$CONFIG" ${DYNANOTCH_SWIFTPM_FLAGS:-} --product "$APP_NAME" 2>&1 | tee "$SWIFT_LOG" | sed 's/^/    /'
 BUILD_RC=${PIPESTATUS[0]}
 set -e
 if [ "$BUILD_RC" -ne 0 ]; then
@@ -196,7 +200,8 @@ if [ "$BUILD_RC" -ne 0 ]; then
     echo "----------------------------------" >&2
     die "swift build failed (full log: $SWIFT_LOG). If the error mentions a stale module or cache, try: rm -rf .build"
 fi
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
+# shellcheck disable=SC2086
+BIN_DIR="$(swift build -c "$CONFIG" ${DYNANOTCH_SWIFTPM_FLAGS:-} --show-bin-path)"
 BINARY="$BIN_DIR/$APP_NAME"
 if [ ! -x "$BINARY" ]; then
     die "Expected binary not found at $BINARY"
