@@ -75,6 +75,10 @@ final class StatusItemController: NSObject {
         menu.addItem(awake)
         keepAwakeItem = awake
 
+        let welcome = NSMenuItem(title: "Show Welcome…", action: #selector(showWelcome(_:)), keyEquivalent: "")
+        welcome.target = self
+        menu.addItem(welcome)
+
         let simulateItem = NSMenuItem(title: "Simulate", action: nil, keyEquivalent: "")
         let simulateMenu = NSMenu(title: "Simulate")
         for demo in DemoActivity.allCases {
@@ -104,6 +108,10 @@ final class StatusItemController: NSObject {
         } else {
             viewModel.expand()
         }
+    }
+
+    @objc private func showWelcome(_ sender: Any?) {
+        WelcomeController.shared.show()
     }
 
     @objc private func toggleKeepAwake(_ sender: Any?) {

@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
     private var settingsController: SettingsWindowController?
     private var openSettingsObserver: NSObjectProtocol?
+    private var welcomeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -33,11 +34,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.openSettings()
         }
 
-        let settings = AppSettings.shared
-        if !settings.hasCompletedOnboarding {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                self?.openSettings()
-                AppSettings.shared.hasCompletedOnboarding = true
+        welcomeObserver = NotificationCenter.default.addObserver(
+            forName: .dynaNotchShowWelcome,
+            object: nil,
+            queue: .main
+        ) { _ in
+            WelcomeController.shared.show()
+        }
+
+        // First launch: the iPhone-style "hello", then tips under the notch.
+        if !AppSettings.shared.hasSeenWelcome {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                WelcomeController.shared.show()
             }
         }
     }
@@ -75,10 +83,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 viewModel?.collapse()
             case "settings":
                 openSettings()
+            case "pin":
+                // dynanotch://pin/<tab?> → open (optionally on a tab) and keep the panel open
+                if let tab = PanelTab(rawValue: argument) { viewModel?.select(tab) }
+                if viewModel?.isPinned == false { viewModel?.togglePin() }
+            case "batteries":
+                viewModel?.expand()
+                viewModel?.showsBatteries.toggle()
+            case "unpin":
+                if viewModel?.isPinned == true { viewModel?.togglePin() }
+                viewModel?.collapse()
+            case "welcome":
+                WelcomeController.shared.show()
             case "tab":
                 if let tab = PanelTab(rawValue: argument) { viewModel?.open(tab: tab) }
             case "notify":
                 if let notification = NotifyURL.parse(url) { viewModel?.notify(notification) }
+            case "snapshot-welcome":
+                let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                    ?? URL(fileURLWithPath: NSTemporaryDirectory())
+                WelcomeController.shared.snapshot(
+                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(argument.isEmpty ? "welcome" : argument).png"))
             case "snapshot":
                 // dynanotch://snapshot/<name> → ~/Library/Application Support/DynaNotch/Snapshots/<name>.png
                 let name = argument.isEmpty ? "panel" : argument

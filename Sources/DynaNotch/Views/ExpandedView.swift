@@ -13,7 +13,7 @@ struct ExpandedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PanelHeader()
+            PanelHeader(showsBatteries: $vm.showsBatteries)
             PanelTabBody(tab: vm.visibleTab)
                 .padding(.horizontal, vm.radii.top + 14)
                 .padding(.top, 4)
@@ -21,8 +21,24 @@ struct ExpandedView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: vm.islandSize.width, height: vm.islandSize.height, alignment: .top)
+        .overlay(batteryOverlay)
         .overlay(dropHighlight)
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
+    }
+
+    @ViewBuilder
+    private var batteryOverlay: some View {
+        if vm.showsBatteries {
+            ZStack(alignment: .topTrailing) {
+                // Tap anywhere else to dismiss.
+                Color.black.opacity(0.001)
+                    .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { vm.showsBatteries = false } }
+                DeviceBatteryCard()
+                    .padding(.top, vm.notch.height + 2)
+                    .padding(.trailing, vm.radii.top + 40)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+            }
+        }
     }
 
     @ViewBuilder
@@ -100,150 +116,6 @@ struct PanelTabBody: View {
         case .notes: NotesTab()
         case .system: SystemTab()
         case .aiUsage: AIUsageTab()
-        }
-    }
-}
-
-// MARK: - Header
-
-/// Tab icons left of the notch, quick toggles right of it.
-struct PanelHeader: View {
-    @EnvironmentObject var vm: IslandViewModel
-    @EnvironmentObject var settings: AppSettings
-
-    private static let toggleCount: CGFloat = 5
-    private static let toggleSize: CGFloat = 22
-    private static let toggleSpacing: CGFloat = 4
-
-    private var horizontalPadding: CGFloat { vm.radii.top + 10 }
-    private var gap: CGFloat { vm.notch.hasPhysicalNotch ? vm.notch.width + 16 : 0 }
-
-    private var togglesWidth: CGFloat {
-        PanelHeader.toggleCount * PanelHeader.toggleSize + (PanelHeader.toggleCount - 1) * PanelHeader.toggleSpacing
-    }
-
-    /// Width available to each side of the notch (or to the tabs when there is no notch).
-    private var tabsWidth: CGFloat {
-        let inner = vm.islandSize.width - 2 * horizontalPadding
-        if vm.notch.hasPhysicalNotch {
-            return max(0, (inner - gap) / 2)
-        }
-        return max(0, inner - togglesWidth - 12)
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            PanelTabStrip(tabs: settings.enabledTabs, width: tabsWidth)
-                .frame(width: tabsWidth, alignment: .leading)
-                .clipped()
-            if vm.notch.hasPhysicalNotch {
-                Color.clear.frame(width: gap)
-            } else {
-                Spacer(minLength: 12)
-            }
-            PanelQuickToggles(spacing: PanelHeader.toggleSpacing, size: PanelHeader.toggleSize)
-                .frame(maxWidth: vm.notch.hasPhysicalNotch ? .infinity : nil, alignment: .trailing)
-        }
-        .padding(.horizontal, horizontalPadding)
-        .frame(height: vm.notch.height)
-    }
-}
-
-struct PanelTabStrip: View {
-    let tabs: [PanelTab]
-    let width: CGFloat
-
-    @EnvironmentObject var vm: IslandViewModel
-
-    private let spacing: CGFloat = 2
-
-    /// Button width shrinks to fit the available space (16…28 pt).
-    private var buttonSize: CGFloat {
-        let count = CGFloat(max(1, tabs.count))
-        let perTab = (width - spacing * (count - 1)) / count
-        return max(16, min(28, perTab.rounded(.down)))
-    }
-
-    private var iconSize: CGFloat {
-        max(9, min(13, (buttonSize * 0.52).rounded()))
-    }
-
-    var body: some View {
-        HStack(spacing: spacing) {
-            ForEach(tabs, id: \.self) { tab in
-                PanelTabButton(tab: tab,
-                               isSelected: tab == vm.visibleTab,
-                               size: buttonSize,
-                               iconSize: iconSize) {
-                    vm.select(tab)
-                }
-            }
-        }
-    }
-}
-
-struct PanelTabButton: View {
-    let tab: PanelTab
-    let isSelected: Bool
-    let size: CGFloat
-    let iconSize: CGFloat
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: tab.symbolName)
-                .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.5))
-                .frame(width: size, height: min(22, size))
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(isSelected ? 0.12 : 0))
-                )
-                .contentShape(Capsule())
-        }
-        .buttonStyle(PressableButtonStyle())
-        .help(tab.title)
-    }
-}
-
-struct PanelQuickToggles: View {
-    let spacing: CGFloat
-    let size: CGFloat
-
-    @EnvironmentObject var vm: IslandViewModel
-    @EnvironmentObject var keepAwake: KeepAwakeService
-    @EnvironmentObject var audio: AudioDeviceService
-
-    private static let awakeTint = Color(red: 1.0, green: 0.75, blue: 0.3)
-
-    var body: some View {
-        HStack(spacing: spacing) {
-            PanelIconButton(symbol: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer",
-                            size: 11, frame: size,
-                            tint: keepAwake.isOn ? PanelQuickToggles.awakeTint : Color.white.opacity(0.6),
-                            help: keepAwake.isOn ? "Keep Awake: On" : "Keep Awake: Off") {
-                keepAwake.toggle()
-            }
-            PanelIconButton(symbol: audio.isMicMuted ? "mic.slash.fill" : "mic",
-                            size: 11, frame: size,
-                            tint: audio.isMicMuted ? IslandColors.low : Color.white.opacity(0.6),
-                            help: audio.isMicMuted ? "Unmute microphone" : "Mute microphone") {
-                audio.toggleMicMute()
-            }
-            PanelIconButton(symbol: vm.isPinned ? "pin.fill" : "pin",
-                            size: 11, frame: size,
-                            tint: vm.isPinned ? Color.white : Color.white.opacity(0.6),
-                            help: vm.isPinned ? "Unpin panel" : "Pin panel open") {
-                vm.togglePin()
-            }
-            PanelIconButton(symbol: "lock.fill", size: 11, frame: size,
-                            tint: Color.white.opacity(0.6), help: "Lock screen") {
-                ScreenLock.lock()
-            }
-            PanelIconButton(symbol: "gearshape.fill", size: 11, frame: size,
-                            tint: Color.white.opacity(0.6), help: "Settings") {
-                vm.openSettings()
-            }
         }
     }
 }

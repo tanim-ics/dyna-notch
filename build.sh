@@ -1,7 +1,7 @@
 #!/bin/bash
-# build.sh — DynaNotch v2: test -> adapter -> build -> bundle -> icon -> sign -> DMG -> install -> launch.
+# build.sh — DynaNotch: test -> adapter -> build -> bundle -> icon -> sign -> install -> launch (DMG optional).
 #
-# Usage: ./build.sh [--no-install] [--no-dmg] [--debug] [--skip-tests] [--help]
+# Usage: ./build.sh [--no-install] [--dmg] [--debug] [--skip-tests] [--help]
 #
 # Environment:
 #   SIGN_IDENTITY   codesign identity (name or SHA-1 hash). Default: first "Apple Development"
@@ -16,7 +16,7 @@ BUNDLE_ID="com.tanim.dynanotch"
 MIN_MACOS="14.0"
 
 DO_INSTALL=1
-DO_DMG=1
+DO_DMG=0
 DO_TESTS=1
 CONFIG="release"
 
@@ -24,11 +24,11 @@ usage() {
     cat <<EOF
 Usage: ./build.sh [options]
 
-Builds DynaNotch.app with SwiftPM, signs it, packs DynaNotch.dmg and installs it.
+Builds DynaNotch.app, signs it, installs it to /Applications and launches it.
 
 Options:
   --no-install   Do not copy to /Applications or launch the app
-  --no-dmg       Do not create DynaNotch.dmg
+  --dmg          Also create DynaNotch.dmg (to copy the app to another Mac)
   --debug        Build the debug configuration instead of release
   --skip-tests   Skip 'swift test'
   -h, --help     Show this help
@@ -39,14 +39,15 @@ Environment:
                  SIGN_IDENTITY="Apple Development: Jane Doe (ABCDE12345)" ./build.sh
 
 Outputs:
-  build/DynaNotch.app, DynaNotch.dmg (repo root), build/logs/*.log
+  build/DynaNotch.app, build/logs/*.log, and DynaNotch.dmg with --dmg
 EOF
 }
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-install) DO_INSTALL=0 ;;
-        --no-dmg)     DO_DMG=0 ;;
+        --dmg)        DO_DMG=1 ;;
+        --no-dmg)     DO_DMG=0 ;;   # default; kept for old habits
         --debug)      CONFIG="debug" ;;
         --skip-tests) DO_TESTS=0 ;;
         -h|--help)    usage; exit 0 ;;
@@ -313,10 +314,7 @@ else
     warn "codesign --verify reported a problem (see $SIGN_LOG); continuing."
 fi
 if [ "$IDENTITY" = "-" ]; then
-    info "Note: ad-hoc signatures change on every build, so macOS treats each rebuild as a new"
-    info "app and will ask for Accessibility again (remove the old DynaNotch entry with '-' first)."
-    info "To avoid this, create a free 'Apple Development' certificate in Xcode > Settings > Accounts"
-    info "> Manage Certificates; build.sh picks it up automatically (or set SIGN_IDENTITY)."
+    info "Ad-hoc signed: macOS may ask for Accessibility again after each rebuild (see README)."
 fi
 
 # ---------------------------------------------------------------------------
@@ -338,7 +336,7 @@ if [ "$DO_DMG" -eq 1 ]; then
     fi
     rm -rf "$STAGING"
 else
-    step "Skipping DMG (--no-dmg)"
+    :   # DMG only with --dmg
 fi
 
 # ---------------------------------------------------------------------------
@@ -395,17 +393,7 @@ fi
 info "Signed:   $IDENTITY_DESC"
 cat <<EOF
 
-Next steps:
-  1. Accessibility (needed for the volume/brightness HUD to replace the system HUD):
-     System Settings > Privacy & Security > Accessibility > enable DynaNotch.
-     After granting, quit and reopen DynaNotch from the menu-bar icon if the HUD does not appear.
-  2. Calendar: accept the prompt to show upcoming events (or enable later in
-     System Settings > Privacy & Security > Calendars).
-  3. Bluetooth: accept the prompt for AirPods / device activities.
-  4. Optional, for the Focus activity: System Settings > Privacy & Security >
-     Full Disk Access > add DynaNotch.
-  5. Test every activity from the menu-bar icon > Simulate.
-
-Logs:
-  log stream --predicate 'subsystem == "com.tanim.dynanotch"' --level debug
+The island is at the top of your screen; settings are in the menu-bar icon.
+macOS asks for permissions as features need them. For the volume/brightness HUD and
+click-to-paste, enable DynaNotch in System Settings > Privacy & Security > Accessibility.
 EOF

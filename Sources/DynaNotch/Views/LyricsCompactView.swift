@@ -51,6 +51,7 @@ struct CompactLyricLine: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.white.opacity(lyrics.lines.isEmpty ? 0.6 : 0.95))
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity)
                 .id(index ?? -1)

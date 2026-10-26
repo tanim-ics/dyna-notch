@@ -72,8 +72,17 @@ struct PanelSettingsPane: View {
 
     private var behaviourSection: some View {
         Section {
+            Picker("Panel material", selection: $settings.islandMaterial) {
+                ForEach(IslandMaterial.allCases, id: \.self) { material in
+                    Text(material.title).tag(material)
+                }
+            }
+            .pickerStyle(.segmented)
             Toggle("Remember the last tab", isOn: $settings.rememberLastTab)
                 .toggleStyle(.switch)
+            Button("Show Welcome Again") {
+                NotificationCenter.default.post(name: .dynaNotchShowWelcome, object: nil)
+            }
         } header: {
             Text("Behaviour")
         } footer: {

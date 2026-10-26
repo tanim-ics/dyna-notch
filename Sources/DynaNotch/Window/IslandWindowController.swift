@@ -58,6 +58,7 @@ final class IslandWindowController: NSObject {
             .environmentObject(AIUsageService.shared)
             .environmentObject(AudioDeviceService.shared)
             .environmentObject(KeepAwakeService.shared)
+            .environmentObject(DeviceBatteryService.shared)
         hostingView = NotchHostingView<AnyView>(rootView: AnyView(root))
 
         super.init()

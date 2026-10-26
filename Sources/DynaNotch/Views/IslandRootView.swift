@@ -60,14 +60,22 @@ struct IslandRootView: View {
         .offset(y: vm.topInset)
     }
 
+    private var usesGlass: Bool { isExpanded && settings.islandMaterial == .glass }
+
     private var background: some View {
-        shape
-            .fill(Color.black)
-            .shadow(color: glowColor, radius: isExpanded ? 28 : 0, x: 0, y: isExpanded ? 6 : 0)
-            .shadow(color: Color.black.opacity(isExpanded ? 0.45 : 0),
-                    radius: isExpanded ? 18 : 0,
-                    x: 0,
-                    y: isExpanded ? 8 : 0)
+        ZStack {
+            shape
+                .fill(Color.black)
+                .shadow(color: glowColor, radius: isExpanded ? 28 : 0, x: 0, y: isExpanded ? 6 : 0)
+                .shadow(color: Color.black.opacity(isExpanded ? 0.45 : 0),
+                        radius: isExpanded ? 18 : 0,
+                        x: 0,
+                        y: isExpanded ? 8 : 0)
+            if usesGlass {
+                IslandGlass(shape: shape, notchHeight: vm.notch.height)
+                    .transition(.opacity)
+            }
+        }
     }
 
     private var contentLayer: some View {
@@ -141,5 +149,49 @@ struct IslandShape: Shape {
             return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect)
         }
         return NotchShape(topRadius: topRadius, bottomRadius: bottomRadius).path(in: rect)
+    }
+}
+
+/// Frosted "glass" for the expanded panel: the desktop blurred behind the island, darkened so white text stays
+/// legible, solid black across the notch row so it still merges with the hardware notch, and a hairline highlight.
+struct IslandGlass: View {
+    let shape: IslandShape
+    let notchHeight: CGFloat
+
+    var body: some View {
+        ZStack {
+            VisualEffectBlur(material: .hudWindow)
+            LinearGradient(stops: [
+                .init(color: Color.black.opacity(0.92), location: 0),
+                .init(color: Color.black.opacity(0.55), location: 0.32),
+                .init(color: Color.black.opacity(0.38), location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        .clipShape(shape)
+        .overlay(
+            shape.stroke(LinearGradient(colors: [Color.white.opacity(0.02), Color.white.opacity(0.16)],
+                                        startPoint: .top, endPoint: .bottom),
+                         lineWidth: 0.75)
+        )
+        .allowsHitTesting(false)
+    }
+}
+
+/// `NSVisualEffectView` blending with whatever is behind the window.
+struct VisualEffectBlur: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.isEmphasized = true
+        view.appearance = NSAppearance(named: .darkAqua)
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.material = material
     }
 }

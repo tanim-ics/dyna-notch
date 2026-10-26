@@ -168,7 +168,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(SettingsKey.showMenuBarIcon, "dn.showMenuBarIcon")
         XCTAssertEqual(SettingsKey.calendarLeadMinutes, "dn.calendarLeadMinutes")
         XCTAssertEqual(SettingsKey.hudStyle, "dn.hudStyle")
-        XCTAssertEqual(SettingsKey.all.count, 60)
+        XCTAssertEqual(SettingsKey.all.count, 62)
         XCTAssertEqual(Set(SettingsKey.all).count, SettingsKey.all.count)
         XCTAssertTrue(SettingsKey.all.allSatisfy { $0.hasPrefix("dn.") && $0.count > 3 })
     }
@@ -186,7 +186,8 @@ final class SettingsTests: XCTestCase {
                      "pomodoroLongBreakMinutes", "pomodoroCycles", "timerSound", "timerOverNowPlaying", "showCompactTimer",
                      "clipboardEnabled", "clipboardLimit", "cleanLinks", "pasteOnClick", "shelfEnabled",
                      "shelfRemoveOnDragOut", "weatherEnabled", "weatherCity", "temperatureUnit", "aiUsageEnabled",
-                     "downloadActivity", "privacyActivity", "capsLockActivity", "notifyActivity"]
+                     "downloadActivity", "privacyActivity", "capsLockActivity", "notifyActivity",
+                     "islandMaterial", "hasSeenWelcome"]
         XCTAssertEqual(SettingsKey.all, names.map { "dn." + $0 })
     }
 }

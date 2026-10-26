@@ -81,6 +81,34 @@ Notchy lists 131 feature guides; we take the ones that belong in a notch and nee
 | Global hotkey | ✅ | ⌃⌥N toggles panel, ⌃⌥V opens Clipboard (Carbon `RegisterEventHotKey`, no permission) |
 | Notification mirroring, Face Unlock, lock-screen widgets, Ask AI, teleprompter, terminal, HomeKit, stocks | ❌ | out of scope |
 
+
+### 2c. Notchy status board — done vs due (updated 2026-10-26 from the owner's Notchy screenshots)
+
+Notchy's panel header: **current-tab pill + "⋯" tab menu (⌘1–⌘9)** on the left; on the right a **battery pill** (opens a
+device-battery popover: Mac with health · cycles · °C, mouse, keyboard, AirPods), timer, camera mirror, volume/output,
+keep awake, **"⋯" actions menu**, pin, lock. Expanded panel = translucent **glass**. First launch = onboarding tip cards
+(icon, title, text, page dots, Skip · ‹ · Next).
+
+| Area | Notchy feature | DynaNotch | Notes |
+|---|---|---|---|
+| Panel | Tab pill + ⋯ tab menu with ⌘1–⌘9 | ✅ v3.1 | replaces the row of 8 tab icons |
+| Panel | Glass (translucent, blurred) expanded panel | ✅ v3.1 | `IslandMaterial` .glass (default) / .black; compact island stays black to merge with the notch |
+| Panel | Battery pill + device-battery popover | ✅ v3.1 | Mac (health, cycles, temperature) + Bluetooth devices (AirPods L/R/case, mice, keyboards) |
+| Panel | ⋯ actions: Start/Reset Stopwatch, Start Pomodoro, Capture Screenshot, Pick a Color, Mute Microphone | ✅ v3.1 | screenshot = `screencapture -i -c` (area → clipboard); colour = `NSColorSampler` → clipboard |
+| Panel | Volume / output quick button | ✅ v3.1 | output-device menu in the header |
+| Onboarding | First-launch "hello" + tip cards | ✅ v3.1 | iPhone-style handwritten *hello* (stroke animation), then Notchy-style tips under the notch |
+| Tabs | Home, Now Playing (+lyrics), Timer, Shelf, Clipboard, Notes (+To-Do), AI Usage, System ("Activity") | ✅ v3 | |
+| Tabs | Calendar (full month + events) | 🟡 partial | month + Up Next live on Home; no dedicated tab |
+| Tabs | Focus | 🟡 partial | Focus *activity* only; switching Focus needs Shortcuts |
+| Tabs | Calculator, Emoji, Quick Search, Translate, Launcher | ⏳ due | good next candidates (pure local) |
+| Tabs | Reminders | ⏳ due | EventKit reminders |
+| Tabs | Shortcuts | ⏳ due | `shortcuts list/run` CLI |
+| Tabs | Mirror (camera preview) | ⏳ due | AVFoundation, camera permission |
+| Tabs | Apps & Updates, Stocks, Home Controls, Notifications, Terminal, Cuely (teleprompter) | ❌ out of scope | private APIs, paid data or non-goals (§1) |
+| Actions | Record Whole Screen / Record Area | ⏳ due | `screencapture -v` / ScreenCaptureKit |
+| Actions | Identify Song, Clean Keyboard, Clean Screen | ⏳ due | ShazamKit needs entitlement; keyboard lock needs event tap |
+| Other | Ask About the Screen, desktop widgets, Extra Brightness (XDR) | ❌ out of scope | |
+
 ---
 
 ## 3. Tech stack (final)
@@ -103,8 +131,8 @@ Notchy lists 131 feature guides; we take the ones that belong in a notch and nee
 ```
 dyna-notch/
 ├─ Package.swift                 # DynaNotchCore (lib), DynaNotch (exe, macOS only), DynaNotchCoreTests
-├─ build.sh                      # one command: test → build → bundle → sign → DMG → install → launch
-├─ build_dmg.sh                  # kept for muscle memory; just calls build.sh
+├─ build.sh                      # one command: test → build → bundle → sign → install → launch (`--dmg` adds a DMG)
+├─ build_dmg.sh                  # = build.sh --dmg
 ├─ Adapter/MediaRemoteAdapter.m  # ObjC helper loaded into /usr/bin/perl
 ├─ Packaging/
 │  ├─ Info.plist                 # literal values (no $(VAR) substitution)
@@ -729,6 +757,45 @@ ScreenLock (enum)                  static func lock()
 - Settings panes added: **Panel** (tabs on/off & order, hotkeys, non-notch style), **Productivity** (timer, clipboard, shelf, notes),
   **Weather & AI** (city, unit, AI usage). Live Activities pane gains download / privacy / caps lock / notify toggles.
 
+### 6.5 v3.1 additions (glass, header, device batteries, welcome)
+
+```swift
+// Core — DeviceBattery.swift
+public enum DeviceKind: String, Equatable, Hashable, CaseIterable { case mac, mouse, keyboard, trackpad, headphones, airpods, gamepad, other
+    public var symbolName: String }   // "laptopcomputer","computermouse.fill","keyboard.fill","rectangle.and.hand.point.up.left.fill",
+                                      // "headphones","airpods.pro","gamecontroller.fill","dot.radiowaves.left.and.right"
+public struct DeviceBattery: Equatable, Identifiable {
+    public var id: String                 // bluetooth address, or "mac"
+    public var name: String; public var kind: DeviceKind
+    public var level: Int?                // 0...100 main/combined level
+    public var left: Int?; public var right: Int?; public var caseLevel: Int?   // AirPods-style
+    public var isCharging: Bool; public var detail: String?   // e.g. "Health 100% · 10 cycles · 34°C"
+    public var displayLevel: Int?         // level ?? min(left, right) ?? caseLevel
+}
+public enum BluetoothProfilerParser {
+    /// `system_profiler -json SPBluetoothDataType` → connected devices (device_connected), battery keys
+    /// device_batteryLevelMain|Left|Right|Case ("86 %", NBSP tolerated), kind from device_minorType + name.
+    public static func parse(_ data: Data) -> [DeviceBattery]
+    public static func percent(_ s: String) -> Int?
+}
+public enum DeviceBatteryMerge {
+    /// Merges sources by id (falls back to case-insensitive name); later sources fill nil levels only.
+    public static func merge(_ sources: [[DeviceBattery]]) -> [DeviceBattery]   // sorted: mac first, then by name
+}
+public enum IslandMaterial: String, Equatable, Hashable, CaseIterable { case glass, black; public var title: String }
+
+// App
+DeviceBatteryService: ObservableObject  @Published private(set) var devices: [DeviceBattery]   // mac first
+    func start(); func refresh()   // 60 s: system_profiler (background), Apple HID BatteryPercent (IOKit),
+                                   // CoreBluetooth GATT 0x180F/0x2A19 for connected BLE peripherals; Mac from IOPS + AppleSmartBattery
+QuickActions (enum)  static func captureScreenshot(); static func pickColor()   // colour hex → pasteboard
+AppSettings: islandMaterial: IslandMaterial = .glass; hasSeenWelcome: Bool = false (key dn.hasSeenWelcome)
+WelcomeController  show()   // borderless full-screen-ish window: animated handwritten "hello" → "Welcome to DynaNotch" → Get Started,
+                            // then tip cards anchored under the notch. Menu "Show Welcome…", URL dynanotch://welcome.
+Views: `HelloShape` (single-stroke cursive path, animated with .trim), `GlassBackground` (NSVisualEffectView .hudWindow,
+behind-window, dark), `PanelHeader` = TabPill + TabMenu (⋯) | BatteryPill · timer · output · keep awake · ActionsMenu (⋯) · pin · lock.
+```
+
 ---
 
 ## 7. UX spec
@@ -772,6 +839,8 @@ v3 (2026-10-26): the tech lead wrote Core + tests + model/window/app integration
 v3 services and one UI agent built the panel tabs/settings in parallel, each building with its own `--scratch-path` and owning
 disjoint folders.
 
+README.md is the owner's short user guide (install = `./build.sh`); keep it brief and put design detail here instead.
+
 Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit tests green, every app file passes `swiftc -parse`), two independent compile reviews clean, and on the Mac `./build.sh` produces and launches `DynaNotch.app`.
 
 ---
@@ -794,7 +863,7 @@ Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit 
 - Parallel agents must build with distinct `swift build --scratch-path <dir>` to avoid SwiftPM lock contention.
 - Persistent app data lives in `~/Library/Application Support/DynaNotch/` (clipboard.json, Clips/, Snapshots/) and UserDefaults
   keys `dn.data.*` (notes, todos, shelf). Settings keys stay `dn.<property>`.
-- Commands: `./build.sh` (everything), `./build.sh --no-install`, `swift test`, `scripts/check.sh`, logs: `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
+- Commands: `./build.sh` (test, build, install, launch), `./build.sh --dmg`, `./build.sh --no-install`, `swift test`, `scripts/check.sh`, logs: `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
 
 ---
 
@@ -805,6 +874,9 @@ Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit 
 4. Out of scope for v2: lock-screen widgets, third-party notification mirroring, file shelf.
 
 ## 11. Owner decisions (2026-10-26)
+(v3.1, later the same day) Apple-designer polish: glass panel, Notchy header with menus, connected-device batteries,
+iPhone-style "hello" on first launch. Keep §2c as the living done/due board — update it whenever a feature lands.
+
 1. Build DynaNotch "like Notchy" (notchy.dev): visit the site, take its features, develop, test and fix everything.
 2. v3 adds the Notchy panel features listed in §2b (file shelf is now **in** scope); paid/AI/teleprompter/face-unlock features stay out.
 3. Network use is limited to free, keyless public APIs (iTunes Search, LRCLIB, Open-Meteo); everything else stays on the Mac.

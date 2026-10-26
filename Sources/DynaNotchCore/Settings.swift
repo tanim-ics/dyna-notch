@@ -119,6 +119,9 @@ public enum SettingsKey {
     public static let privacyActivity = "dn.privacyActivity"
     public static let capsLockActivity = "dn.capsLockActivity"
     public static let notifyActivity = "dn.notifyActivity"
+    // v3.1
+    public static let islandMaterial = "dn.islandMaterial"
+    public static let hasSeenWelcome = "dn.hasSeenWelcome"
 
     public static var all: [String] {
         [
@@ -136,6 +139,7 @@ public enum SettingsKey {
             clipboardEnabled, clipboardLimit, cleanLinks, pasteOnClick, shelfEnabled, shelfRemoveOnDragOut,
             weatherEnabled, weatherCity, temperatureUnit, aiUsageEnabled,
             downloadActivity, privacyActivity, capsLockActivity, notifyActivity,
+            islandMaterial, hasSeenWelcome,
         ]
     }
 }

@@ -248,6 +248,15 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(notifyActivity, forKey: SettingsKey.notifyActivity) }
     }
 
+    // MARK: Look & onboarding (v3.1)
+
+    @Published var islandMaterial: IslandMaterial = .glass {
+        didSet { defaults.set(islandMaterial.rawValue, forKey: SettingsKey.islandMaterial) }
+    }
+    @Published var hasSeenWelcome: Bool = false {
+        didSet { defaults.set(hasSeenWelcome, forKey: SettingsKey.hasSeenWelcome) }
+    }
+
     /// Tabs shown in the panel: the configured order, minus features that are switched off.
     var enabledTabs: [PanelTab] {
         let tabs = PanelTab.parseList(panelTabs).filter { tab in
@@ -282,6 +291,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.focusActivity, SettingsKey.calendarActivity, SettingsKey.calendarLeadMinutes,
         SettingsKey.calendarEnabled,
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
+        SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -356,6 +366,8 @@ final class AppSettings: ObservableObject {
         privacyActivity = defaults.object(forKey: SettingsKey.privacyActivity) as? Bool ?? true
         capsLockActivity = defaults.object(forKey: SettingsKey.capsLockActivity) as? Bool ?? true
         notifyActivity = defaults.object(forKey: SettingsKey.notifyActivity) as? Bool ?? true
+        islandMaterial = defaults.string(forKey: SettingsKey.islandMaterial).flatMap { IslandMaterial(rawValue: $0) } ?? .glass
+        hasSeenWelcome = defaults.object(forKey: SettingsKey.hasSeenWelcome) as? Bool ?? false
     }
 
     /// Removes every stored key and restores the contract defaults.
@@ -431,6 +443,8 @@ final class AppSettings: ObservableObject {
         privacyActivity = true
         capsLockActivity = true
         notifyActivity = true
+        islandMaterial = .glass
+        hasSeenWelcome = false
     }
 
     private static func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {

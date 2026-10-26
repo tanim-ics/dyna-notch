@@ -24,6 +24,8 @@ final class IslandViewModel: ObservableObject {
     @Published private(set) var selectedTab: PanelTab = .home
     /// A pinned panel stays open when the mouse leaves or the user clicks elsewhere.
     @Published private(set) var isPinned: Bool = false
+    /// The device-battery card is open over the panel.
+    @Published var showsBatteries: Bool = false
 
     let settings: AppSettings
 
@@ -253,6 +255,7 @@ final class IslandViewModel: ObservableObject {
         guard engine.isExpanded else { return }
         engine.isExpanded = false
         isPinned = false
+        showsBatteries = false
         refresh()
     }
 
@@ -634,6 +637,7 @@ final class IslandViewModel: ObservableObject {
         PrivacyMonitor.shared.start()
         DownloadsMonitor.shared.start()
         HotKeyService.shared.start()
+        DeviceBatteryService.shared.start()
         if settings.clipboardEnabled {
             ClipboardService.shared.start()
         } else {
