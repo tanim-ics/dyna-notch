@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcomeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = AppLaunch.uptime   // pin the launch time for SettingsSceneRedirect
         NSApp.setActivationPolicy(.accessory)
 
         let vm = IslandViewModel()
@@ -152,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     case "settings": window = settingsController?.testWindow
                     case "palette": window = CommandPaletteController.shared.testWindow
                     case "dmg": window = DMGInstaller.shared.testWindow
+                    case "welcome": window = WelcomeController.shared.testWindow
                     default: window = islandController?.testWindow
                     }
                     var point: NSPoint?
@@ -186,6 +188,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case "palette":
                     // dynanotch://ui/palette?query=<text>&key=down|up|return|escape
                     CommandPaletteController.shared.testInput(query: query["query"], key: query["key"])
+                case "systemSettingsAction":
+                    // dynanotch://ui/systemSettingsAction → the action ⌘, / "Settings…" sends to the SwiftUI scene
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                case "appMenuSettings":
+                    // dynanotch://ui/appMenuSettings → performs the app menu's "Settings…" (⌘,) item
+                    if let menu = NSApp.mainMenu?.items.first?.submenu,
+                       let index = menu.items.firstIndex(where: { $0.keyEquivalent == "," }) {
+                        menu.performActionForItem(at: index)
+                    }
                 case "knock":
                     // dynanotch://ui/knock?count=N → as if the knock key were tapped N times
                     if let count = Int(query["count"] ?? "") { KnockMonitor.shared.simulate(count: count) }
@@ -218,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "isHovering": vm.isHovering,
                     "isPinned": vm.isPinned,
                     "isUserHidden": vm.isUserHidden,
+                    "headerCard": vm.headerCard?.rawValue ?? "none",
                     "palette": CommandPaletteController.shared.isShown,
                     "paletteQuery": CommandPaletteController.shared.testQuery,
                     "paletteSelection": CommandPaletteController.shared.testSelectionTitle,

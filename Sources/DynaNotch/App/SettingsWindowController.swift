@@ -40,6 +40,8 @@ final class SettingsWindowController: NSObject {
         )
         window.title = "DynaNotch Settings"
         window.isReleasedWhenClosed = false
+        // Never reopened by macOS window restoration at launch (only when the user asks for Settings).
+        window.isRestorable = false
 
         let root = SettingsRootView()
             .environmentObject(viewModel)

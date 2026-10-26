@@ -3,6 +3,11 @@ import SwiftUI
 import Combine
 import DynaNotchCore
 
+/// Dropdown cards under the panel header.
+enum HeaderCard: String, Equatable {
+    case battery, sound
+}
+
 enum DemoActivity: String, CaseIterable {
     case volume, brightness, charging, lowBattery, airpods, focus, calendar, peek
     case timer, lyrics, notification, download, camera, capsLock, unplug
@@ -25,7 +30,18 @@ final class IslandViewModel: ObservableObject {
     /// A pinned panel stays open when the mouse leaves or the user clicks elsewhere.
     @Published private(set) var isPinned: Bool = false
     /// The device-battery card is open over the panel.
-    @Published var showsBatteries: Bool = false
+    /// Card open under the header (battery devices or sound), from a click or from hovering its button.
+    @Published var headerCard: HeaderCard?
+
+    /// Kept for older callers: the battery card.
+    var showsBatteries: Bool {
+        get { headerCard == .battery }
+        set { headerCard = newValue ? .battery : (headerCard == .battery ? nil : headerCard) }
+    }
+
+    private var headerCardByHover = false
+    private var headerHoverRegion: String?
+    private var headerHoverWork: DispatchWorkItem?
     /// Settings → Timer → Controls on hover: the compact timer grew a row of pause / +1 min / stop buttons.
     @Published private(set) var showsTimerControls: Bool = false
 
@@ -427,7 +443,9 @@ final class IslandViewModel: ObservableObject {
         guard engine.isExpanded else { return }
         engine.isExpanded = false
         isPinned = false
-        showsBatteries = false
+        headerCard = nil
+        headerCardByHover = false
+        headerHoverWork?.cancel()
         idleWorkItem?.cancel()
         idleWorkItem = nil
         refresh()
@@ -598,6 +616,65 @@ final class IslandViewModel: ObservableObject {
         case .notification: return .notifications
         case .hud, .focus, .sensor, .toggle: return nil
         }
+    }
+
+    // MARK: Header cards (battery / sound)
+
+    private var cardAnimation: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 0.86) }
+
+    /// Header button clicked: toggles its card; a clicked card stays open until clicked again or elsewhere.
+    func toggleHeaderCard(_ card: HeaderCard) {
+        headerHoverWork?.cancel()
+        headerCardByHover = false
+        withAnimation(cardAnimation) { headerCard = headerCard == card ? nil : card }
+    }
+
+    func closeHeaderCard() {
+        headerHoverWork?.cancel()
+        withAnimation(cardAnimation) { headerCard = nil }
+    }
+
+    /// Window controller, on every pointer move: the hover region under the pointer ("hover.battery",
+    /// "hover.sound", "hover.card" or nil). Resting on a button opens its card; leaving button and card closes a
+    /// card that hover opened.
+    func setHeaderHover(_ region: String?) {
+        guard presentation == .expanded else {
+            headerHoverRegion = nil
+            return
+        }
+        guard region != headerHoverRegion else { return }
+        headerHoverRegion = region
+        headerHoverWork?.cancel()
+        headerHoverWork = nil
+
+        let hovered: HeaderCard?
+        switch region {
+        case "hover.battery": hovered = .battery
+        case "hover.sound": hovered = .sound
+        default: hovered = nil
+        }
+
+        if let card = hovered {
+            guard headerCard != card else { return }
+            schedule(after: 0.18) { [weak self] in
+                guard let self = self else { return }
+                self.headerCardByHover = true
+                withAnimation(self.cardAnimation) { self.headerCard = card }
+            }
+        } else if region == "hover.card" {
+            return   // inside the open card: keep it
+        } else if headerCard != nil && headerCardByHover {
+            schedule(after: 0.35) { [weak self] in
+                guard let self = self, self.headerCardByHover else { return }
+                withAnimation(self.cardAnimation) { self.headerCard = nil }
+            }
+        }
+    }
+
+    private func schedule(after delay: TimeInterval, _ block: @escaping () -> Void) {
+        let item = DispatchWorkItem(block: block)
+        headerHoverWork = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
     }
 
     func openSettings() {

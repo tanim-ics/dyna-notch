@@ -28,15 +28,22 @@ struct ExpandedView: View {
 
     @ViewBuilder
     private var batteryOverlay: some View {
-        if vm.showsBatteries {
+        if let card = vm.headerCard {
             ZStack(alignment: .topTrailing) {
-                // Tap anywhere else to dismiss.
+                // Click anywhere else to dismiss.
                 Color.black.opacity(0.001)
-                    .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { vm.showsBatteries = false } }
-                DeviceBatteryCard()
-                    .padding(.top, vm.notch.height + 2)
-                    .padding(.trailing, vm.radii.top + 40)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                    .onTapGesture { vm.closeHeaderCard() }
+                Group {
+                    switch card {
+                    case .battery: DeviceBatteryCard()
+                    case .sound: SoundCard()
+                    }
+                }
+                .hoverRegion("hover.card")
+                .padding(.top, vm.notch.height + 2)
+                .padding(.trailing, vm.radii.top + 40)
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                .id(card)
             }
         }
     }

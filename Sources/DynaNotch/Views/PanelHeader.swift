@@ -139,18 +139,20 @@ struct HeaderControls: View {
     private func control(_ button: HeaderButtonID) -> some View {
         switch button {
         case .battery:
-            BatteryPill(isOpen: showsBatteries) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showsBatteries.toggle() }
+            BatteryPill(isOpen: vm.headerCard == .battery) {
+                vm.toggleHeaderCard(.battery)
             }
             .fixedSize()
             .layoutPriority(1)
+            .uiTestID("batteryPill")
+            .hoverRegion("hover.battery")
         case .timer:
             HeaderButton(symbol: "timer", isOn: timer.state != nil, tint: .orange,
                          help: timer.state != nil ? "Timer running" : "Timer") {
                 vm.select(.timer)
             }
         case .output:
-            OutputMenu()
+            SoundButton()
         case .keepAwake:
             KeepAwakeMenu(tint: HeaderControls.awakeTint)
         case .mic:
@@ -199,7 +201,8 @@ struct HeaderControls: View {
             }
             .uiTestID("header.pomodoro")
         case .volume:
-            VolumeMenu()
+            // Volume and Sound Output share one sound card; show the button once.
+            if !buttons.contains(.output) { SoundButton() }
         case .scanQR:
             ScanQRButton()
         case .ports:
@@ -252,37 +255,6 @@ struct BatteryPill: View {
     private var label: String {
         if let info = battery.info { return Format.percent(info.level) }
         return "\(devices.devices.count)"
-    }
-}
-
-/// Output-device picker behind a speaker glyph.
-struct OutputMenu: View {
-    @EnvironmentObject var audio: AudioDeviceService
-
-    var body: some View {
-        Menu {
-            if audio.outputs.isEmpty {
-                Text("No output devices")
-            }
-            ForEach(audio.outputs) { device in
-                Button {
-                    audio.select(device)
-                } label: {
-                    if device.id == audio.currentOutputID {
-                        Label(device.name, systemImage: "checkmark")
-                    } else {
-                        Text(device.name)
-                    }
-                }
-            }
-        } label: {
-            HeaderGlyph(symbol: "speaker.wave.2.fill")
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .uiTestID("outputMenu")
-        .help("Sound output")
     }
 }
 
@@ -349,62 +321,6 @@ struct ActionsMenu: View {
         .fixedSize()
         .uiTestID("actionsMenu")
         .help("Actions")
-    }
-}
-
-/// Volume: mute toggle + level presets (VolumeService); the glyph follows the level.
-struct VolumeMenu: View {
-    @State private var reading: LevelReading?
-
-    private static let levels: [Int] = [0, 25, 50, 75, 100]
-
-    var body: some View {
-        Menu {
-            let current = reading
-            Button(current?.muted == true ? "Unmute" : "Mute") {
-                VolumeService.shared.setMuted(!(current?.muted ?? false))
-                refresh()
-            }
-            Divider()
-            ForEach(VolumeMenu.levels, id: \.self) { level in
-                Button {
-                    VolumeService.shared.setLevel(Double(level) / 100)
-                    if current?.muted == true { VolumeService.shared.setMuted(false) }
-                    refresh()
-                } label: {
-                    if let c = current, Int((c.level * 100).rounded()) == level {
-                        Label("\(level) %", systemImage: "checkmark")
-                    } else {
-                        Text("\(level) %")
-                    }
-                }
-            }
-            if let c = current {
-                Divider()
-                Text("Now \(Format.percent(c.level))\(c.muted ? " · muted" : "")")
-            }
-        } label: {
-            HeaderGlyph(symbol: glyph)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .uiTestID("volumeMenu")
-        .help("Volume")
-        .onAppear(perform: refresh)
-        .onReceive(VolumeService.shared.changes.receive(on: DispatchQueue.main)) { reading = $0 }
-    }
-
-    private var glyph: String {
-        guard let r = reading else { return "speaker.wave.2" }
-        if r.muted || r.level <= 0.001 { return "speaker.slash.fill" }
-        if r.level < 0.34 { return "speaker.wave.1.fill" }
-        if r.level < 0.67 { return "speaker.wave.2.fill" }
-        return "speaker.wave.3.fill"
-    }
-
-    private func refresh() {
-        reading = VolumeService.shared.read()
     }
 }
 
@@ -722,5 +638,183 @@ struct PanelBarLite: View {
                 Capsule().fill(tint).frame(width: geo.size.width * CGFloat(min(1, max(0, value))))
             }
         }
+    }
+}
+
+// MARK: - Sound
+
+/// SF Symbol for a volume reading.
+enum VolumeGlyph {
+    static func name(_ reading: LevelReading?) -> String {
+        guard let r = reading else { return "speaker.wave.2.fill" }
+        if r.muted || r.level <= 0.001 { return "speaker.slash.fill" }
+        if r.level < 0.34 { return "speaker.wave.1.fill" }
+        if r.level < 0.67 { return "speaker.wave.2.fill" }
+        return "speaker.wave.3.fill"
+    }
+}
+
+/// Speaker button: hover or click opens the sound card (volume + output device). The glyph follows the volume.
+struct SoundButton: View {
+    @EnvironmentObject var vm: IslandViewModel
+    @State private var reading: LevelReading?
+
+    private var isOpen: Bool { vm.headerCard == .sound }
+
+    var body: some View {
+        Button {
+            vm.toggleHeaderCard(.sound)
+        } label: {
+            Image(systemName: VolumeGlyph.name(reading))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(isOpen ? 1 : 0.75))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Color.white.opacity(isOpen ? 0.16 : 0)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .help(reading.map { "Sound · \(Format.percent($0.level))\($0.muted ? " · muted" : "")" } ?? "Sound")
+        .uiTestID("soundButton")
+        .hoverRegion("hover.sound")
+        .onAppear { reading = VolumeService.shared.read() }
+        .onReceive(VolumeService.shared.changes.receive(on: DispatchQueue.main)) { reading = $0 }
+    }
+}
+
+/// Dropdown card: live volume slider with mute, then the output devices (current one ticked).
+struct SoundCard: View {
+    @EnvironmentObject var audio: AudioDeviceService
+    @State private var reading: LevelReading?
+
+    private var level: Double { reading?.level ?? 0 }
+    private var muted: Bool { reading?.muted ?? false }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Button(action: toggleMute) {
+                    Image(systemName: VolumeGlyph.name(reading))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(muted ? 0.5 : 0.9))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .help(muted ? "Unmute" : "Mute")
+                .uiTestID("sound.mute")
+                VolumeSlider(value: muted ? 0 : level, onChange: setLevel)
+                    .frame(height: 22)
+                    .uiTestID("sound.slider")
+                Text(muted ? "Muted" : Format.percent(level))
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.white.opacity(0.85))
+                    .frame(width: 44, alignment: .trailing)
+            }
+            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5)
+            Text("Output")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.45))
+            if audio.outputs.isEmpty {
+                Text("No output devices")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.white.opacity(0.6))
+            }
+            ForEach(Array(audio.outputs.enumerated()), id: \.element.id) { index, device in
+                OutputRow(device: device, isCurrent: device.id == audio.currentOutputID) {
+                    audio.select(device)
+                    // The new device has its own volume.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { reading = VolumeService.shared.read() }
+                }
+                .uiTestID("sound.output.\(index)")
+            }
+        }
+        .padding(12)
+        .frame(width: 300, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(white: 0.12).opacity(0.96))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.4), radius: 12, y: 6)
+        )
+        .onAppear { reading = VolumeService.shared.read() }
+        .onReceive(VolumeService.shared.changes.receive(on: DispatchQueue.main)) { reading = $0 }
+    }
+
+    private func toggleMute() {
+        VolumeService.shared.setMuted(!muted)
+        reading = VolumeService.shared.read()
+    }
+
+    private func setLevel(_ value: Double) {
+        VolumeService.shared.setLevel(value)
+        if muted && value > 0 { VolumeService.shared.setMuted(false) }
+        reading = LevelReading(level: value, muted: false)
+    }
+}
+
+/// Capsule slider that works in the non-activating panel (drag or click anywhere on the track).
+struct VolumeSlider: View {
+    let value: Double
+    let onChange: (Double) -> Void
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = max(1, geo.size.width)
+            let fraction = CGFloat(min(1, max(0, value)))
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.15)).frame(height: 5)
+                Capsule().fill(Color.white).frame(width: width * fraction, height: 5)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 13, height: 13)
+                    .shadow(color: .black.opacity(0.3), radius: 2)
+                    .offset(x: width * fraction - 6.5)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+                onChange(Double(min(1, max(0, drag.location.x / width))))
+            })
+        }
+    }
+}
+
+struct OutputRow: View {
+    let device: AudioDevice
+    let isCurrent: Bool
+    let action: () -> Void
+
+    private var symbol: String {
+        let n = device.name.lowercased()
+        if n.contains("airpods") { return "airpods.pro" }
+        if n.contains("headphone") || n.contains("headset") || n.contains("buds") { return "headphones" }
+        if n.contains("speaker") { return "hifispeaker.fill" }
+        return "display"
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .frame(width: 18)
+                Text(device.name)
+                    .font(.system(size: 12, weight: isCurrent ? .semibold : .regular))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                if isCurrent {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 }

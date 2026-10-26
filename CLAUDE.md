@@ -1036,9 +1036,14 @@ v3.2 integration notes (2026-10-26):
   toggle), `DemoActivity.unplug`. Test hooks: `dynanotch://ui/override?fullscreen=1&front=<bundle>&mirror=1&focus=1`,
   `dynanotch://ui/mediakey?code=16[&up=1]`. Never wait for builds with `pgrep -f "./build.sh"` inside a shell loop (it
   matches itself); use `pgrep -fl "^/bin/bash ./build.sh"`.
-- Welcome (supersedes §6.5): `WelcomeController.show(greetingOnly:)` opens one window pinned to the top centre
-  (level `.mainMenu + 4`); `WelcomeView(notch:greetingOnly:closer:onFinish:)` is a black island that springs out of the
-  notch → hello → welcome → tips, Esc/Skip/Done shrink it back (`WelcomeCloser`).
+- Welcome (supersedes §6.5; owner request 2026-10-26: no buttons, slides, ends in the app):
+  `WelcomeController.show(greetingOnly:)` opens one window pinned to the top centre (level `.mainMenu + 4`);
+  `WelcomeView(notch:greetingOnly:handOffSize:closer:onHandOff:)` is a black island that springs out of the notch →
+  hello draws (~3.3 s) → "Welcome to DynaNotch" (2.2 s, no button) → first launch only: `WelcomeSlidesView`, the tips as
+  self-advancing slides (3.4 s each, push-from-right transition, Stories-style progress bar; click / → / space = next,
+  ← = back, Skip) → **hand-off**: the island morphs to the real panel's size (`vm.expandedSize`), the controller opens
+  the panel on Home underneath and fades the pop-up out; the panel collapses 3 s later unless hovered or pinned.
+  Every ending (last slide, Skip, Esc) hands off. Test: `dynanotch://ui/click?window=welcome&id=welcome.slides|welcome.skip`.
 - Shared helpers: `Services/WellbeingSupport.swift` (`AppDataStore` JSON in App Support / UserDefaults, `UserPresence`
   lock/sleep/idle), `Views/Tabs/QuickSearchTab.swift` (`PanelInputField`, `PanelPasteboard`, `CopiedBadge`),
   `Views/Alerts/MeetingAlertView.swift`. Settings window is 820×600 with grouped sidebar + search.
@@ -1081,6 +1086,20 @@ CalendarService, CodingAgentsService, BluetoothConnectService (+ new tab helpers
 Services/**, App/StatusItemController.swift, Views/Alerts/** · **settings agent** = Views/Settings/**. The tech lead owns
 Core (except IslandLayout/Engine), AppSettings, AppDelegate, UITestDriver, CLAUDE.md. Installing + UI-testing the app is
 serialised with the scratchpad `applock.sh` lock.
+
+### 6.8 Header cards + Settings scene (2026-10-26, owner bug reports)
+- `vm.headerCard: HeaderCard?` (`.battery`, `.sound`; `showsBatteries` kept as a computed alias). Header buttons open
+  their card on **hover** (rest 0.18 s) or click; a hover-opened card closes 0.35 s after the pointer leaves button and
+  card, a click-opened one stays until clicked again / elsewhere. Hit-testing: `Window/HoverRegions.swift`
+  (`.hoverRegion("hover.battery" | "hover.sound" | "hover.card")`), queried by `IslandWindowController.updateHeaderHover`
+  on every pointer move (so the scripted test pointer works too).
+- Sound: `SoundButton` (glyph follows the volume) + `SoundCard` (live `VolumeSlider`, mute, output devices). Header
+  buttons `.output` and `.volume` both show it, once. `OutputMenu` / `VolumeMenu` removed.
+- The SwiftUI `Settings` scene is only a placeholder; macOS opens it by itself (⌘,, "Settings…", window restoration)
+  as an empty "DynaNotch Settings" window. `SettingsSceneRedirect` closes it and opens `SettingsWindowController`
+  (not during the first 3 s after launch, when it can only be a restored window); the app menu's "Settings… ⌘," is
+  replaced to open the real window; the real window has `isRestorable = false`.
+- Test hooks: state.json `headerCard`; `dynanotch://ui/appMenuSettings`, `dynanotch://ui/systemSettingsAction`.
 
 ---
 

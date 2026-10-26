@@ -491,6 +491,18 @@ final class IslandWindowController: NSObject {
         if viewModel.isHovering != inside {
             viewModel.setHovering(inside)
         }
+        updateHeaderHover(inside: inside)
+    }
+
+    /// Battery / sound header buttons open their card on hover (see `HoverRegions`).
+    private func updateHeaderHover(inside: Bool) {
+        var region: String?
+        if inside && viewModel.presentation == .expanded {
+            let p = testPointer ?? NSEvent.mouseLocation
+            let point = NSPoint(x: p.x - panel.frame.minX, y: panel.frame.maxY - p.y)
+            region = HoverRegions.shared.region(at: point, in: panel)
+        }
+        viewModel.setHeaderHover(region)
     }
 
     /// Hands keyboard focus back to the app the user was working in (our panel never activates DynaNotch).
