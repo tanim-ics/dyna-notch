@@ -3,7 +3,7 @@
 > A native **Dynamic Island for macOS**, modelled on [Alcove](https://tryalcove.com/) (v2) and
 > [Notchy](https://notchy.dev/) (v3: the tabbed notch panel — music + lyrics, timers, clipboard, shelf, notes, system, AI usage).
 > Personal use: built from source on the owner's Mac (Apple Silicon, macOS 15 Sequoia+, Xcode 16+).
-> **Status: v3 (Notchy parity) — building on top of the shipped v2.** This file is the single source of truth.
+> **Status: v3.4 (§2e P2) built and user-tested 2026-10-26 on top of v3–v3.3.** This file is the single source of truth.
 > Contracts in §6 are binding: if you need to change one, change it here first.
 
 ---
@@ -100,14 +100,190 @@ keep awake, **"⋯" actions menu**, pin, lock. Expanded panel = translucent **gl
 | Tabs | Home, Now Playing (+lyrics), Timer, Shelf, Clipboard, Notes (+To-Do), AI Usage, System ("Activity") | ✅ v3 | |
 | Tabs | Calendar (full month + events) | 🟡 partial | month + Up Next live on Home; no dedicated tab |
 | Tabs | Focus | 🟡 partial | Focus *activity* only; switching Focus needs Shortcuts |
-| Tabs | Calculator, Emoji, Quick Search, Translate, Launcher | ⏳ due | good next candidates (pure local) |
-| Tabs | Reminders | ⏳ due | EventKit reminders |
-| Tabs | Shortcuts | ⏳ due | `shortcuts list/run` CLI |
-| Tabs | Mirror (camera preview) | ⏳ due | AVFoundation, camera permission |
-| Tabs | Apps & Updates, Stocks, Home Controls, Notifications, Terminal, Cuely (teleprompter) | ❌ out of scope | private APIs, paid data or non-goals (§1) |
+| Tabs | Calculator, Emoji, Quick Search, Translate, Launcher | ✅ v3.2 | Translate = Quick Search engine `tr` |
+| Tabs | Reminders | ✅ v3.2 | EventKit reminders |
+| Tabs | Shortcuts | ✅ v3.2 | `shortcuts list/run` CLI |
+| Tabs | Mirror (camera preview) | ✅ v3.2 | AVFoundation; own camera use doesn't trigger the privacy activity |
+| Tabs | Apps & Updates, Stocks, Notifications, Terminal, Cuely (teleprompter) | ❌ out of scope | private APIs, paid data or non-goals (§1) |
+| Tabs | Home Controls | ⏳ due (§2e P3) | not HomeKit: Notchy filters Apple Shortcuts — reuse ShortcutsService |
 | Actions | Record Whole Screen / Record Area | ⏳ due | `screencapture -v` / ScreenCaptureKit |
 | Actions | Identify Song, Clean Keyboard, Clean Screen | ⏳ due | ShazamKit needs entitlement; keyboard lock needs event tap |
-| Other | Ask About the Screen, desktop widgets, Extra Brightness (XDR) | ❌ out of scope | |
+| Other | Ask About the Screen, Extra Brightness (XDR) | ❌ out of scope | |
+| Other | Desktop widgets | ⏳ due (§2e P3) | desktop-level `NSPanel`s — public API, so no longer out of scope |
+
+
+### 2d. Notchy settings audit + to-do list (from the owner's screen recording, 2026-10-26)
+
+Notchy's Settings window: sidebar with a search field and grouped, colour-iconed pages — **General · Appearance ·
+Behavior · Popups · Calls & Messages · All Tools** | Notch: **Tabs · Home · Lock Screen · Knock** | Media & Info: **Now
+Playing · Calendar · Stocks · Activity · AI Usage** | Productivity: **Timer · Clipboard · Quick Search · Files & Utilities ·
+Screenshots · Cuely · Terminal** | Desktop: **Windows & Spaces · Pointer · Typing Sounds · Desktop Pet** | Your Mac: **Face
+Unlock · Displays · Battery & Fans · Connectivity · Caffeine** | System: **License · Permissions · About**. Every page ends
+with "Restore Defaults".
+
+Legend: ✅ done (v3.2 shipped 2026-10-26) · ⏳ later · ❌ out of scope.
+
+| Page | Notchy setting / feature | Status |
+|---|---|---|
+| Settings window | Grouped sidebar with coloured icons + search, Restore Defaults per page | ✅ |
+| General | Open at Login | ✅ |
+| General | Hello Intro toggle + ▶ replay | ✅ |
+| General | Time format System / 12-hour / 24-hour | ✅ |
+| General | Menu-bar items per tool, Hide Menu Bar Icons, Language picker | ⏳ |
+| General | Recovery: Emergency Shortcut, Restart, Force Quit | ✅ Restart DynaNotch; rest ⏳ |
+| Appearance | Pill vs Notch shape per display | 🟡 one global non-notch style ✅; per display ⏳ |
+| Appearance | Glass Surfaces + Panel Translucency slider | ✅ |
+| Appearance | Material presets: Graphite, Onyx, Carbon, Frost, Satin, Mist, Clear | ✅ |
+| Appearance | Clock on the closed pill (non-notch displays) | ✅ |
+| Appearance | Panel width, Fixed / Fit content, max height | ⏳ |
+| Appearance | Monochrome interface, Color-coded levels, panel font / text size | ✅ colour-coded levels; rest ⏳ |
+| Appearance | Animation style Calm / Snappy / Bouncy + speed, Reduce Motion, Haptics | ✅ |
+| Appearance | Notifications-only mode, Minimal layout | ⏳ |
+| Behavior | Expand on hover ✅ · Default tab (Previous / fixed) · Open on current activity · Auto-collapse delay ✅ · Idle timeout | ✅ |
+| Behavior | Show on All / Built-in / Main / External ✅ (3 modes) · Invisible until hover · Hide in full screen ✅ | ✅ |
+| Behavior | Keyboard shortcuts per tab, recorder UI | ⏳ (fixed ⌃⌥N / ⌃⌥V ✅) |
+| Popups | Notification duration slider · Volume / Brightness / Caps Lock / Focus popups ✅ · Camera guard ✅ | ✅ |
+| Popups | Focus-mode shortcuts, per-category alert sounds | ⏳ |
+| Calls & Messages | Call controls, meeting calls, iMessage, mirror app notifications | ❌ (no public API) |
+| Tabs | Enable/reorder tabs ✅ · favourites · tab labels · header-button toggles | ✅ header-button toggles; favourites / labels ⏳ |
+| Tabs | **Calculator, Emoji, Quick Search, Launcher, Shortcuts, Reminders, Mirror (camera)** | ✅ |
+| Tabs | Translate | ✅ as a Quick Search engine (`tr`, Google Translate) |
+| Tabs | Stocks, Home Controls, Apps & Updates, Terminal, Cuely, Notifications | ❌ |
+| Home | Card grid editor (columns, add/remove cards) | ⏳ |
+| Home | Weather city / location ✅ · Saved links · Colour tools (pick + format + history) | ✅ colour format + history; saved links ⏳ |
+| Lock Screen / Knock / Face Unlock / Pointer / Typing Sounds / Desktop Pet | | ❌ |
+| Now Playing | Island ✅ · peek on hover · synced lyrics ✅ · lyrics timing offset · lyrics on pill ✅ | ✅ lyrics offset; peek on hover ⏳ |
+| Calendar | Lead time ✅ · **Full-screen meeting alert with Join button** · keep until joined | ✅ (alert once per event, Join / Dismiss) |
+| Activity | Screen Time (time per app today) | ✅ System tab rail |
+| Activity | Click / keystroke / mouse-distance tracking, rings | ⏳ |
+| AI Usage | Tab ✅ · compact layout · agent permission islands (Claude Code hooks) | ⏳ |
+| Timer | Presets ✅ · Pomodoro lengths ✅ · Continue automatically · Pomodoro stats (today / streak / total) | ✅ |
+| Timer | **Break reminders: Look away (20-20-20), Stand up, Drink water** | ✅ |
+| Timer | Focus sounds, distraction blocking, mascot | ⏳ |
+| Clipboard | History limit 40/100/200/500 · keep after quit ✅ · ignored apps (password managers) · paste with 1–9 · auto-clear | ✅ |
+| Quick Search | Built-in engines (Google, DuckDuckGo, Bing, Perplexity, YouTube, GitHub, Wikipedia, Maps, Amazon) + shortcuts (`gh foo`) + custom engines | ✅ built-ins + shortcuts; custom engines ⏳ |
+| Files & Utilities | Download finished ✅ · drive mounted (eject) · long-command islands (via notify URL ✅) | ✅ |
+| Screenshots | Capture area ✅ · screenshot to shelf | ✅ |
+| Windows & Spaces | Snap windows to the notch, space change island | ⏳ |
+| Battery & Fans | Status / health / cycles / temperature ✅ · **battery history chart (24 h / 7 d)** · low-battery threshold · full-charge island | ✅ |
+| Battery & Fans | Charge limit, fan control, low power mode | ❌ (needs root helper) |
+| Connectivity | Device batteries ✅ · **accessory low / fully charged alerts** · connect alerts ✅ | ✅ |
+| Permissions | One page listing every permission with status + "Open System Settings" | ✅ |
+| About | Version · **Export / Import settings** · Reset all settings · Replay feature tour ✅ | ✅ |
+| License | Trial / purchase | ❌ (personal build) |
+
+
+### 2e. Notchy recording audit #2 — full gap list (2026-10-26, 32 sidebar pages, 209 s recording)
+
+Source: `notchy screen recording.mov` in the repo root (Notchy 2.0.0 Settings, every page). This table lists what §2b–§2d
+did **not** already cover, plus bugs the owner reported. Priority: **P1** = next round (cheap, high value, public API),
+**P2** = after that, **P3** = nice-to-have. ✅ = done, ⏳ = due, ❌ = out of scope (reason given).
+
+**Owner-reported bugs (2026-10-26)** — all ✅ this round:
+| Bug | Fix |
+|---|---|
+| ⋯ tab menu showed "⌃⌥⇧⌘ Space" for tabs 10+ | ✅ only tabs 1–9 get ⌘-numbers; the rest are listed after a divider with no shortcut |
+| Floating pill unavailable on the MacBook (notch) display | ✅ new `notchDisplayStyle` (Notch / Floating pill): the pill floats just below the camera notch; visual shape picker in Appearance |
+| Calendar (and every permission) asked again on each launch | ✅ ad-hoc signature had a cdhash requirement that changed every build; `build.sh` now signs with `designated => identifier "com.tanim.dynanotch"` |
+| Hello was a full-screen takeover | ✅ now an island pop-up that grows out of the notch (hello → welcome → tips) and shrinks back |
+| Settings hard to scan | ✅ Notchy-style rows: page subtitle, icon + title + description per row, dimmed dependants, −/+ sliders, Suggestions card, Restore… per page |
+| Tab menu items Launcher…System did nothing | ✅ those items sit below the panel, so picking one left the pointer outside and the panel collapsed (and "open on current activity" then reset the tab). The panel now holds while its menus track + 3 s grace until the pointer returns; a tab you picked wins over "open on current activity" for 10 min |
+| Pill / Notch choice only applied after relaunch | ✅ the window controller observes both shape settings and re-applies + repositions at once (verified by clicking the real Settings card) |
+| Settings content overlapped the title bar | ✅ standard (non-transparent) title bar; page header scrolls inside the Form |
+
+**v3.4 (P2) status (2026-10-26):** every P2 row below is ✅ except tab labels / favourites, saved clipboard lists +
+snippets, the accessory battery sparkline and a separate clock date-format picker (⏳). Notes in the Status column say
+what could not be tested live. Owner-visible fixes found in the integration pass: palette listed two identical "Open
+Calendar" rows (the Calendar.app action is now "Open Calendar App"), keyboard-opened panels collapsed after any settings
+write, Esc in the palette/Settings collapsed the island.
+
+**Settings UX rules (binding for every new setting):** page = large title + one-line subtitle · row = coloured icon +
+title + one grey sentence that states the effect *and its cost* ("Needs Accessibility", "Uses the network") · dependants
+dimmed, never hidden · sliders show the value with −/+ · segmented control for 2–4 options · destructive buttons red with
+inline confirm · every page ends with "Restore Defaults — nothing else changes" · status read-outs inline · say where data
+lives ("Stays on this Mac").
+
+| Page | Missing feature | Pri | Status | How (public API) |
+|---|---|---|---|---|
+| General | Suggestions card (missing permissions → Allow) + red badge on the sidebar row | P1 | ✅ | permission checks of the Permissions page |
+| General | "Show in DynaNotch" toggle for `dynanotch://notify` + Copy Example Link | P1 | ✅ | `settings.notifyActivity` + pasteboard |
+| General | Emergency shortcut (quit/relaunch) + Force Quit button | P2 | ✅ | Carbon hotkey ⌃⌥⌘Q · `exit(0)` |
+| General | Menu-bar items per tool | P3 | ⏳ | extra `NSStatusItem`s with popovers |
+| General | Hide Menu Bar Icons (Bartender-style) | — | ❌ | fragile spacer trick; macOS 26 menu-bar management conflicts |
+| Appearance | Closed Pill Size (scale %) + Pill Height Adjustment (pt) | P1 | ✅ | scale `IslandLayout` sizes; offset added to `topInset` |
+| Appearance | Clock options: time / date / both, date format, show with activities | P2 | ✅ time / date / both + with activities; separate date-format picker ⏳ | `DateFormatter` templates |
+| Appearance | Panel width, Fixed / Fit Content, max height, Compact / Default buttons | P2 | ✅ | (was §2d ⏳) parameterise `IslandLayout.expandedWidth/ContentHeight` |
+| Appearance | Custom panel fill (colour / gradient) · pill colour "Same as Panel" | P2 | ✅ | `ColorPicker` → hex in settings → `IslandGlass` |
+| Appearance | Monochrome interface · panel font + text size with live preview row | P3 | ⏳ | environment font scale |
+| Appearance | Notifications-only mode · Minimal layout (scale, visible tabs / header buttons) | P3 | ⏳ | second tab/button list |
+| Appearance | Hide the hardware notch (black menu-bar strip + rounded top corners) | P3 | ⏳ | click-through `.statusBar` window per notch screen |
+| Behavior | Screen Sharing Privacy (island hidden from captures/shares) | P1 | ✅ (turning it off swaps in a fresh panel: `.none` can't be undone on a window) | `NSWindow.sharingType = .none` |
+| Behavior | Hide While Mirroring | P1 | ✅ | `CGDisplayIsInMirrorSet` |
+| Behavior | Full-screen apps: All / only the app playing media | P1 | ✅ | compare frontmost bundle with NowPlaying bundle |
+| Behavior | Auto Collapse toggle (separate from delay) | P1 | ✅ | gate `collapseDelay` |
+| Behavior | Show On: All / Built-in / Main / External (4 modes, ours has 3) | P2 | ✅ | `ScreenLocator` |
+| Behavior | Hide if menus overlap the island | P3 | ⏳ | AX menu-bar item frames (Accessibility) |
+| Behavior | Hide in Mission Control | P3 | ⏳ | heuristic `CGWindowListCopyWindowInfo` |
+| Behavior | Shortcut recorder chips (reset ⟲ / clear ✕) + per-tab shortcuts | P2 | ✅ | Carbon `RegisterEventHotKey` per binding |
+| Behavior | Hide shortcut (⌥Space) · Command Palette (⌃⌥K: tabs, actions, settings) | P2 | ✅ | Carbon hotkeys + SwiftUI palette in the panel |
+| Behavior | Launcher Wheel (radial app menu under the notch, ⌃⌥L) | P3 | ⏳ | LauncherService + radial overlay |
+| Behavior | Siri on the notch | — | ❌ | no public API |
+| Popups | Quiet popups during Focus | P1 | ✅ (keeps low battery, timer finished, camera/mic) | gate HUD/activity posts on `FocusService.state.isActive` |
+| Popups | Feature-alert overview rows linking to each page | P1 | ✅ | settings navigation |
+| Popups | Alert sounds per category with ▶ preview | P2 | ✅ | `NSSound(named:)` system sounds |
+| Popups | Feature tips (one per day, never during Focus) | P3 | ⏳ | notify island |
+| All Tools | Searchable feature-card grid with a toggle per feature | P2 | ✅ | new Settings page bound to existing toggles |
+| Tabs | Tab labels (Selected / All / None), tabs beside the notch, favourites | P2 | ⏳ | header layout settings |
+| Tabs | Quick Settings tab (chosen switches in the notch) | P2 | ✅ | new `PanelTab.quickSettings` |
+| Tabs | Shelf retention (until cleared / 1 h / 1 day / 1 week) | P1 | ✅ | ShelfService prune |
+| Tabs | Header buttons: Stopwatch, Pomodoro, Volume, Caffeine, Scan QR Code, Ports, System Stats | P2 | ✅ (Scan QR decode tested offline; live area capture not run) | QR = `screencapture -i` + `CIDetector(ofType: .qrCode)`; Ports = `lsof -iTCP -sTCP:LISTEN` |
+| Tabs | Reminders: natural-language due dates ("tomorrow 9") | P2 | ✅ (parser tested on sample phrases; typing in the tab not scripted) | `NSDataDetector(.date)` |
+| Tabs | Sound Mixer (per-app volume) | P3 | ⏳ | Core Audio process taps (macOS 14.4+) — heavy |
+| Home | Card grid editor + cards: World Clock, Network, Device Batteries, Sunrise & Sunset, Saved Links, Colors, Coding Agents, Bluetooth connect | P2 | ✅ all 13 cards (Saved Links / Bluetooth connect not clicked in tests) | sunrise/sunset = Open-Meteo `daily=sunrise,sunset` |
+| Home | Desktop widgets (clock, weather, now playing, batteries) | P3 | ⏳ | desktop-level `NSPanel` |
+| Knock | Modifier-key knock (tap ⌃ 1–3×) → action palette | P2 | ✅ (simulated taps; a physical knock needs Accessibility) | global `.flagsChanged` monitor |
+| Knock | Chassis knock | — | ❌ | accelerometer is private |
+| Lock Screen | Unlock island + sound when you come back | P3 | ⏳ | `com.apple.screenIsUnlocked` distributed notification |
+| Now Playing | Show track info on hover / always / never; peek on hover | P1 | ✅ peek on hover; always/never picker ⏳ | (peek was §2d ⏳) |
+| Now Playing | Media keys always drive the current player; stop Music.app auto-opening; default music app | P1 | ✅ (media keys need Accessibility); default-app picker ⏳ | MediaKeyTap consumes play/next/prev; terminate `com.apple.Music` launched < 2 s after a key |
+| Now Playing | Desktop Lyrics floating panel | P2 | ✅ (window checked; content not rendered in tests) | click-through `NSPanel` with LyricsService line |
+| Now Playing | Listening history + bookmarks | P2 | ✅ | JSON ledger from `trackChanged` |
+| Now Playing | Music.app love / shuffle / repeat / app volume | P3 | ⏳ | AppleScript |
+| Now Playing | Audio-reactive visualiser | P3 | ⏳ | Core Audio process tap + permission |
+| Now Playing | NetEase lyrics, browser speed control | — | ❌ | non-keyless API · JS injection |
+| Calendar | Join Meeting / Open Calendar shortcuts, "only meetings with a join link" | P1 | ✅ ⌃⌥J / ⌃⌥C (not yet tested live: needs Calendar access) | `MeetingLink` + Carbon hotkeys |
+| Calendar | Per-calendar toggles | P1 | ✅ (not yet tested live: needs Calendar access) | filter `EKCalendar.calendarIdentifier` |
+| Calendar | Dedicated Calendar tab: month + add / edit / delete events + due reminders | P2 | ✅ | EventKit `EKEvent` save/remove |
+| Calendar | Next meeting in the menu bar | P2 | ✅ (not seen live: no upcoming events) | `NSStatusItem` title |
+| Activity | Clicks / keystrokes / mouse distance + rings / floating orb | P3 | ⏳ | (was §2d ⏳) listen-only event tap, Input Monitoring |
+| AI Usage | Limit / run-out warnings, menu-bar readout, hide personal info | P2 | ✅ | AIUsageService thresholds |
+| AI Usage | Session cost summary after each Claude reply (Stop hook) | P2 | ✅ installer (tested on copies; never installed into the real ~/.claude/settings.json) | hook → `dynanotch://notify` with cost from ClaudeUsageParser |
+| AI Usage | Approve / deny agent prompts from the notch | P3 | ⏳ | PermissionRequest hook ↔ local socket |
+| AI Usage | Ollama running models | P3 | ⏳ | `localhost:11434/api/ps` (local only) |
+| Timer | Controls on hover (pause / +1 min / stop) on the compact timer | P1 | ✅ | hover overlay in `CompactTimerView` |
+| Timer | Repeat timer, repeat alarm until dismissed, Pomodoro-only mode | P2 | ✅ | TimerEngine flags |
+| Timer | Focus sounds (rain, brown noise) | P3 | ⏳ | bundled loops + `AVAudioPlayer` |
+| Clipboard | Capture sound · tracking links: strip vs "offer a clean copy" | P1 | ✅ capture sound + "offer a clean copy" (v3.4) | `NSSound` · LinkCleaner mode |
+| Clipboard | Copy twice to open (⌘C ⌘C) · paste-as-plain-text shortcut | P2 | ✅ | pasteboard changeCount timing · Carbon hotkey |
+| Clipboard | Saved named lists + snippets | P2 | ⏳ | Codable lists in App Support |
+| Quick Search | Custom engines with "start from an example" (Kagi, Stack Overflow, Reddit, npm, HN, ChatGPT) | P2 | ✅ | (was §2d ⏳) `SearchEngine` list in settings |
+| Files | App install offer when a .dmg mounts (copy .app to /Applications) | P2 | ✅ | DriveMonitor + `FileManager.copyItem` |
+| Files | Long-command islands: one-click zsh hook installer | P2 | ✅ installer (tested on a copy of ~/.zshrc; not installed for real) | preexec/precmd snippet → `dynanotch://notify` |
+| Files | Keystroke HUD | P3 | ⏳ | listen-only event tap (Input Monitoring) |
+| Files | Dictation | P3 | ⏳ | on-device `SFSpeechRecognizer` |
+| Screenshots | Save-to folder · record screen / area | P1 | ✅ (recording needs Screen Recording permission; `ScreenRecorder` runs `screencapture -v`) | `screencapture <path>` · `screencapture -v` |
+| Screenshots | Annotate after capture, watermark | P3 | ⏳ | Core Image / custom editor |
+| Displays | Per-display brightness incl. Extra Dim; refresh-rate switch | P3 | ⏳ | gamma tables (`CGSetDisplayTransferByTable`), `CGDisplaySetDisplayMode`; DDC best-effort |
+| Battery | Unplug island with time left · full-charge level (80–100 %) | P1 | ✅ | `BatteryInfo.minutesToEmpty` |
+| Battery | 30-day history range · battery in the menu bar | P2 | ✅ | BatteryHistory already keeps 30 days |
+| Battery | Battery drain warnings (app using lots of CPU on battery) · screen-edge glow on alerts | P2 | ✅ (drain warnings not seen live: Mac on AC power) | `proc_pid_rusage` sampling · edge window |
+| Connectivity | Wi-Fi row · accessory battery sparkline · network traffic history | P2 | ✅ Wi-Fi / network row + traffic history; accessory sparkline ⏳ | CoreWLAN (Location) · samples · getifaddrs ledger |
+| Caffeine | Keep Awake for 15 m / 30 m / 1 h / 2 h / 4 h / until a time / until stopped | P1 | ✅ menu on the cup button ("until a time" ⏳) | KeepAwakeService timer + menu on the header button |
+| Caffeine | Awake with lid closed | — | ❌ | needs admin `pmset disablesleep` |
+| Permissions | Grouped (Required / Features / Advanced), "Still not working?" help, copy diagnostics | P1 | ✅ | `PermissionDiagnostics.report()` |
+| About | Clear caches with sizes · Uninstall (remove data, login item, hooks) · What's New | P2 | ✅ (Uninstall never run in tests) | App Support sizes; `SMAppService.unregister` |
+| About | Updates, crash reports, iCloud sync, Insights / Wrapped | — | ❌ | personal unsigned build |
+| Calls & Messages, Stocks, Cuely, Terminal, Face Unlock, Pointer, Typing Sounds, Desktop Pet, Lock-screen widgets | | — | ❌ | private APIs / paid data / non-goals (unchanged) |
 
 ---
 
@@ -176,7 +352,11 @@ dyna-notch/
 ```
 
 ### Window strategy (important)
-- **One fixed-size transparent `NotchPanel`** (canvas `IslandLayout.canvasSize` = 720×320) pinned to the top-centre of the target screen. The window is **never resized**; SwiftUI animates the island inside it. This avoids the AppKit/SwiftUI layout-recursion crashes of v1.
+- **One transparent `NotchPanel`** pinned to the top-centre of the target screen. Its canvas is `vm.canvasSize` =
+  `IslandLayout.canvasSize(panelWidth:panelMaxHeight:notchHeight:)` — at least the static `IslandLayout.canvasSize`
+  (720×320, which the `dn.sh` x=360 test helpers assume) and larger only when Settings → Appearance asks for a wider/taller
+  panel (v3.4). The window is resized **only when those settings change, never during animations**; SwiftUI animates the
+  island inside it. This avoids the AppKit/SwiftUI layout-recursion crashes of v1.
 - Level `.mainMenu + 3`, `[.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]`, borderless + `.nonactivatingPanel`, `hasShadow = false`, transparent. **Override `constrainFrameRect(_:to:)` to return the rect unchanged**, otherwise macOS pushes the window below the menu bar.
 - **Click-through**: `ignoresMouseEvents` is toggled by the window controller. A global + local `.mouseMoved` monitor (plus a 0.2 s safety poll) checks whether the cursor is inside the island's screen rect (`IslandLayout.screenRect`, inflated by 4 pt). Inside → `ignoresMouseEvents = false`, `vm.setHovering(true)`. Outside → `true`, `vm.setHovering(false)`.
 - `NotchHostingView.acceptsFirstMouse` → `true` so the first click on a button works.
@@ -796,6 +976,112 @@ Views: `HelloShape` (single-stroke cursive path, animated with .trim), `GlassBac
 behind-window, dark), `PanelHeader` = TabPill + TabMenu (⋯) | BatteryPill · timer · output · keep awake · ActionsMenu (⋯) · pin · lock.
 ```
 
+### 6.6 v3.2 additions (Notchy settings audit, §2d)
+
+```swift
+// Core (all tested in V32Tests.swift)
+Calculator.evaluate(_:) -> Double?; Calculator.format(_:) -> String          // safe recursive-descent parser
+SearchEngine { id, name, shortcut, template("%@"), symbol; url(for:) }; QuickSearch.builtIn; QuickSearch.resolve(_:engines:defaultEngineID:)
+EmojiEntry { character, name, group }; EmojiGroup (8); EmojiCatalog.all / search(_:)
+BreakKind (lookAway, standUp, drinkWater); BreakScheduler.due(now:start:intervals:isQuiet:) / reset(now:)
+PomodoroStats.recordSession(at:) / today(now:) / streak(now:) / total     (Codable)
+BatterySample, BatteryHistory.append(_:) / samples(since:)                 (Codable, 5-min spacing, 30-day retention)
+ScreenTimeLedger.record(app:name:from:to:) / top(on:limit:) / total(on:) / prune(keepDays:now:)   (Codable)
+MeetingLink.detect(in: [String?]) -> URL?                                  // Zoom, Meet, Teams, Webex, Whereby, Slack, Discord
+AccessoryAlert (.low / .full), AccessoryAlertDetector(lowThreshold:).update(_:)
+MaterialPreset (graphite, onyx, carbon, frost, satin, mist, clear; tintWhite, tintOpacity, opacity(translucency:))
+AnimationStyle (calm, snappy, bouncy; spring, response(speed:)); TimeFormat (system, h12, h24; template)
+PanelTab += calculator, emoji, quickSearch, launcher, shortcuts, reminders, mirror
+
+// AppSettings (+ SettingsKey "dn."+name)
+materialPreset = .carbon; panelTranslucency = 1.0 (0…1); animationStyle = .calm; animationSpeed = 1.0 (0.5…2)
+colorCodedLevels = false; closedPillClock = false; timeFormat = .system; helloIntro = false
+defaultTab = "previous" ("previous" | PanelTab raw); openOnCurrentActivity = true; idleTimeout = 0 (s, 0 = never)
+invisibleUntilHover = false; notificationDuration = 4.5 (1…15); lyricsOffset = 0 (s, −5…5)
+pomodoroAutoContinue = true; breakLookAway = false; breakStandUp = false; standUpMinutes = 60; breakDrinkWater = false
+drinkWaterMinutes = 45; lowBatteryThreshold = 20 (5…50); fullChargeActivity = false; accessoryAlerts = true
+clipboardIgnoredApps = "<password-manager bundle ids>"; clipboardAutoClearMinutes = 0; pasteWithNumbers = true
+meetingAlert = false; meetingAlertMinutes = 1; screenTimeEnabled = true; quickSearchEngine = "google"
+launcherApps = "" (bundle ids, comma); colorFormat = "hex" (hex|rgb|hsl); driveActivity = true; screenshotToShelf = false
+headerButtons = "battery,output,keepAwake,actions,pin,lock" (+ timer, screenshot, colorPicker, mic)
+func restoreDefaults(_ keys: [String]); func exportJSON() -> Data; func importJSON(_ data: Data) -> Bool
+
+// New services (skeleton → systems agent)
+BreakReminderService.start(); PomodoroStatsService (@Published stats); BatteryHistoryService (@Published history)
+ScreenTimeService (@Published ledger; func today(limit:) -> [(app, name, seconds)]); MeetingAlertController.start()
+DriveMonitor.start(); ColorHistory (@Published colors: [String])
+// New tab services (→ tabs agent)
+LauncherService (pinned + running apps, search installed apps, launch); ShortcutsService (`shortcuts list|run`)
+RemindersService (EventKit reminders: access, list, add, complete); CameraService (AVCaptureSession for Mirror)
+```
+v3.2 integration notes (2026-10-26):
+- `HeaderButtonID` (Core, Panel.swift: battery, timer, output, keepAwake, mic, screenshot, colorPicker, actions, pin, lock;
+  `parseList` / `serialize(Set)` in canonical order) drives `PanelHeader` from `settings.headerButtons`.
+- `PanelTab.migrate(stored:known:)` + UserDefaults `dn.knownTabs` (not in `SettingsKey.all`): tabs added by an update are
+  inserted once into an existing tab list (before System / AI Usage); tabs the user removed stay removed.
+- Two-finger swipes act only on the compact island; while expanded, scrolling belongs to the tab lists.
+- `CameraService.isOwnUse` suppresses the camera privacy activity while (and 4 s after) the Mirror tab uses the camera.
+- `BatteryService.fullyCharged` → "Fully Charged" notification island (settings.fullChargeActivity).
+- `notchDisplayStyle: NonNotchStyle = .notch` (key `dn.notchDisplayStyle`): `.pill` on a notch display makes the view model
+  lay out with non-notch metrics (`notch` = effective, `screenNotch` = measured) and `topInset = notch height + pillTopInset`;
+  `vm.isOnNotchDisplay` is the hardware fact. Settings → Appearance shows visual `ShapeChoiceRow` cards per display kind.
+- v3.3 (P1 of §2e): settings `pillScale`, `pillHeightOffset`, `screenSharingPrivacy`, `hideWhileMirroring`, `fullscreenScope`
+  (Core `FullscreenScope`), `autoCollapse`, `quietDuringFocus`, `peekOnHover`, `mediaKeysControlPlayer`,
+  `preventMusicAutoLaunch`, `meetingOnlyWithLink`, `hiddenCalendars`, `calendarHotkeys`, `timerHoverControls`,
+  `clipboardCaptureSound`, `shelfRetention` (Core `ShelfRetention`), `screenshotFolder`, `unplugActivity`, `fullChargeLevel`.
+  Core `IslandLayout`: `timerControlsSize/Radii`, `unpluggedSide`, `pillScaleRange`, `scaled(_:by:)`;
+  `ActivityKind.isQuietedDuringFocus`. App: `CalendarService.calendars` / `CalendarInfo` / `nextMeetingURL()`,
+  `KeepAwakeService.keepAwake(for:)` + `until`, `ScreenRecorder`, `MusicLaunchGuard`, `PermissionDiagnostics`,
+  `Permissions.screenRecordingGranted`, `.dynaNotchAppNotification` (services → island message, not gated by the notify
+  toggle), `DemoActivity.unplug`. Test hooks: `dynanotch://ui/override?fullscreen=1&front=<bundle>&mirror=1&focus=1`,
+  `dynanotch://ui/mediakey?code=16[&up=1]`. Never wait for builds with `pgrep -f "./build.sh"` inside a shell loop (it
+  matches itself); use `pgrep -fl "^/bin/bash ./build.sh"`.
+- Welcome (supersedes §6.5): `WelcomeController.show(greetingOnly:)` opens one window pinned to the top centre
+  (level `.mainMenu + 4`); `WelcomeView(notch:greetingOnly:closer:onFinish:)` is a black island that springs out of the
+  notch → hello → welcome → tips, Esc/Skip/Done shrink it back (`WelcomeCloser`).
+- Shared helpers: `Services/WellbeingSupport.swift` (`AppDataStore` JSON in App Support / UserDefaults, `UserPresence`
+  lock/sleep/idle), `Views/Tabs/QuickSearchTab.swift` (`PanelInputField`, `PanelPasteboard`, `CopiedBadge`),
+  `Views/Alerts/MeetingAlertView.swift`. Settings window is 820×600 with grouped sidebar + search.
+
+Ownership this round: tech lead = Core, Model, Window, App, PanelHeader/IslandRootView/ActivityView; **tabs agent** =
+`Views/Tabs/{Calculator,Emoji,QuickSearch,Launcher,Shortcuts,Reminders,Mirror}Tab.swift`, SystemTab, and the four tab
+services; **settings agent** = `Views/Settings/**`; **systems agent** = the remaining `Services/**` + `Views/Tabs/ClipboardTab.swift`
++ `Views/Alerts/**`.
+
+### 6.7 v3.4 additions (§2e P2) — contract
+
+Core `Workspace.swift` (tested in `V34Tests.swift`): `HotKeyAction` (togglePanel, clipboard, hide, commandPalette,
+emergencyQuit, joinMeeting, openCalendar, pastePlainText, startPomodoro, toggleKeepAwake), `HotKeyBinding` (Carbon key code +
+modifier mask, `display` "⌃⌥N"), `HotKeyMap` (settings string "action=code:mods;tab.timer=…", only diffs from `defaults`
+stored, "key=" clears), `KnockKey`, `KnockAction` (+ "1=…,2=…" map), `KnockDetector` (press/release/interrupt/settle),
+`HomeCard` (13 cards, `span`, `defaultList`, parse/serialize), `ClockContent`, `PanelSizing`, `TrackInfoMode`,
+`AlertCategory` + `AlertSounds` ("timers=Glass,battery=None"), `SavedLink`, `JSONList`, `ListenEntry`/`ListeningHistory`,
+`TrafficLedger`. `TimerEngine.repeatCountdown`. `WeatherSnapshot.sunrise/sunset`. `DisplayMode.external`.
+`PanelTab` += `calendar`, `quickSettings`; `HeaderButtonID` += stopwatch, pomodoro, volume, scanQR, ports, systemStats.
+
+Settings (AppSettings "MARK: v3.4"): clockContent, clockWithActivities, panelWidth (520–820), panelSizing, panelMaxHeight
+(150–320), panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled,
+knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines (JSON [SearchEngine]), homeCards, homeColumns
+(2–4), worldClocks (TZ ids), savedLinks (JSON [SavedLink]), repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings,
+aiLimitWarnPercent (50–95), aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer,
+nextMeetingInMenuBar, listeningHistory, defaultMusicApp.
+
+App: `AppActions.shared` (App/AppActions.swift) performs HotKeyAction / KnockAction / `toggleTab(_:)` for shortcuts, knocks,
+the palette and Quick Settings; the view model registers itself and offers `togglePanelFromKeyboard()`, `openFocused(_:)`,
+`toggleUserHidden()`/`isUserHidden`. `CommandPaletteController`, `KnockMonitor`, `HotKeyService.reload/suspend/resume`,
+`ClipboardService.pasteCurrentAsPlainText()`, `TimerService.isAlarmRinging/stopAlarm()`, `KeepAwakeService.keepAwake(until:)`,
+`AlertSoundPlayer.play(_:)/preview(_:)`, and in `Services/WorkspaceServices.swift`: `NetworkInfoService`, `TrafficService`,
+`ListeningHistoryService`, `AppMaintenance`, `ShellHookInstaller`, `CodingAgentsService` (+`CodingAgentSession`),
+`BluetoothConnectService` (+`PairedDevice`).
+
+Ownership (v3.4 wave): **island agent** = Model/IslandViewModel.swift, Window/**, top-level Views/*.swift (not PanelHeader),
+Core IslandLayout/IslandEngine · **input agent** = HotKeyService, KnockMonitor, ClipboardService, App/AppActions.swift,
+App/CommandPalette*.swift, Views/Tabs/ClipboardTab.swift · **tabs agent** = Views/Tabs/** (not Clipboard), PanelHeader.swift,
+CalendarService, CodingAgentsService, BluetoothConnectService (+ new tab helpers) · **services agent** = the rest of
+Services/**, App/StatusItemController.swift, Views/Alerts/** · **settings agent** = Views/Settings/**. The tech lead owns
+Core (except IslandLayout/Engine), AppSettings, AppDelegate, UITestDriver, CLAUDE.md. Installing + UI-testing the app is
+serialised with the scratchpad `applock.sh` lock.
+
 ---
 
 ## 7. UX spec
@@ -858,6 +1144,15 @@ Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit 
 - Claude now runs directly on the owner's Mac (since 2026-10-26): build/test with `swift build` / `swift test` directly; the
   `.agent/request` relay is only needed from a sandbox. Shell `screencapture` is not permitted, so visual checks use
   `open "dynanotch://snapshot/<name>"` → `~/Library/Application Support/DynaNotch/Snapshots/<name>.png` (the app renders its own canvas).
+- **Scripted UI tests (no Accessibility needed)** — `App/UITestDriver.swift` sends real mouse events into our own windows:
+  `dynanotch://ui/pointer?x=&y=` (simulated pointer in island-canvas points; no query = real pointer),
+  `dynanotch://ui/click?window=island|settings&id=<uiTestID>` (or `&x=&y=`, `&alt=1`),
+  `dynanotch://ui/menu?item=<title>&delay=<s>&away=1` (the next menu that opens picks that item, pointer moves onto the menu),
+  `dynanotch://set?dn.<key>=<value>` (changes settings through AppSettings like the UI), `dynanotch://state` →
+  `Snapshots/state.json` (presentation, tabs, pill/inset, screen, test-ID frames, last menu result). Tag new controls with
+  `.uiTestID("…")`. Every feature is tested this way, as a user would use it, before it is marked ✅.
+- Settings pages render with `open "dynanotch://snapshot-settings/<SettingsPage raw>"` → `Snapshots/settings-<page>.png`;
+  the welcome pop-up with `dynanotch://welcome` + `dynanotch://snapshot-welcome/<name>`.
 - More URLs: `dynanotch://tab/<panelTab>`, `dynanotch://timer/<minutes>`, `dynanotch://notify?title=&body=&symbol=&duration=`
   (e.g. from a Claude Code `Notification`/`Stop` hook: `open -g "dynanotch://notify?title=Claude%20Code&body=Done&symbol=sparkles"`).
 - Parallel agents must build with distinct `swift build --scratch-path <dir>` to avoid SwiftPM lock contention.
@@ -880,3 +1175,10 @@ iPhone-style "hello" on first launch. Keep §2c as the living done/due board —
 1. Build DynaNotch "like Notchy" (notchy.dev): visit the site, take its features, develop, test and fix everything.
 2. v3 adds the Notchy panel features listed in §2b (file shelf is now **in** scope); paid/AI/teleprompter/face-unlock features stay out.
 3. Network use is limited to free, keyless public APIs (iTunes Search, LRCLIB, Open-Meteo); everything else stays on the Mac.
+
+## 12. Owner decisions (2026-10-26, after v3.2)
+1. The floating pill must also be available on the MacBook's notch display (`notchDisplayStyle`, pill floats below the notch).
+2. The hello greeting is a pop-up under the notch, not a full-screen takeover.
+3. Permissions must survive rebuilds (stable ad-hoc designated requirement in `build.sh`).
+4. Settings must be intuitive: follow the Settings UX rules in §2e for every page and every new setting.
+5. §2e is the living gap list from the Notchy recording; pick work from it by priority (P1 first) and flip rows to ✅.

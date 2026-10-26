@@ -19,11 +19,17 @@ final class ClipboardService: ObservableObject {
 
     private var started = false
     private var pollTimer: AnyCancellable?
+    private var autoClearTimer: AnyCancellable?
     private var limitObserver: AnyCancellable?
     private var saveObserver: AnyCancellable?
     private let saveRequests = PassthroughSubject<Void, Never>()
     private var lastChangeCount: Int
     private var ownChangeCount: Int?
+    private var pollObserver: AnyCancellable?
+    /// Copy twice to open: when the previous outside copy happened.
+    private var lastExternalCopyAt: Date?
+    /// Time window for "⌘C ⌘C" (settings.copyTwiceToOpen).
+    static let copyTwiceWindow: TimeInterval = 0.6
 
     private static let ignoredTypes: Set<String> = [
         "org.nspasteboard.ConcealedType",
@@ -68,16 +74,82 @@ final class ClipboardService: ObservableObject {
         started = true
         // Do not import whatever was on the clipboard before we started.
         lastChangeCount = pasteboard.changeCount
-        pollTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+        // Copy twice to open needs a finer clock to tell two quick copies apart.
+        pollObserver = AppSettings.shared.$copyTwiceToOpen
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] fast in self?.schedulePolling(fast: fast) }
+        autoClearTimer = Timer.publish(every: 60, tolerance: 5, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] _ in self?.poll() }
+            .sink { [weak self] _ in self?.autoClear() }
+        autoClear()
     }
 
     func stop() {
         guard started else { return }
         started = false
+        pollObserver = nil
         pollTimer?.cancel()
         pollTimer = nil
+        autoClearTimer?.cancel()
+        autoClearTimer = nil
+    }
+
+    /// "Paste as Plain Text" shortcut: re-writes the current pasteboard as a plain string (no fonts, colours or
+    /// links), then sends ⌘V to the frontmost app (needs Accessibility; without it the plain text is just copied).
+    func pasteCurrentAsPlainText() {
+        var text = pasteboard.string(forType: .string)
+        // Rich text only (some apps put no plain string): flatten RTF / RTFD / HTML.
+        if text == nil {
+            let rich: [(NSPasteboard.PasteboardType, NSAttributedString.DocumentType)] = [
+                (.rtf, .rtf), (.rtfd, .rtfd), (.html, .html),
+            ]
+            for (type, docType) in rich {
+                guard let data = pasteboard.data(forType: type),
+                      let attributed = try? NSAttributedString(data: data, options: [.documentType: docType],
+                                                               documentAttributes: nil) else { continue }
+                text = attributed.string
+                break
+            }
+        }
+        if text == nil,
+           let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !urls.isEmpty {
+            text = urls.map(\.path).joined(separator: "\n")
+        }
+        guard let plain = text, !plain.isEmpty else {
+            logger.info("paste as plain text: nothing textual on the clipboard")
+            return
+        }
+        pasteboard.clearContents()
+        pasteboard.setString(plain, forType: .string)
+        markOwnChange()
+        guard Permissions.accessibilityGranted else {
+            logger.notice("paste as plain text: no Accessibility, plain text left on the clipboard")
+            return
+        }
+        // Give the user a moment to release the shortcut's modifiers.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            ClipboardService.postCommandV()
+        }
+    }
+
+    /// "Clean link" on a clipboard row (settings.offerCleanCopy): copies the link without tracking parameters;
+    /// the original stays in the history as copied.
+    @discardableResult
+    func copyCleanLink(_ item: ClipItem) -> Bool {
+        let cleaned = LinkCleaner.clean(item.text)
+        guard item.kind == .link, cleaned != item.text else { return false }
+        pasteboard.clearContents()
+        pasteboard.setString(cleaned, forType: .string)
+        // Not recorded as a new row: the list would jump; the original row shows "Clean copy" instead.
+        markOwnChange()
+        return true
+    }
+
+    /// True when the row should offer a "Clean link" button.
+    func offersCleanCopy(for item: ClipItem) -> Bool {
+        AppSettings.shared.offerCleanCopy && item.kind == .link && LinkCleaner.clean(item.text) != item.text
     }
 
     func copy(_ item: ClipItem) {
@@ -126,18 +198,45 @@ final class ClipboardService: ObservableObject {
 
     // MARK: Polling (main queue)
 
+    private func schedulePolling(fast: Bool) {
+        pollTimer?.cancel()
+        pollTimer = Timer.publish(every: fast ? 0.15 : 0.5, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.poll() }
+    }
+
     private func poll() {
         let count = pasteboard.changeCount
         guard count != lastChangeCount else { return }
+        let delta = count - lastChangeCount
         lastChangeCount = count
         if let own = ownChangeCount, own == count { return }
+        detectCopyTwice(changes: delta)
         capture()
+    }
+
+    /// ⌘C ⌘C within `copyTwiceWindow` opens the Clipboard tab (two changes seen in one poll count too).
+    private func detectCopyTwice(changes: Int) {
+        guard AppSettings.shared.copyTwiceToOpen else { return }
+        let now = Date()
+        let quick = lastExternalCopyAt.map { now.timeIntervalSince($0) <= ClipboardService.copyTwiceWindow } ?? false
+        if changes >= 2 || quick {
+            lastExternalCopyAt = nil
+            logger.info("copy twice → open Clipboard")
+            DispatchQueue.main.async { AppActions.shared.perform(.clipboard) }
+        } else {
+            lastExternalCopyAt = now
+        }
     }
 
     private func capture() {
         let types = (pasteboard.types ?? []).map(\.rawValue)
         if types.contains(where: { ClipboardService.ignoredTypes.contains($0) }) { return }
-        let sourceApp = NSWorkspace.shared.frontmostApplication?.localizedName
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        if let bundleID = frontmost?.bundleIdentifier, ClipboardService.ignoredApps().contains(bundleID.lowercased()) {
+            return
+        }
+        let sourceApp = frontmost?.localizedName
         let now = Date()
 
         // File URLs first: Finder also puts the file name on the pasteboard as a string.
@@ -153,7 +252,8 @@ final class ClipboardService: ObservableObject {
             guard !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             var text = string
             let kind = ClipClassifier.kind(for: text)
-            if kind == .link, AppSettings.shared.cleanLinks {
+            // Offer a clean copy instead (row button): keep the link exactly as copied.
+            if kind == .link, AppSettings.shared.cleanLinks, !AppSettings.shared.offerCleanCopy {
                 let cleaned = LinkCleaner.clean(text)
                 if cleaned != text {
                     text = cleaned
@@ -191,12 +291,49 @@ final class ClipboardService: ObservableObject {
         add(ClipItem(kind: .image, text: hash, date: date, sourceApp: sourceApp, imageFile: fileName))
     }
 
-    private func add(_ item: ClipItem) {
+    private func add(_ item: ClipItem, sound: Bool = true) {
         var h = history
         h.limit = AppSettings.shared.clipboardLimit
         let evicted = h.add(item)
         history = h
         deleteImageFiles(of: evicted)
+        scheduleSave()
+        if sound, AppSettings.shared.clipboardCaptureSound {
+            ClipboardService.captureSound?.stop()
+            ClipboardService.captureSound?.play()
+        }
+    }
+
+    /// Short system sound for `settings.clipboardCaptureSound` (only clips this service records play it).
+    private static let captureSound: NSSound? = {
+        let sound = NSSound(named: NSSound.Name("Pop")) ?? NSSound(named: NSSound.Name("Tink"))
+        sound?.volume = 0.6
+        return sound
+    }()
+
+    /// Settings › Clipboard › Ignored apps: comma / newline separated bundle ids (case-insensitive).
+    private static func ignoredApps() -> Set<String> {
+        let raw = AppSettings.shared.clipboardIgnoredApps
+        let ids = raw.split(whereSeparator: { $0 == "," || $0.isNewline || $0 == " " })
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            .filter { !$0.isEmpty }
+        return Set(ids)
+    }
+
+    /// `clipboardAutoClearMinutes` > 0: drops unpinned items older than that.
+    private func autoClear() {
+        let minutes = AppSettings.shared.clipboardAutoClearMinutes
+        guard minutes > 0 else { return }
+        let cutoff = Date().addingTimeInterval(-TimeInterval(minutes) * 60)
+        let stale = history.items.filter { !$0.pinned && $0.date < cutoff }
+        guard !stale.isEmpty else { return }
+        var h = history
+        var removed: [ClipItem] = []
+        for item in stale {
+            if let gone = h.remove(id: item.id) { removed.append(gone) }
+        }
+        history = h
+        deleteImageFiles(of: removed)
         scheduleSave()
     }
 

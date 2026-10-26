@@ -2,24 +2,104 @@ import SwiftUI
 import AppKit
 import DynaNotchCore
 
-/// Home: mini player + month calendar | weather + timer | up next.
+/// Home: the cards from Settings → Home (`settings.homeCards`, empty → `HomeCard.defaultList`) laid out in
+/// `settings.homeColumns` columns. Cards fill columns top to bottom; a column holding a wide card (`span` 2) is
+/// twice as wide. Cards that do not fit go to the shortest column and the grid scrolls.
 struct HomeTab: View {
+    @EnvironmentObject var settings: AppSettings
+
+    private var cards: [HomeCard] {
+        let list = HomeCard.parseList(settings.homeCards)
+        return list.isEmpty ? HomeCard.defaultList : list
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                MiniNowPlaying()
-                MonthCalendarView()
-            }
-            .frame(width: 210)
-            VStack(alignment: .leading, spacing: 12) {
-                HomeWeatherBlock()
-                HomeTimerStatus()
-            }
-            .frame(width: 150, alignment: .topLeading)
-            HomeUpNext()
+        GeometryReader { geo in
+            let columns = HomeLayout.columns(cards: cards, count: max(2, min(4, settings.homeColumns)),
+                                             available: geo.size.height)
+            let spacing: CGFloat = 14
+            let totalWeight = CGFloat(max(1, columns.reduce(0) { $0 + $1.span }))
+            let usable = max(0, geo.size.width - spacing * CGFloat(max(0, columns.count - 1)))
+            ScrollView(.vertical, showsIndicators: false) {
+                HStack(alignment: .top, spacing: spacing) {
+                    ForEach(Array(columns.enumerated()), id: \.offset) { column in
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(column.element.cards, id: \.self) { card in
+                                HomeCardView(card: card)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                            }
+                        }
+                        .frame(width: usable * CGFloat(column.element.span) / totalWeight, alignment: .topLeading)
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// Column packing for the Home grid (estimated card heights).
+enum HomeLayout {
+    struct Column {
+        var cards: [HomeCard] = []
+        var height: CGFloat = 0
+        var span = 1
+    }
+
+    static let gap: CGFloat = 12
+
+    static func estimatedHeight(_ card: HomeCard) -> CGFloat {
+        switch card {
+        case .music: return 38
+        case .calendar: return 116
+        case .upNext: return 96
+        case .weather: return 74
+        case .timer: return 36
+        case .worldClock: return 74
+        case .network: return 66
+        case .batteries: return 74
+        case .sun: return 50
+        case .links: return 74
+        case .colors: return 56
+        case .agents: return 74
+        case .bluetooth: return 92
+        }
+    }
+
+    /// Packs to the available height; when that leaves columns empty, packs again to a balanced height.
+    static func columns(cards: [HomeCard], count: Int, available: CGFloat) -> [Column] {
+        let packed = pack(cards: cards, count: count, limit: available)
+        guard packed.count < count, cards.count >= count else { return packed }
+        let total = cards.reduce(CGFloat(0)) { $0 + estimatedHeight($1) } + gap * CGFloat(max(0, cards.count - count))
+        let tallest = cards.map(estimatedHeight).max() ?? 0
+        return pack(cards: cards, count: count, limit: max(tallest, (total / CGFloat(count)).rounded(.up)))
+    }
+
+    private static func pack(cards: [HomeCard], count: Int, limit rawLimit: CGFloat) -> [Column] {
+        var columns: [Column] = [Column()]
+        let limit = max(60, rawLimit)
+        for card in cards {
+            let h = estimatedHeight(card)
+            var current = columns[columns.count - 1]
+            let needed = current.cards.isEmpty ? h : current.height + gap + h
+            if needed <= limit || current.cards.isEmpty {
+                current.cards.append(card)
+                current.height = needed
+                current.span = max(current.span, card.span)
+                columns[columns.count - 1] = current
+            } else if columns.count < count {
+                columns.append(Column(cards: [card], height: h, span: card.span))
+            } else {
+                // Out of columns: shortest column takes it (the grid scrolls).
+                var index = 0
+                for i in columns.indices where columns[i].height < columns[index].height { index = i }
+                columns[index].cards.append(card)
+                columns[index].height += gap + h
+                columns[index].span = max(columns[index].span, card.span)
+            }
+        }
+        return columns
     }
 }
 
@@ -231,6 +311,9 @@ struct HomeWeatherBlock: View {
                 .foregroundStyle(PanelStyle.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+            if !HomeCard.parseList(settings.homeCards).contains(.sun) {
+                SunTimesLine(snapshot: snapshot)
+            }
         }
         .onTapGesture { weather.refresh() }
         .help("Updated \(snapshot.fetchedAt.formatted(date: .omitted, time: .shortened)) · click to refresh")

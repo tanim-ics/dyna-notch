@@ -11,6 +11,7 @@ final class ShelfService: ObservableObject {
     @Published private(set) var items: [ShelfItem] = []
 
     private let defaults = UserDefaults.standard
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         if let data = defaults.data(forKey: ShelfService.itemsKey),
@@ -18,13 +19,35 @@ final class ShelfService: ObservableObject {
             // Forget files that were moved or deleted since.
             items = decoded.filter { FileManager.default.fileExists(atPath: $0.path) }
         }
+        pruneExpired()
+        // Settings → Tabs → Shelf retention: prune every 5 minutes and whenever the setting changes.
+        Timer.publish(every: 300, tolerance: 30, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.pruneExpired() }
+            .store(in: &cancellables)
+        AppSettings.shared.$shelfRetention
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.pruneExpired() }
+            .store(in: &cancellables)
     }
 
     func add(urls: [URL]) {
         let paths = urls.filter(\.isFileURL).map(\.path)
         guard !paths.isEmpty else { return }
         items = ShelfList.adding(paths, to: items, now: Date())
+        pruneExpired(save: false)
         save()
+    }
+
+    /// Drops shelf entries older than `settings.shelfRetention` (the files themselves stay where they are).
+    func pruneExpired(save shouldSave: Bool = true) {
+        let expired = AppSettings.shared.shelfRetention.expired(items, now: Date())
+        guard !expired.isEmpty else { return }
+        let ids = Set(expired.map(\.id))
+        items.removeAll { ids.contains($0.id) }
+        if shouldSave { save() }
     }
 
     func remove(_ item: ShelfItem) {

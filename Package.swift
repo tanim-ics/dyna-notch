@@ -42,6 +42,7 @@ targets.append(
             .linkedFramework("CoreLocation"),
             .linkedFramework("Carbon"),
             .linkedFramework("CoreBluetooth"),
+            .linkedFramework("AVFoundation"),
         ]
     )
 )

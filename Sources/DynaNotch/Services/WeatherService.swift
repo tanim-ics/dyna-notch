@@ -138,7 +138,7 @@ final class WeatherService: ObservableObject {
             URLQueryItem(name: "latitude", value: String(format: "%.4f", place.latitude)),
             URLQueryItem(name: "longitude", value: String(format: "%.4f", place.longitude)),
             URLQueryItem(name: "current", value: "temperature_2m,weather_code,is_day"),
-            URLQueryItem(name: "daily", value: "temperature_2m_max,temperature_2m_min"),
+            URLQueryItem(name: "daily", value: "temperature_2m_max,temperature_2m_min,sunrise,sunset"),
             URLQueryItem(name: "timezone", value: "auto"),
             URLQueryItem(name: "forecast_days", value: "1"),
             URLQueryItem(name: "temperature_unit", value: unit.rawValue),

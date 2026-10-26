@@ -8,7 +8,7 @@ import DynaNotchCore
 final class IslandWindowController: NSObject {
     private let viewModel: IslandViewModel
     private let settings: AppSettings
-    private let panel: NotchPanel
+    private var panel: NotchPanel
     private let hostingView: NotchHostingView<AnyView>
 
     private var currentScreen: NSScreen?
@@ -23,6 +23,21 @@ final class IslandWindowController: NSObject {
     // File drags towards the island (shelf)
     private var dragChangeCountAtMouseDown = 0
     private var isFileDragActive = false
+    /// A menu opened from the expanded panel (tab ⋯, actions ⋯, output) is tracking: the pointer is over the
+    /// menu, outside the island, but the panel must stay open until an item is chosen.
+    private var isPanelMenuOpen = false
+    /// After a panel menu closes the pointer is often below the panel (long menus); keep it open until the pointer
+    /// comes back over the island, or for a few seconds.
+    private var menuGraceUntil: Date?
+    /// Scripted UI tests (`dynanotch://ui/pointer`): overrides the real pointer location for hover decisions.
+    var testPointer: NSPoint?
+    /// Scripted tests (`dynanotch://ui/override`): fake full screen, frontmost app and mirroring.
+    var testFullscreen: Bool? { didSet { updateSuppression() } }
+    var testFrontBundle: String? { didSet { updateSuppression() } }
+    var testMirrored: Bool? { didSet { updateSuppression() } }
+    private var workspaceObserver: NSObjectProtocol?
+    /// Last suppression decision and why (state dump).
+    private(set) var suppressionReason = "none"
     private var keyObserver: NSObjectProtocol?
 
     // Swipe accumulation
@@ -59,6 +74,14 @@ final class IslandWindowController: NSObject {
             .environmentObject(AudioDeviceService.shared)
             .environmentObject(KeepAwakeService.shared)
             .environmentObject(DeviceBatteryService.shared)
+            .environmentObject(LauncherService.shared)
+            .environmentObject(ShortcutsService.shared)
+            .environmentObject(RemindersService.shared)
+            .environmentObject(CameraService.shared)
+            .environmentObject(ScreenTimeService.shared)
+            .environmentObject(PomodoroStatsService.shared)
+            .environmentObject(BatteryHistoryService.shared)
+            .environmentObject(ColorHistory.shared)
         hostingView = NotchHostingView<AnyView>(rootView: AnyView(root))
 
         super.init()
@@ -81,6 +104,9 @@ final class IslandWindowController: NSObject {
         if let observer = keyObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = workspaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
     }
 
     // MARK: Public
@@ -91,11 +117,26 @@ final class IslandWindowController: NSObject {
             return
         }
         isShown = true
+        applySharingType()
         dragChangeCountAtMouseDown = NSPasteboard(name: .drag).changeCount
         reposition()   // positions and orders the panel front (unless hidden-idle on a non-notch screen)
         installObservers()
         installMonitors()
         startFullscreenDetection()
+        DesktopLyricsController.shared.start(screenProvider: { [weak self] in self?.currentScreen })
+    }
+
+    /// Scripted UI tests: the island panel and a pointer position in canvas points (top-left origin).
+    var testWindow: NSWindow { panel }
+    var screenName: String { currentScreen?.localizedName ?? "none" }
+
+    func setTestPointer(canvasPoint: NSPoint?) {
+        if let p = canvasPoint {
+            testPointer = NSPoint(x: panel.frame.minX + p.x, y: panel.frame.maxY - p.y)
+        } else {
+            testPointer = nil
+        }
+        updateHover()
     }
 
     /// Renders the panel canvas into a PNG (debug: `dynanotch://snapshot`), no Screen Recording permission needed.
@@ -119,19 +160,21 @@ final class IslandWindowController: NSObject {
     private func reposition() {
         guard let screen = ScreenLocator.targetScreen(mode: settings.displayMode) else { return }
         currentScreen = screen
-        let frame = IslandLayout.panelFrame(screenFrame: screen.frame)
+        viewModel.setNotch(ScreenLocator.metrics(for: screen))
+        // The canvas is fixed while the island animates; it only grows for a wider / taller panel setting.
+        let frame = IslandLayout.panelFrame(screenFrame: screen.frame, canvas: viewModel.canvasSize)
         if panel.frame != frame {
             panel.setFrame(frame, display: true)
         }
-        viewModel.setNotch(ScreenLocator.metrics(for: screen))
         updateVisibility(presentation: viewModel.presentation)
+        updateSuppression()   // mirroring may have changed with the screen configuration
         updateHover()
     }
 
     /// Non-notch screens with the fake notch turned off: hide the panel while idle.
     private func updateVisibility(presentation: IslandPresentation) {
         let hideIdle = presentation == .idle
-            && !viewModel.notch.hasPhysicalNotch
+            && !viewModel.isOnNotchDisplay
             && !settings.showOnNonNotchDisplays
         if hideIdle {
             if panel.isVisible { panel.orderOut(nil) }
@@ -159,6 +202,18 @@ final class IslandWindowController: NSObject {
             .sink { [weak self] _ in self?.reposition() }
             .store(in: &cancellables)
 
+        // Island shape (Notch / Floating pill) applies at once: re-measure, re-layout and redraw.
+        Publishers.Merge(settings.$notchDisplayStyle.map { _ in () }, settings.$nonNotchStyle.map { _ in () })
+            .dropFirst(2)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.viewModel.applySettingsNow()
+                self.reposition()
+                self.hostingView.needsDisplay = true
+            }
+            .store(in: &cancellables)
+
         keyObserver = NotificationCenter.default.addObserver(
             forName: .dynaNotchWantsKey,
             object: nil,
@@ -168,6 +223,20 @@ final class IslandWindowController: NSObject {
             self.panel.ignoresMouseEvents = false
             self.panel.makeKey()
         }
+
+        // Settings → Behavior → Screen Sharing Privacy: keep the island out of screenshots, recordings and shares.
+        settings.$screenSharingPrivacy
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.applySharingType() }
+            .store(in: &cancellables)
+
+        // Settings → Appearance → Panel width / maximum height may need a bigger canvas.
+        Publishers.Merge(settings.$panelWidth.map { _ in () }, settings.$panelMaxHeight.map { _ in () })
+            .dropFirst(2)
+            .debounce(for: .milliseconds(120), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.reposition() }
+            .store(in: &cancellables)
 
         settings.$showOnNonNotchDisplays
             .removeDuplicates()
@@ -205,6 +274,23 @@ final class IslandWindowController: NSObject {
     }
 
     private func installMonitors() {
+        NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)
+            .sink { [weak self] _ in
+                guard let self = self, self.viewModel.presentation == .expanded else { return }
+                self.isPanelMenuOpen = true
+                self.updateHover()
+            }
+            .store(in: &cancellables)
+        NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)
+            .sink { [weak self] _ in
+                guard let self = self, self.isPanelMenuOpen else { return }
+                self.isPanelMenuOpen = false
+                self.menuGraceUntil = Date().addingTimeInterval(3)
+                // The chosen item's action runs right after tracking ends; re-check the pointer afterwards.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.updateHover() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.05) { self.updateHover() }
+            }
+            .store(in: &cancellables)
         if let m = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] _ in
             self?.mouseMoved()
         }) {
@@ -254,7 +340,8 @@ final class IslandWindowController: NSObject {
         // Esc closes the panel while it has keyboard focus.
         if let m = NSEvent.addLocalMonitorForEvents(matching: [.keyDown], handler: { [weak self] event in
             guard let self = self else { return event }
-            if event.keyCode == 53, self.viewModel.presentation == .expanded {
+            // Only Esc typed in the island itself: the command palette and Settings handle their own Esc.
+            if event.keyCode == 53, event.window === self.panel, self.viewModel.presentation == .expanded {
                 self.viewModel.collapse()
                 return nil
             }
@@ -270,20 +357,97 @@ final class IslandWindowController: NSObject {
         }
     }
 
+    private func applySharingType() {
+        let type: NSWindow.SharingType = settings.screenSharingPrivacy ? .none : .readOnly
+        guard panel.sharingType != type else { return }
+        panel.sharingType = type
+        // AppKit (macOS 26+) never leaves `.none` once set: move the canvas into a fresh panel instead.
+        if panel.sharingType != type { replacePanel() }
+    }
+
+    /// Swaps in a new `NotchPanel` hosting the same SwiftUI canvas, at the same frame and visibility.
+    private func replacePanel() {
+        let old = panel
+        let fresh = NotchPanel(contentRect: old.frame)
+        old.contentView = nil
+        fresh.contentView = hostingView
+        hostingView.frame = NSRect(origin: .zero, size: old.frame.size)
+        fresh.setFrame(old.frame, display: false)
+        fresh.ignoresMouseEvents = old.ignoresMouseEvents
+        let wasVisible = old.isVisible
+        panel = fresh
+        if wasVisible { fresh.orderFrontRegardless() }
+        old.orderOut(nil)
+    }
+
+    var sharingTypeName: String { panel.sharingType == NSWindow.SharingType.none ? "none" : "readOnly" }
+
+    /// Full screen (Settings → Behavior → Full-screen apps: All / Playing media app) and Hide While Mirroring.
     private func startFullscreenDetection() {
         let detector = FullscreenDetector.shared
         detector.start(screenProvider: { [weak self] in self?.currentScreen })
-        Publishers.CombineLatest(detector.$isFullscreen, settings.$hideInFullscreen)
-            .map { isFullscreen, hide in isFullscreen && hide }
-            .removeDuplicates()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] suppressed in self?.viewModel.setSuppressed(suppressed) }
+        let triggers: [AnyPublisher<Void, Never>] = [
+            detector.$isFullscreen.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            settings.$hideInFullscreen.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            settings.$fullscreenScope.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            settings.$hideWhileMirroring.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            NowPlayingService.shared.$snapshot.map(\.bundleIdentifier).removeDuplicates().map { _ in () }
+                .eraseToAnyPublisher(),
+        ]
+        Publishers.MergeMany(triggers)
+            .receive(on: DispatchQueue.main)   // @Published emits before the new value is stored
+            .sink { [weak self] _ in self?.updateSuppression() }
             .store(in: &cancellables)
+        workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.updateSuppression()
+        }
+    }
+
+    private func updateSuppression() {
+        var reason = "none"
+        let fullscreen = testFullscreen ?? FullscreenDetector.shared.isFullscreen
+        if fullscreen && settings.hideInFullscreen {
+            switch settings.fullscreenScope {
+            case .allApps:
+                reason = "fullscreen"
+            case .mediaApp:
+                if frontmostIsPlayingApp() { reason = "fullscreen-media" }
+            }
+        }
+        if reason == "none" && settings.hideWhileMirroring && isMirroring() {
+            reason = "mirroring"
+        }
+        suppressionReason = reason
+        viewModel.setSuppressed(reason != "none")
+    }
+
+    /// The frontmost app is the one whose media is playing (bundle id, or the same app name for browsers / PWAs).
+    private func frontmostIsPlayingApp() -> Bool {
+        let nowPlaying = NowPlayingService.shared
+        guard !nowPlaying.snapshot.isEmpty else { return false }
+        let front = NSWorkspace.shared.frontmostApplication
+        let bundle = testFrontBundle ?? front?.bundleIdentifier
+        if let playing = nowPlaying.snapshot.bundleIdentifier, let bundle = bundle, playing == bundle { return true }
+        if testFrontBundle == nil, let name = front?.localizedName, !name.isEmpty, name == nowPlaying.appName {
+            return true
+        }
+        return false
+    }
+
+    /// The island's display is part of a mirror set (mirrored to a projector / AirPlay).
+    private func isMirroring() -> Bool {
+        if let forced = testMirrored { return forced }
+        guard let screen = currentScreen,
+              let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+        return CGDisplayIsInMirrorSet(CGDirectDisplayID(number.uint32Value)) != 0
     }
 
     // MARK: Mouse
 
     private func mouseMoved() {
+        if lastInside { viewModel.noteInteraction() }
         if settings.displayMode == .followMouse,
            let screen = ScreenLocator.screenContainingMouse(),
            screen.frame != currentScreen?.frame {
@@ -298,15 +462,22 @@ final class IslandWindowController: NSObject {
         let presentation = viewModel.presentation
         var inside = false
         if presentation != .hidden && panel.isVisible {
-            let island = IslandLayout.screenRect(for: viewModel.islandSize, screenFrame: screen.frame,
+            let island = IslandLayout.screenRect(for: viewModel.visibleIslandSize, screenFrame: screen.frame,
                                                  topInset: viewModel.topInset)
                 .insetBy(dx: -4, dy: -4)
             // Extend upward to the screen top so the very top pixel row (y == screen maxY) counts as inside.
             let hitRect = NSRect(x: island.minX, y: island.minY, width: island.width,
                                  height: screen.frame.maxY - island.minY + 2)
-            inside = hitRect.contains(NSEvent.mouseLocation)
+            inside = hitRect.contains(testPointer ?? NSEvent.mouseLocation)
         }
-        if isFileDragActive { inside = true }
+        if let grace = menuGraceUntil {
+            if inside || Date() >= grace || viewModel.presentation != .expanded {
+                menuGraceUntil = nil
+            } else {
+                inside = true
+            }
+        }
+        if isFileDragActive || isPanelMenuOpen { inside = true }
         if panel.ignoresMouseEvents == inside {
             panel.ignoresMouseEvents = !inside
         }
@@ -335,7 +506,7 @@ final class IslandWindowController: NSObject {
 
     /// Zone around the notch that reacts to file drags (generous so the drop target is easy to hit).
     private func dragZone(on screen: NSScreen) -> NSRect {
-        let width = max(IslandLayout.expandedWidth, viewModel.islandSize.width) + 80
+        let width = max(viewModel.expandedSize.width, viewModel.visibleIslandSize.width) + 80
         let height: CGFloat = 90
         return NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height + 2)
     }
@@ -363,7 +534,8 @@ final class IslandWindowController: NSObject {
     // MARK: Swipes
 
     private func handleScroll(_ event: NSEvent) {
-        guard settings.gesturesEnabled, viewModel.isHovering else { return }
+        // The open panel's lists (clipboard, emoji, launcher …) own scrolling; swipes only act on the compact island.
+        guard settings.gesturesEnabled, viewModel.isHovering, viewModel.presentation != .expanded else { return }
         // Ignore inertial scrolling; only the fingers-on-trackpad part counts.
         if event.momentumPhase != [] { return }
         if event.phase == .began {

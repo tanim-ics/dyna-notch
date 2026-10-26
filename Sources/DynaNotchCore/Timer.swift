@@ -106,6 +106,8 @@ public enum TimerEvent: Equatable {
 public struct TimerEngine: Equatable {
     public var config: PomodoroConfig
     public private(set) var state: TimerState?
+    /// Repeat Timer: a finished countdown starts again with the same length (the finished event still fires).
+    public var repeatCountdown = false
 
     public init(config: PomodoroConfig = PomodoroConfig()) {
         self.config = config
@@ -164,7 +166,12 @@ public struct TimerEngine: Equatable {
         guard let s = state, s.mode != .stopwatch, s.isRunning, s.remaining(at: now) <= 0 else { return nil }
         switch s.mode {
         case .countdown:
-            state = nil
+            if repeatCountdown, s.duration > 0 {
+                let finishedAt = s.finishDate(now: now) ?? now
+                startCountdown(seconds: s.duration, label: s.label, now: min(finishedAt, now))
+            } else {
+                state = nil
+            }
             return .countdownFinished(label: s.label)
         case .pomodoro:
             guard let phase = s.phase else { state = nil; return nil }

@@ -14,9 +14,18 @@ enum ScreenLocator {
         case .main:
             // The first screen is the one with the menu bar.
             return screens.first ?? NSScreen.main
+        case .external:
+            // First display without a notch that isn't the built-in panel; else the main display.
+            if let external = screens.first(where: { !ScreenLocator.isBuiltIn($0) }) { return external }
+            return screens.first ?? NSScreen.main
         case .followMouse:
             return screenContainingMouse() ?? NSScreen.main ?? screens.first
         }
+    }
+
+    static func isBuiltIn(_ screen: NSScreen) -> Bool {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+        return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
     }
 
     /// Screen under the cursor; edges inclusive so the very top row (y == maxY) still counts.

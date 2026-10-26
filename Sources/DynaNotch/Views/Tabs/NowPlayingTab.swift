@@ -5,6 +5,9 @@ import DynaNotchCore
 /// Now Playing: player on the left, synced lyrics on the right.
 struct NowPlayingTab: View {
     @EnvironmentObject var nowPlaying: NowPlayingService
+    @EnvironmentObject var settings: AppSettings
+    /// Right column shows the listening history instead of the lyrics.
+    @State private var showsHistory = false
 
     var body: some View {
         if nowPlaying.snapshot.isEmpty {
@@ -13,10 +16,15 @@ struct NowPlayingTab: View {
                             detail: "Play something in Spotify, Music or your browser")
         } else {
             HStack(alignment: .top, spacing: 18) {
-                NowPlayingPlayer()
+                NowPlayingPlayer(showsHistory: $showsHistory)
                     .frame(width: 310)
-                LyricsPanel()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if showsHistory && settings.listeningHistory {
+                    ListeningHistoryPanel()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    LyricsPanel()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -26,8 +34,18 @@ struct NowPlayingTab: View {
 // MARK: - Player
 
 struct NowPlayingPlayer: View {
+    @Binding var showsHistory: Bool
+
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var nowPlaying: NowPlayingService
+    @ObservedObject private var listening = ListeningHistoryService.shared
+
+    /// History entry of the track playing now (if recorded).
+    private var currentEntry: ListenEntry? {
+        listening.history.entries.first {
+            $0.title == nowPlaying.snapshot.title && $0.artist == nowPlaying.snapshot.artist
+        }
+    }
 
     private var accent: Color { Color(nsColor: nowPlaying.accentColor) }
 
@@ -82,6 +100,115 @@ struct NowPlayingPlayer: View {
             }
             .padding(.top, 2)
         }
+        historyButtons
+    }
+
+    /// ☆ bookmark + History toggle (Settings → Now Playing → Listening History).
+    @ViewBuilder
+    private var historyButtons: some View {
+        if settings.listeningHistory {
+            HStack(spacing: 2) {
+                let bookmarked = currentEntry?.bookmarked ?? false
+                PanelIconButton(symbol: bookmarked ? "star.fill" : "star", size: 11, frame: 22,
+                                tint: bookmarked ? Color.yellow : Color.white.opacity(0.7),
+                                help: bookmarked ? "Remove bookmark" : "Bookmark this track") {
+                    if let entry = currentEntry, entry.bookmarked {
+                        listening.toggleBookmark(entry)
+                    } else {
+                        listening.bookmarkCurrent()
+                    }
+                }
+                .uiTestID("np.bookmark")
+                PanelIconButton(symbol: "clock.arrow.circlepath", size: 11, frame: 22,
+                                tint: showsHistory ? Color.white : Color.white.opacity(0.7),
+                                help: showsHistory ? "Show lyrics" : "Listening history") {
+                    showsHistory.toggle()
+                }
+                .uiTestID("np.history")
+            }
+            .padding(.top, 2)
+        }
+    }
+}
+
+/// Recent plays and bookmarks (ListeningHistoryService).
+struct ListeningHistoryPanel: View {
+    @ObservedObject private var listening = ListeningHistoryService.shared
+    @State private var bookmarksOnly = false
+
+    private var entries: [ListenEntry] {
+        Array((bookmarksOnly ? listening.history.bookmarks : listening.history.entries).prefix(40))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("History")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                Spacer(minLength: 4)
+                ForEach([false, true], id: \.self) { only in
+                    Button {
+                        bookmarksOnly = only
+                    } label: {
+                        Text(only ? "Bookmarks" : "Recent")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(bookmarksOnly == only ? Color.white : PanelStyle.secondary)
+                            .padding(.horizontal, 8)
+                            .frame(height: 20)
+                            .background(Capsule().fill(Color.white.opacity(bookmarksOnly == only ? 0.16 : 0.05)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .uiTestID(only ? "np.history.bookmarks" : "np.history.recent")
+                }
+            }
+            if entries.isEmpty {
+                PanelEmptyState(symbol: bookmarksOnly ? "star" : "music.note.list",
+                                title: bookmarksOnly ? "No bookmarks yet" : "No history yet",
+                                detail: bookmarksOnly ? "Tap ☆ next to a track to keep it here" : "Tracks you play show up here")
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: 1) {
+                        ForEach(entries) { entry in
+                            row(entry)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ entry: ListenEntry) -> some View {
+        HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(entry.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .lineLimit(1)
+                Text(entry.artist)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(PanelStyle.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text(entry.playedAt, format: .relative(presentation: .numeric, unitsStyle: .abbreviated))
+                .font(.system(size: 9))
+                .foregroundStyle(PanelStyle.tertiary)
+                .lineLimit(1)
+            Button {
+                listening.toggleBookmark(entry)
+            } label: {
+                Image(systemName: entry.bookmarked ? "star.fill" : "star")
+                    .font(.system(size: 10))
+                    .foregroundStyle(entry.bookmarked ? Color.yellow : PanelStyle.tertiary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 28)
     }
 }
 
@@ -175,7 +302,7 @@ struct LyricsPanel: View {
         } else if !lyrics.lines.isEmpty {
             TimelineView(.periodic(from: .now, by: 0.25)) { context in
                 SyncedLyricsList(lines: lyrics.lines,
-                                 current: lyrics.currentIndex(at: nowPlaying.snapshot.elapsed(at: context.date)))
+                                 current: lyrics.currentIndex(at: nowPlaying.snapshot.elapsed(at: context.date) + AppSettings.shared.lyricsOffset))
             }
         } else if !lyrics.plain.isEmpty {
             ScrollView(.vertical, showsIndicators: false) {

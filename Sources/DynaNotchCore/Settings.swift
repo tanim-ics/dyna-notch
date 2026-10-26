@@ -4,12 +4,13 @@ import CoreGraphics
 #endif
 
 public enum DisplayMode: String, Equatable, Hashable, CaseIterable {
-    case notchOrMain, main, followMouse
+    case notchOrMain, main, external, followMouse
 
     public var title: String {
         switch self {
         case .notchOrMain: return "Built-in (notch) display"
         case .main: return "Main display"
+        case .external: return "External display"
         case .followMouse: return "Follow mouse"
         }
     }
@@ -89,6 +90,61 @@ public enum SettingsKey {
     public static let calendarEnabled = "dn.calendarEnabled"
     // v3: panel
     public static let nonNotchStyle = "dn.nonNotchStyle"
+    public static let notchDisplayStyle = "dn.notchDisplayStyle"
+    public static let pillScale = "dn.pillScale"
+    public static let pillHeightOffset = "dn.pillHeightOffset"
+    public static let screenSharingPrivacy = "dn.screenSharingPrivacy"
+    public static let hideWhileMirroring = "dn.hideWhileMirroring"
+    public static let fullscreenScope = "dn.fullscreenScope"
+    public static let autoCollapse = "dn.autoCollapse"
+    public static let quietDuringFocus = "dn.quietDuringFocus"
+    public static let peekOnHover = "dn.peekOnHover"
+    public static let mediaKeysControlPlayer = "dn.mediaKeysControlPlayer"
+    public static let preventMusicAutoLaunch = "dn.preventMusicAutoLaunch"
+    public static let meetingOnlyWithLink = "dn.meetingOnlyWithLink"
+    public static let hiddenCalendars = "dn.hiddenCalendars"
+    public static let calendarHotkeys = "dn.calendarHotkeys"
+    public static let timerHoverControls = "dn.timerHoverControls"
+    public static let clipboardCaptureSound = "dn.clipboardCaptureSound"
+    public static let shelfRetention = "dn.shelfRetention"
+    public static let screenshotFolder = "dn.screenshotFolder"
+    public static let unplugActivity = "dn.unplugActivity"
+    public static let fullChargeLevel = "dn.fullChargeLevel"
+    public static let clockContent = "dn.clockContent"
+    public static let clockWithActivities = "dn.clockWithActivities"
+    public static let panelWidth = "dn.panelWidth"
+    public static let panelSizing = "dn.panelSizing"
+    public static let panelMaxHeight = "dn.panelMaxHeight"
+    public static let panelFillHex = "dn.panelFillHex"
+    public static let pillMatchesPanel = "dn.pillMatchesPanel"
+    public static let trackInfoMode = "dn.trackInfoMode"
+    public static let desktopLyrics = "dn.desktopLyrics"
+    public static let edgeGlow = "dn.edgeGlow"
+    public static let alertSounds = "dn.alertSounds"
+    public static let hotkeyBindings = "dn.hotkeyBindings"
+    public static let knockEnabled = "dn.knockEnabled"
+    public static let knockKey = "dn.knockKey"
+    public static let knockActions = "dn.knockActions"
+    public static let copyTwiceToOpen = "dn.copyTwiceToOpen"
+    public static let offerCleanCopy = "dn.offerCleanCopy"
+    public static let customSearchEngines = "dn.customSearchEngines"
+    public static let homeCards = "dn.homeCards"
+    public static let homeColumns = "dn.homeColumns"
+    public static let worldClocks = "dn.worldClocks"
+    public static let savedLinks = "dn.savedLinks"
+    public static let repeatTimer = "dn.repeatTimer"
+    public static let repeatAlarm = "dn.repeatAlarm"
+    public static let pomodoroOnly = "dn.pomodoroOnly"
+    public static let aiLimitWarnings = "dn.aiLimitWarnings"
+    public static let aiLimitWarnPercent = "dn.aiLimitWarnPercent"
+    public static let aiMenuBarReadout = "dn.aiMenuBarReadout"
+    public static let aiHidePersonalInfo = "dn.aiHidePersonalInfo"
+    public static let batteryInMenuBar = "dn.batteryInMenuBar"
+    public static let drainWarnings = "dn.drainWarnings"
+    public static let dmgInstallOffer = "dn.dmgInstallOffer"
+    public static let nextMeetingInMenuBar = "dn.nextMeetingInMenuBar"
+    public static let listeningHistory = "dn.listeningHistory"
+    public static let defaultMusicApp = "dn.defaultMusicApp"
     public static let panelTabs = "dn.panelTabs"
     public static let rememberLastTab = "dn.rememberLastTab"
     public static let lastTab = "dn.lastTab"
@@ -122,6 +178,44 @@ public enum SettingsKey {
     // v3.1
     public static let islandMaterial = "dn.islandMaterial"
     public static let hasSeenWelcome = "dn.hasSeenWelcome"
+    // v3.2
+    public static let materialPreset = "dn.materialPreset"
+    public static let panelTranslucency = "dn.panelTranslucency"
+    public static let animationStyle = "dn.animationStyle"
+    public static let animationSpeed = "dn.animationSpeed"
+    public static let colorCodedLevels = "dn.colorCodedLevels"
+    public static let closedPillClock = "dn.closedPillClock"
+    public static let timeFormat = "dn.timeFormat"
+    public static let helloIntro = "dn.helloIntro"
+    public static let defaultTab = "dn.defaultTab"
+    public static let openOnCurrentActivity = "dn.openOnCurrentActivity"
+    public static let idleTimeout = "dn.idleTimeout"
+    public static let invisibleUntilHover = "dn.invisibleUntilHover"
+    public static let notificationDuration = "dn.notificationDuration"
+    public static let lyricsOffset = "dn.lyricsOffset"
+    public static let pomodoroAutoContinue = "dn.pomodoroAutoContinue"
+    public static let breakLookAway = "dn.breakLookAway"
+    public static let breakStandUp = "dn.breakStandUp"
+    public static let standUpMinutes = "dn.standUpMinutes"
+    public static let breakDrinkWater = "dn.breakDrinkWater"
+    public static let drinkWaterMinutes = "dn.drinkWaterMinutes"
+    public static let lowBatteryThreshold = "dn.lowBatteryThreshold"
+    public static let fullChargeActivity = "dn.fullChargeActivity"
+    public static let accessoryAlerts = "dn.accessoryAlerts"
+    public static let clipboardIgnoredApps = "dn.clipboardIgnoredApps"
+    public static let clipboardAutoClearMinutes = "dn.clipboardAutoClearMinutes"
+    public static let pasteWithNumbers = "dn.pasteWithNumbers"
+    public static let meetingAlert = "dn.meetingAlert"
+    public static let meetingAlertMinutes = "dn.meetingAlertMinutes"
+    public static let screenTimeEnabled = "dn.screenTimeEnabled"
+    public static let quickSearchEngine = "dn.quickSearchEngine"
+    public static let launcherApps = "dn.launcherApps"
+    public static let colorFormat = "dn.colorFormat"
+    public static let driveActivity = "dn.driveActivity"
+    public static let screenshotToShelf = "dn.screenshotToShelf"
+    public static let headerButtons = "dn.headerButtons"
+    /// Bookkeeping for `PanelTab.migrate` (not a user setting, so not in `all`).
+    public static let knownTabs = "dn.knownTabs"
 
     public static var all: [String] {
         [
@@ -140,6 +234,49 @@ public enum SettingsKey {
             weatherEnabled, weatherCity, temperatureUnit, aiUsageEnabled,
             downloadActivity, privacyActivity, capsLockActivity, notifyActivity,
             islandMaterial, hasSeenWelcome,
+            materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp,
         ]
+    }
+}
+
+/// Hide in Full Screen: for every full-screen app, or only when the full-screen app is the one playing media.
+public enum FullscreenScope: String, Equatable, Hashable, CaseIterable {
+    case allApps, mediaApp
+
+    public var title: String {
+        switch self {
+        case .allApps: return "All Apps"
+        case .mediaApp: return "Playing Media App"
+        }
+    }
+}
+
+/// How long dropped files stay on the Shelf.
+public enum ShelfRetention: String, Equatable, Hashable, CaseIterable {
+    case untilCleared, hour, day, week
+
+    public var title: String {
+        switch self {
+        case .untilCleared: return "Until Cleared"
+        case .hour: return "1 Hour"
+        case .day: return "1 Day"
+        case .week: return "1 Week"
+        }
+    }
+
+    /// nil = keep forever.
+    public var seconds: TimeInterval? {
+        switch self {
+        case .untilCleared: return nil
+        case .hour: return 3600
+        case .day: return 86_400
+        case .week: return 604_800
+        }
+    }
+
+    /// Items to drop: added more than `seconds` before `now`.
+    public func expired(_ items: [ShelfItem], now: Date) -> [ShelfItem] {
+        guard let seconds = seconds else { return [] }
+        return items.filter { now.timeIntervalSince($0.addedAt) > seconds }
     }
 }

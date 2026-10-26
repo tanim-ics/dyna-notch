@@ -114,8 +114,17 @@ struct PanelTabBody: View {
         case .clipboard: ClipboardTab()
         case .shelf: ShelfTab()
         case .notes: NotesTab()
+        case .calculator: CalculatorTab()
+        case .emoji: EmojiTab()
+        case .quickSearch: QuickSearchTab()
+        case .launcher: LauncherTab()
+        case .shortcuts: ShortcutsTab()
+        case .reminders: RemindersTab()
+        case .mirror: MirrorTab()
         case .system: SystemTab()
         case .aiUsage: AIUsageTab()
+        case .calendar: CalendarTab()
+        case .quickSettings: QuickSettingsTab()
         }
     }
 }

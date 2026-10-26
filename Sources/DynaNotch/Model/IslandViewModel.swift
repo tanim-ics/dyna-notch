@@ -5,7 +5,7 @@ import DynaNotchCore
 
 enum DemoActivity: String, CaseIterable {
     case volume, brightness, charging, lowBattery, airpods, focus, calendar, peek
-    case timer, lyrics, notification, download, camera, capsLock
+    case timer, lyrics, notification, download, camera, capsLock, unplug
 }
 
 extension Notification.Name {
@@ -26,6 +26,8 @@ final class IslandViewModel: ObservableObject {
     @Published private(set) var isPinned: Bool = false
     /// The device-battery card is open over the panel.
     @Published var showsBatteries: Bool = false
+    /// Settings → Timer → Controls on hover: the compact timer grew a row of pause / +1 min / stop buttons.
+    @Published private(set) var showsTimerControls: Bool = false
 
     let settings: AppSettings
 
@@ -44,7 +46,25 @@ final class IslandViewModel: ObservableObject {
     private var pausedSince: Date?
     private var demoNowPlayingUntil: Date?
     private var demoLyricsUntil: Date?
+    private var explicitTabRequest = false
+    /// When the user last chose a tab; "Open on current activity" doesn't override a recent choice.
+    private var userPickedTabAt: Date?
+    /// Metrics of the target screen as measured; `notch` is what the island lays out with.
+    private var screenNotch = NotchMetrics.fallback
+    private var idleWorkItem: DispatchWorkItem?
     private var v3Wired = false
+    /// Settings → Now Playing → Peek on hover: the track peek is shown because the pointer is over the island.
+    private var hoverPeekActive = false
+    /// The pointer has been over the open panel since it expanded. A panel opened from the keyboard / an action
+    /// only auto-collapses after the pointer has entered and then left it.
+    private var hoveredSinceExpand = false
+    private lazy var lastAutoCollapse: Bool = settings.autoCollapse
+    /// `simulate(.unplug)`: sample "time left" for the unplug island.
+    private var demoUnplugMinutes: Int?
+    /// Scripted tests (`dynanotch://ui/override?focus=1`): pretend a Focus mode is on / off.
+    var testFocusActive: Bool?
+    /// Scripted tests: outcome of the last media key handled through `handleMediaKey` ("play consumed" …).
+    private(set) var lastMediaKeyResult = ""
 
     /// Media keys whose key-down we handled, so the matching key-up is consumed as well.
     private var handledKeyCodes = Set<Int>()
@@ -60,25 +80,96 @@ final class IslandViewModel: ObservableObject {
 
     // MARK: Derived geometry
 
+    /// Layout size of the island (before the closed-pill scale).
     var islandSize: CGSize {
-        IslandLayout.size(for: presentation, notch: notch, hudStyle: settings.hudStyle)
+        if showsTimerControls && presentation == .timer {
+            return IslandLayout.timerControlsSize(notch: notch)
+        }
+        if presentation == .expanded {
+            return expandedSize
+        }
+        return IslandLayout.size(for: presentation, notch: notch, hudStyle: settings.hudStyle)
+    }
+
+    /// Settings → Appearance → Panel: width, Fixed / Fit Content (per tab) and maximum height.
+    var expandedSize: CGSize {
+        let content = IslandLayout.expandedContentHeight(tab: visibleTab, sizing: settings.panelSizing,
+                                                         maxHeight: CGFloat(settings.panelMaxHeight))
+        return IslandLayout.expandedSize(notch: notch, width: CGFloat(settings.panelWidth), contentHeight: content)
+    }
+
+    /// Fixed canvas of the island window; grows only when the panel settings need more room.
+    var canvasSize: CGSize {
+        let expandedInset: CGFloat
+        if floatsBelowNotch {
+            expandedInset = screenNotch.height + IslandLayout.pillTopInset
+        } else if isPill {
+            expandedInset = IslandLayout.pillTopInset
+        } else {
+            expandedInset = 0
+        }
+        return IslandLayout.canvasSize(panelWidth: CGFloat(settings.panelWidth),
+                                       panelMaxHeight: CGFloat(settings.panelMaxHeight),
+                                       notchHeight: notch.height + expandedInset)
     }
 
     var radii: IslandRadii {
-        IslandLayout.radii(for: presentation, hudStyle: settings.hudStyle)
+        if showsTimerControls && presentation == .timer {
+            return IslandLayout.timerControlsRadii
+        }
+        return IslandLayout.radii(for: presentation, hudStyle: settings.hudStyle)
     }
+
+    /// Settings → Appearance → Closed Pill Size: scales the closed pill (never the open panel).
+    var pillScale: CGFloat {
+        guard isPill, presentation != .expanded else { return 1 }
+        return min(max(CGFloat(settings.pillScale), IslandLayout.pillScaleRange.lowerBound),
+                   IslandLayout.pillScaleRange.upperBound)
+    }
+
+    /// Size as drawn on screen (closed pill scale applied); the window controller hit-tests with it.
+    var visibleIslandSize: CGSize {
+        let scale = pillScale
+        return scale == 1 ? islandSize : IslandLayout.scaled(islandSize, by: scale)
+    }
+
+    /// Battery time left for the unplug island (nil while macOS is still estimating).
+    var unplugMinutesLeft: Int? {
+        demoUnplugMinutes ?? BatteryService.shared.info?.minutesToEmpty
+    }
+
+    var lastMediaKey: String { lastMediaKeyResult }
 
     var reduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
-    /// Non-notch displays in pill style: the island floats below the top edge.
+    /// Island spring from Settings → Appearance (Calm / Snappy / Bouncy × speed); a short fade with Reduce Motion.
+    var motion: Animation {
+        if reduceMotion { return .easeInOut(duration: 0.2) }
+        let style = settings.animationStyle
+        return .spring(response: style.response(speed: settings.animationSpeed), dampingFraction: style.spring.damping)
+    }
+
+    /// Pill style: on non-notch displays it floats below the top edge; on notch displays
+    /// (Settings → Appearance → Notch displays: Floating pill) it floats just below the camera notch.
     var isPill: Bool {
-        !notch.hasPhysicalNotch && settings.nonNotchStyle == .pill
+        floatsBelowNotch || (!notch.hasPhysicalNotch && settings.nonNotchStyle == .pill)
     }
 
     var topInset: CGFloat {
-        isPill ? IslandLayout.pillTopInset : 0
+        guard isPill else { return 0 }
+        // Settings → Appearance → Pill Height Adjustment moves the closed pill only.
+        let offset = presentation == .expanded ? 0 : CGFloat(settings.pillHeightOffset)
+        let base = floatsBelowNotch ? screenNotch.height + IslandLayout.pillTopInset : IslandLayout.pillTopInset
+        return max(0, base + offset)
+    }
+
+    /// True when the target screen has a hardware notch, whatever shape the island uses.
+    var isOnNotchDisplay: Bool { screenNotch.hasPhysicalNotch }
+
+    private var floatsBelowNotch: Bool {
+        screenNotch.hasPhysicalNotch && settings.notchDisplayStyle == .pill
     }
 
     /// The selected tab if it is enabled, else the first enabled tab.
@@ -180,7 +271,23 @@ final class IslandViewModel: ObservableObject {
         refresh()
     }
 
+    /// Re-applies settings synchronously (the window controller calls it for shape changes).
+    func applySettingsNow() {
+        settingsDidChange()
+    }
+
     private func settingsDidChange() {
+        applyNotchShape()
+        if !settings.peekOnHover { endHoverPeek() }
+        if !settings.timerHoverControls { setTimerControls(false) }
+        // Auto Collapse switched back on (only that change, not any setting such as lastTab) while the pointer is
+        // away from a panel it has already visited.
+        let autoCollapseTurnedOn = settings.autoCollapse && !lastAutoCollapse
+        lastAutoCollapse = settings.autoCollapse
+        if autoCollapseTurnedOn && engine.isExpanded && hoveredSinceExpand && !isHovering && !isPinned
+            && collapseWorkItem == nil {
+            scheduleHoverCollapse()
+        }
         if settings.calendarEnabled {
             CalendarService.shared.start()   // idempotent
         }
@@ -194,41 +301,96 @@ final class IslandViewModel: ObservableObject {
     // MARK: Intents
 
     func setNotch(_ metrics: NotchMetrics) {
-        guard metrics != notch else { return }
-        notch = metrics
+        screenNotch = metrics
+        applyNotchShape()
+    }
+
+    /// A pill below the notch lays out like a non-notch island (no gap for the camera housing).
+    private func applyNotchShape() {
+        let effective = floatsBelowNotch
+            ? NotchMetrics(width: NotchMetrics.fallback.width, height: NotchMetrics.fallback.height, hasPhysicalNotch: false)
+            : screenNotch
+        guard effective != notch else { return }
+        notch = effective
     }
 
     func setHovering(_ hovering: Bool) {
         guard hovering != isHovering else { return }
         isHovering = hovering
         if hovering {
+            hoveredSinceExpand = true
             collapseWorkItem?.cancel()
             collapseWorkItem = nil
-            if settings.expandOnHover && presentation != .hidden && !engine.isExpanded {
+            guard presentation != .hidden && !engine.isExpanded else { return }
+            // Timer controls on hover replace auto-expanding; a click on the island opens the panel.
+            if settings.timerHoverControls && presentation == .timer {
+                setTimerControls(true)
+                return
+            }
+            var delay = settings.hoverDelay
+            if settings.peekOnHover && (presentation == .nowPlaying || presentation == .lyrics) {
+                beginHoverPeek()
+                // Long enough to read the title before the panel opens.
+                delay = max(delay, 0.6)
+            }
+            if settings.expandOnHover {
                 expandWorkItem?.cancel()
                 let item = DispatchWorkItem { [weak self] in
                     guard let self = self, self.isHovering else { return }
                     self.expand()
                 }
                 expandWorkItem = item
-                DispatchQueue.main.asyncAfter(deadline: .now() + settings.hoverDelay, execute: item)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
             }
         } else {
             expandWorkItem?.cancel()
             expandWorkItem = nil
-            if engine.isExpanded && !isPinned {
-                collapseWorkItem?.cancel()
-                let item = DispatchWorkItem { [weak self] in
-                    guard let self = self, !self.isHovering, !self.isPinned else { return }
-                    self.collapse()
-                }
-                collapseWorkItem = item
-                DispatchQueue.main.asyncAfter(deadline: .now() + settings.collapseDelay, execute: item)
+            endHoverPeek()
+            setTimerControls(false)
+            // Settings → Behavior → Auto Collapse off: only Esc, outside clicks and the idle timeout close it.
+            if engine.isExpanded && !isPinned && settings.autoCollapse && hoveredSinceExpand {
+                scheduleHoverCollapse()
             }
         }
     }
 
+    private func scheduleHoverCollapse() {
+        collapseWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.collapseWorkItem = nil
+            guard !self.isHovering, !self.isPinned, self.settings.autoCollapse else { return }
+            self.collapse()
+        }
+        collapseWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + settings.collapseDelay, execute: item)
+    }
+
+    private func beginHoverPeek() {
+        hoverPeekActive = true
+        engine.startPeek(now: Date(), duration: 3600)
+        refresh()
+    }
+
+    private func endHoverPeek() {
+        guard hoverPeekActive else { return }
+        hoverPeekActive = false
+        engine.cancelPeek()
+        refresh()
+    }
+
+    private func setTimerControls(_ show: Bool) {
+        guard show != showsTimerControls else { return }
+        withAnimation(motion) {
+            showsTimerControls = show
+        }
+    }
+
     func tap() {
+        if showsTimerControls && presentation == .timer {
+            expand()
+            return
+        }
         guard settings.clickToExpand else { return }
         if engine.isExpanded {
             collapse()
@@ -240,9 +402,19 @@ final class IslandViewModel: ObservableObject {
     func expand() {
         expandWorkItem?.cancel()
         expandWorkItem = nil
+        // Opening the panel on purpose (shortcut, menu, URL) brings a hidden island back.
+        if isUserHidden { showAgain() }
         guard !engine.isExpanded else { return }
+        if !explicitTabRequest {
+            selectOpeningTab()
+        }
+        explicitTabRequest = false
         engine.isExpanded = true
+        hoveredSinceExpand = isHovering
+        scheduleIdleCollapse()
         engine.cancelPeek()
+        hoverPeekActive = false
+        showsTimerControls = false
         if settings.hapticFeedback {
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
         }
@@ -256,6 +428,8 @@ final class IslandViewModel: ObservableObject {
         engine.isExpanded = false
         isPinned = false
         showsBatteries = false
+        idleWorkItem?.cancel()
+        idleWorkItem = nil
         refresh()
     }
 
@@ -266,6 +440,7 @@ final class IslandViewModel: ObservableObject {
     }
 
     func select(_ tab: PanelTab) {
+        userPickedTabAt = Date()
         guard tab != selectedTab else { return }
         selectedTab = tab
         if settings.rememberLastTab {
@@ -276,7 +451,57 @@ final class IslandViewModel: ObservableObject {
     /// Expands the panel on `tab`.
     func open(tab: PanelTab) {
         select(tab)
+        explicitTabRequest = true
         expand()
+        explicitTabRequest = false
+    }
+
+    /// Settings → Behavior: "Open on current activity" (music / timer running) wins over "Default tab".
+    private func selectOpeningTab() {
+        let enabled = settings.enabledTabs
+        let pickedRecently = userPickedTabAt.map { Date().timeIntervalSince($0) < 600 } ?? false
+        if settings.defaultTab == "previous" && pickedRecently { return }
+        if settings.openOnCurrentActivity {
+            switch presentation {
+            case .timer where enabled.contains(.timer):
+                selectAutomatically(.timer)
+                return
+            case .nowPlaying, .lyrics, .peek:
+                if enabled.contains(.nowPlaying) {
+                    selectAutomatically(.nowPlaying)
+                    return
+                }
+            default:
+                break
+            }
+        }
+        if settings.defaultTab != "previous", let tab = PanelTab(rawValue: settings.defaultTab), enabled.contains(tab) {
+            selectAutomatically(tab)
+        }
+    }
+
+    private func selectAutomatically(_ tab: PanelTab) {
+        let picked = userPickedTabAt
+        select(tab)
+        userPickedTabAt = picked
+    }
+
+    /// Pointer activity inside the open panel restarts the idle timeout.
+    func noteInteraction() {
+        guard engine.isExpanded, settings.idleTimeout > 0 else { return }
+        scheduleIdleCollapse()
+    }
+
+    private func scheduleIdleCollapse() {
+        idleWorkItem?.cancel()
+        idleWorkItem = nil
+        guard settings.idleTimeout > 0 else { return }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self, !self.isPinned else { return }
+            self.collapse()
+        }
+        idleWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + settings.idleTimeout, execute: item)
     }
 
     func togglePin() {
@@ -294,9 +519,10 @@ final class IslandViewModel: ObservableObject {
 
     /// `dynanotch://notify` and other app-originated notifications.
     func notify(_ notification: NotchNotification) {
-        guard settings.notifyActivity else { return }
-        engine.post(.notification(title: notification.title, body: notification.body, symbol: notification.symbol),
-                    now: Date(), duration: notification.duration)
+        let kind = ActivityKind.notification(title: notification.title, body: notification.body, symbol: notification.symbol)
+        guard settings.notifyActivity, !isQuieted(kind) else { return }
+        engine.post(kind, now: Date(), duration: notification.duration ?? settings.notificationDuration)
+        didPost(kind, category: .notifications)
         refresh()
     }
 
@@ -336,9 +562,42 @@ final class IslandViewModel: ObservableObject {
 
     /// Posts a live activity if the corresponding setting allows it.
     func post(_ kind: ActivityKind) {
-        guard isAllowed(kind) else { return }
+        guard isAllowed(kind), !isQuieted(kind) else { return }
         engine.post(kind, now: Date())
+        didPost(kind)
         refresh()
+    }
+
+    /// Side effects of a posted activity: its alert sound (Settings → Popups → Sounds) and, for battery / timer
+    /// alerts, the screen-edge glow (Settings → Popups → Edge Glow).
+    private func didPost(_ kind: ActivityKind, category: AlertCategory? = nil) {
+        if let category = category ?? IslandViewModel.alertCategory(for: kind) {
+            // Settings → Timer → Sound off silences timer alerts whatever Sounds → Timers says.
+            if !(category == .timers && !settings.timerSound) {
+                AlertSoundPlayer.play(category)
+            }
+        }
+        switch kind {
+        case .lowBattery:
+            EdgeGlowController.shared.flash(.systemRed)
+        case .timerFinished:
+            EdgeGlowController.shared.flash(.systemOrange)
+        default:
+            break
+        }
+    }
+
+    /// Which alert-sound category an activity belongs to (nil = silent: HUDs, toggles, Focus, camera/mic).
+    static func alertCategory(for kind: ActivityKind) -> AlertCategory? {
+        switch kind {
+        case .timerFinished: return .timers
+        case .calendar: return .calendar
+        case .charging, .lowBattery: return .battery
+        case .bluetooth: return .devices
+        case .download: return .downloads
+        case .notification: return .notifications
+        case .hud, .focus, .sensor, .toggle: return nil
+        }
     }
 
     func openSettings() {
@@ -357,6 +616,7 @@ final class IslandViewModel: ObservableObject {
             engine.post(.charging(level: 0.76, isCharging: true, pluggedIn: true), now: now)
         case .lowBattery:
             engine.post(.lowBattery(level: 0.1), now: now)
+            didPost(.lowBattery(level: 0.1))
         case .airpods:
             engine.post(.bluetooth(name: "AirPods Pro", device: .airpodsPro, battery: 84, connected: true), now: now)
         case .focus:
@@ -391,6 +651,7 @@ final class IslandViewModel: ObservableObject {
         case .lyrics:
             engine.isExpanded = false
             demoLyricsUntil = now.addingTimeInterval(6)
+            DesktopLyricsController.shared.showDemo(until: now.addingTimeInterval(6))
             demoWorkItem?.cancel()
             let item = DispatchWorkItem { [weak self] in
                 self?.demoLyricsUntil = nil
@@ -408,11 +669,27 @@ final class IslandViewModel: ObservableObject {
             engine.post(.sensor(.camera, active: true), now: now)
         case .capsLock:
             engine.post(.toggle(symbol: "capslock.fill", label: "Caps Lock", on: true), now: now)
+        case .unplug:
+            demoUnplugMinutes = 245
+            let kind = ActivityKind.charging(level: 0.82, isCharging: false, pluggedIn: false)
+            engine.post(kind, now: now)
+            DispatchQueue.main.asyncAfter(deadline: .now() + kind.defaultDuration + 0.5) { [weak self] in
+                self?.demoUnplugMinutes = nil
+            }
         }
         refresh()
     }
 
     // MARK: Gating
+
+    /// Settings → Popups → Quiet During Focus.
+    private var isFocusActive: Bool {
+        testFocusActive ?? FocusService.shared.state.isActive
+    }
+
+    private func isQuieted(_ kind: ActivityKind) -> Bool {
+        settings.quietDuringFocus && kind.isQuietedDuringFocus && isFocusActive
+    }
 
     private func isAllowed(_ kind: ActivityKind) -> Bool {
         switch kind {
@@ -422,8 +699,9 @@ final class IslandViewModel: ObservableObject {
             case .volume: return settings.volumeHUD
             case .brightness: return settings.brightnessHUD
             }
-        case .charging:
-            return settings.chargingActivity
+        case .charging(_, _, let pluggedIn):
+            // Plug-in follows Charging; the unplug island has its own toggle (Battery → Unplug).
+            return pluggedIn ? settings.chargingActivity : settings.unplugActivity
         case .lowBattery:
             return settings.lowBatteryActivity
         case .bluetooth:
@@ -452,12 +730,22 @@ final class IslandViewModel: ObservableObject {
         engine.prune(now: now)
         engine.prefersTimerOverMusic = settings.timerOverNowPlaying
         let showCompact = settings.nowPlayingEnabled && settings.showCompactNowPlaying
-        let next = engine.presentation(now: now, showNowPlayingCompact: showCompact)
+        var next = engine.presentation(now: now, showNowPlayingCompact: showCompact)
+        // Settings → Now Playing → Show track info: Always keeps the title row under the notch while music plays.
+        if next == .nowPlaying && settings.trackInfoMode == .always {
+            next = .peek
+        }
+        // Hide DynaNotch: everything (live activities too) stays hidden once the "hidden" notice has been shown.
+        if isUserHidden && (hideAt.map { now >= $0 } ?? true) {
+            next = .hidden
+        }
+        if next != .timer && showsTimerControls {
+            showsTimerControls = false
+        } else if next == .timer && isHovering && settings.timerHoverControls && !showsTimerControls {
+            showsTimerControls = true
+        }
         if next != presentation {
-            let animation: Animation = reduceMotion
-                ? .easeInOut(duration: 0.2)
-                : .spring(response: 0.42, dampingFraction: 0.82)
-            withAnimation(animation) {
+            withAnimation(motion) {
                 presentation = next
             }
         }
@@ -496,7 +784,7 @@ final class IslandViewModel: ObservableObject {
     private func handleTrackChanged() {
         // Make sure the active flag reflects the newest snapshot before peeking.
         evaluateNowPlaying()
-        guard settings.showTrackPeek, !engine.isExpanded else { return }
+        guard settings.showTrackPeek, settings.trackInfoMode == .onChange, !engine.isExpanded else { return }
         engine.startPeek(now: Date(), duration: IslandViewModel.peekDuration)
         refresh()
     }
@@ -586,7 +874,11 @@ final class IslandViewModel: ObservableObject {
 
         PrivacyMonitor.shared.changes
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] sensor, active in self?.post(.sensor(sensor, active: active)) }
+            .sink { [weak self] sensor, active in
+                // Our own Mirror tab turns the camera on; don't warn about it.
+                if sensor == .camera && CameraService.shared.isOwnUse { return }
+                self?.post(.sensor(sensor, active: active))
+            }
             .store(in: &cancellables)
 
         DownloadsMonitor.shared.events
@@ -612,25 +904,140 @@ final class IslandViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        let hotkeys = HotKeyService.shared
-        hotkeys.onTogglePanel = { [weak self] in
-            guard let self = self else { return }
-            if self.engine.isExpanded {
-                self.collapse()
-            } else {
-                self.expand()
-                NotificationCenter.default.post(name: .dynaNotchWantsKey, object: nil)
+        BreakReminderService.shared.reminders
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] kind in
+                self?.postNotification(title: kind.title, body: kind.message, symbol: kind.symbol, category: .timers)
             }
-        }
-        hotkeys.onClipboard = { [weak self] in
-            guard let self = self, self.settings.clipboardEnabled else { return }
-            self.open(tab: .clipboard)
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .dynaNotchAppNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let info = note.userInfo, let title = info["title"] as? String else { return }
+                // Services may name their alert-sound category (aiUsage, battery, downloads …).
+                let category = (info["category"] as? String).flatMap { AlertCategory(rawValue: $0) } ?? .notifications
+                self?.postNotification(title: title, body: info["body"] as? String ?? "",
+                                       symbol: info["symbol"] as? String ?? "bell.fill", category: category)
+            }
+            .store(in: &cancellables)
+
+        BatteryService.shared.fullyCharged
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self, self.settings.fullChargeActivity else { return }
+                self.postNotification(title: "Fully Charged", body: "100 %", symbol: "battery.100percent.bolt",
+                                      category: .battery)
+                EdgeGlowController.shared.flash(.systemGreen)
+            }
+            .store(in: &cancellables)
+
+        DriveMonitor.shared.events
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] event in
+                guard let self = self, self.settings.driveActivity else { return }
+                self.postNotification(title: event.name, body: event.mounted ? "Drive connected" : "Drive ejected",
+                                      symbol: event.mounted ? "externaldrive.fill" : "eject.fill", category: .downloads)
+            }
+            .store(in: &cancellables)
+
+        DeviceBatteryService.shared.alerts
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] alert in
+                guard let self = self, self.settings.accessoryAlerts else { return }
+                switch alert {
+                case .low(let device):
+                    self.postNotification(title: device.name, body: "Battery low · \(device.displayLevel ?? 0) %",
+                                          symbol: "battery.25percent", category: .devices)
+                case .full(let device):
+                    self.postNotification(title: device.name, body: "Fully charged", symbol: "battery.100percent.bolt",
+                                          category: .devices)
+                }
+            }
+            .store(in: &cancellables)
+
+        AppActions.shared.viewModel = self
+    }
+
+    /// ⌃⌥N / knock / palette: open (focused for typing) or close the panel.
+    func togglePanelFromKeyboard() {
+        if engine.isExpanded {
+            collapse()
+        } else {
+            expand()
             NotificationCenter.default.post(name: .dynaNotchWantsKey, object: nil)
         }
     }
 
+    /// Opens a tab focused for typing (clipboard search, palette …).
+    func openFocused(_ tab: PanelTab) {
+        open(tab: tab)
+        NotificationCenter.default.post(name: .dynaNotchWantsKey, object: nil)
+    }
+
+    /// "Hide DynaNotch" shortcut (⌥Space by default): hides the whole island — live activities included — and
+    /// makes it click-through until the shortcut is pressed again (or the panel is opened on purpose).
+    @Published private(set) var isUserHidden = false
+    /// While hiding, the "DynaNotch hidden" notice stays visible until this moment.
+    private var hideAt: Date?
+    private var hideWorkItem: DispatchWorkItem?
+    private static let hideNoticeDuration: TimeInterval = 2.2
+
+    func toggleUserHidden() {
+        if isUserHidden {
+            showAgain()
+            return
+        }
+        collapse()
+        isPinned = false
+        let now = Date()
+        let shortcut = HotKeyMap.parse(settings.hotkeyBindings).binding(for: .hide)?.display
+        let body = shortcut.map { "Press \($0) to show it again" } ?? "Choose Show DynaNotch in the menu bar"
+        engine.post(.notification(title: "DynaNotch hidden", body: body, symbol: "eye.slash.fill"),
+                    now: now, duration: IslandViewModel.hideNoticeDuration)
+        isUserHidden = true
+        hideAt = now.addingTimeInterval(IslandViewModel.hideNoticeDuration)
+        hideWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.hideWorkItem = nil
+            self?.refresh()
+        }
+        hideWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + IslandViewModel.hideNoticeDuration + 0.02, execute: item)
+        refresh()
+    }
+
+    private func showAgain() {
+        guard isUserHidden else { return }
+        isUserHidden = false
+        hideAt = nil
+        hideWorkItem?.cancel()
+        hideWorkItem = nil
+        refresh()
+    }
+
+    /// App-originated island message (break reminders, drives, accessories…), using the Popups duration.
+    func postNotification(title: String, body: String, symbol: String, category: AlertCategory = .notifications) {
+        let kind = ActivityKind.notification(title: title, body: body, symbol: symbol)
+        guard !isQuieted(kind) else { return }
+        engine.post(kind, now: Date(), duration: settings.notificationDuration)
+        didPost(kind, category: category)
+        refresh()
+    }
+
     /// Starts every v3 service whose feature is on (all `start()`s are idempotent).
     private func startV3Services() {
+        BreakReminderService.shared.start()
+        PomodoroStatsService.shared.start()
+        BatteryHistoryService.shared.start()
+        ScreenTimeService.shared.start()
+        MeetingAlertController.shared.start()
+        DriveMonitor.shared.start()
+        MusicLaunchGuard.shared.start()
+        KnockMonitor.shared.start()
+        NetworkInfoService.shared.start()
+        TrafficService.shared.start()
+        ListeningHistoryService.shared.start()
         LyricsService.shared.start()
         AudioDeviceService.shared.start()
         CapsLockMonitor.shared.start()
@@ -665,6 +1072,7 @@ final class IslandViewModel: ObservableObject {
         case .pluggedIn(let info):
             post(.charging(level: info.level, isCharging: info.isCharging, pluggedIn: true))
         case .unplugged(let info):
+            demoUnplugMinutes = nil
             post(.charging(level: info.level, isCharging: false, pluggedIn: false))
         case .lowBattery(let info, _):
             post(.lowBattery(level: info.level))
@@ -673,18 +1081,23 @@ final class IslandViewModel: ObservableObject {
 
     // MARK: Media keys (called from the event tap; return true = consume)
 
-    private func handleMediaKey(_ event: MediaKeyEvent, _ flags: NSEvent.ModifierFlags) -> Bool {
-        guard settings.hudEnabled && settings.replaceSystemHUD else {
-            handledKeyCodes.removeAll()
-            return false
-        }
+    func handleMediaKey(_ event: MediaKeyEvent, _ flags: NSEvent.ModifierFlags) -> Bool {
         guard let key = event.key else { return false }
 
         switch key {
+        case .play, .next, .previous:
+            let consumed = handlePlayerKey(event, key)
+            lastMediaKeyResult = "\(key) \(event.isDown ? "down" : "up") \(consumed ? "consumed" : "passed")"
+            return consumed
         case .soundUp, .soundDown, .mute, .brightnessUp, .brightnessDown:
             break
         default:
-            return false   // play / next / previous etc. go to the system
+            return false   // fast / rewind / keyboard illumination go to the system
+        }
+
+        guard settings.hudEnabled && settings.replaceSystemHUD else {
+            handledKeyCodes.remove(event.rawKeyCode)
+            return false
         }
 
         if !event.isDown {
@@ -713,6 +1126,40 @@ final class IslandViewModel: ObservableObject {
             handledKeyCodes.remove(event.rawKeyCode)
         }
         return handled
+    }
+
+    /// Settings → Now Playing → Media keys control the player: play / next / previous go to the app that is
+    /// playing (MediaRemote) instead of macOS, which would otherwise launch Music.app.
+    private func handlePlayerKey(_ event: MediaKeyEvent, _ key: MediaKey) -> Bool {
+        if !event.isDown {
+            if handledKeyCodes.contains(event.rawKeyCode) {
+                handledKeyCodes.remove(event.rawKeyCode)
+                return true
+            }
+            return false
+        }
+        let nowPlaying = NowPlayingService.shared
+        // Nothing playing: ▶ opens the chosen default music app (Settings → Now Playing) instead of Music.app.
+        if settings.mediaKeysControlPlayer, nowPlaying.snapshot.isEmpty, key == .play,
+           MusicLaunchGuard.defaultPlayerBundleID != nil {
+            if event.isRepeat { return true }
+            guard MusicLaunchGuard.shared.openDefaultPlayer() else { return false }   // not installed → macOS
+            handledKeyCodes.insert(event.rawKeyCode)
+            return true
+        }
+        guard settings.mediaKeysControlPlayer, !nowPlaying.snapshot.isEmpty else {
+            handledKeyCodes.remove(event.rawKeyCode)
+            return false
+        }
+        handledKeyCodes.insert(event.rawKeyCode)
+        if event.isRepeat { return true }
+        switch key {
+        case .play: nowPlaying.togglePlayPause()
+        case .next: nowPlaying.next()
+        case .previous: nowPlaying.previous()
+        default: break
+        }
+        return true
     }
 
     private func handleVolumeKey(_ key: MediaKey, fine: Bool) -> Bool {

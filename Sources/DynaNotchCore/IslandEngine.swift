@@ -111,3 +111,16 @@ public struct IslandEngine: Equatable {
         return candidates.min()
     }
 }
+
+extension ActivityKind {
+    /// Settings → Popups → Quiet During Focus: these popups are dropped while a Focus mode is on.
+    /// Low battery, finished timers, privacy (camera / mic), charging and the Focus change itself still show.
+    public var isQuietedDuringFocus: Bool {
+        switch self {
+        case .hud, .toggle, .bluetooth, .download, .notification, .calendar:
+            return true
+        case .charging, .lowBattery, .focus, .timerFinished, .sensor:
+            return false
+        }
+    }
+}

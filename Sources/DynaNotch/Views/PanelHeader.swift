@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 import DynaNotchCore
 
 /// Notchy-style header inside the notch row: current-tab pill + "⋯" tab menu on the left,
@@ -60,14 +61,24 @@ struct TabMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(Array(settings.enabledTabs.enumerated()), id: \.element) { index, tab in
+            // Only the first nine tabs have a ⌘-number; the rest get no shortcut at all.
+            ForEach(Array(settings.enabledTabs.prefix(9).enumerated()), id: \.element) { index, tab in
                 Button {
                     vm.select(tab)
                 } label: {
                     Label(tab.title, systemImage: tab.symbolName)
                 }
-                .keyboardShortcut(index < 9 ? KeyEquivalent(Character("\(index + 1)")) : KeyEquivalent(" "),
-                                  modifiers: index < 9 ? .command : [.command, .option, .control, .shift])
+                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+            }
+            if settings.enabledTabs.count > 9 {
+                Divider()
+                ForEach(Array(settings.enabledTabs.dropFirst(9)), id: \.self) { tab in
+                    Button {
+                        vm.select(tab)
+                    } label: {
+                        Label(tab.title, systemImage: tab.symbolName)
+                    }
+                }
             }
         } label: {
             HeaderGlyph(symbol: "ellipsis")
@@ -75,6 +86,7 @@ struct TabMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .uiTestID("tabMenu")
         .help("All tabs")
     }
 }
@@ -102,31 +114,98 @@ struct HeaderControls: View {
     @Binding var showsBatteries: Bool
 
     @EnvironmentObject var vm: IslandViewModel
+    @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var keepAwake: KeepAwakeService
+    @EnvironmentObject var timer: TimerService
+    @EnvironmentObject var audio: AudioDeviceService
 
     private static let awakeTint = Color(red: 1.0, green: 0.75, blue: 0.3)
 
+    /// Settings → Tabs → Header Buttons (canonical order).
+    private var buttons: [HeaderButtonID] {
+        let chosen = Set(HeaderButtonID.parseList(settings.headerButtons))
+        return HeaderButtonID.allCases.filter { chosen.contains($0) }
+    }
+
     var body: some View {
         HStack(spacing: 3) {
+            ForEach(buttons, id: \.self) { button in
+                control(button)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func control(_ button: HeaderButtonID) -> some View {
+        switch button {
+        case .battery:
             BatteryPill(isOpen: showsBatteries) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showsBatteries.toggle() }
             }
             .fixedSize()
             .layoutPriority(1)
-            OutputMenu()
-            HeaderButton(symbol: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer",
-                         isOn: keepAwake.isOn, tint: HeaderControls.awakeTint,
-                         help: keepAwake.isOn ? "Keep Awake: On" : "Keep Awake: Off") {
-                keepAwake.toggle()
+        case .timer:
+            HeaderButton(symbol: "timer", isOn: timer.state != nil, tint: .orange,
+                         help: timer.state != nil ? "Timer running" : "Timer") {
+                vm.select(.timer)
             }
+        case .output:
+            OutputMenu()
+        case .keepAwake:
+            KeepAwakeMenu(tint: HeaderControls.awakeTint)
+        case .mic:
+            HeaderButton(symbol: audio.isMicMuted ? "mic.slash.fill" : "mic.fill", isOn: audio.isMicMuted,
+                         tint: IslandColors.low,
+                         help: audio.isMicMuted ? "Unmute microphone" : "Mute microphone") {
+                audio.toggleMicMute()
+            }
+        case .screenshot:
+            HeaderButton(symbol: "camera.viewfinder", isOn: false, tint: .white, help: "Capture screenshot") {
+                vm.collapse()
+                QuickActions.captureScreenshot()
+            }
+        case .colorPicker:
+            HeaderButton(symbol: "eyedropper", isOn: false, tint: .white, help: "Pick a color") {
+                vm.collapse()
+                QuickActions.pickColor()
+            }
+        case .actions:
             ActionsMenu()
+        case .pin:
             HeaderButton(symbol: vm.isPinned ? "pin.fill" : "pin", isOn: vm.isPinned, tint: .white,
                          help: vm.isPinned ? "Unpin panel" : "Pin panel open") {
                 vm.togglePin()
             }
+        case .lock:
             HeaderButton(symbol: "lock.fill", isOn: false, tint: .white, help: "Lock screen") {
                 ScreenLock.lock()
             }
+        case .stopwatch:
+            let running = timer.state?.mode == .stopwatch
+            HeaderButton(symbol: "stopwatch", isOn: running, tint: PanelStyle.stopwatch,
+                         help: running ? "Reset stopwatch" : "Start stopwatch") {
+                if running { timer.reset() } else { timer.startStopwatch() }
+            }
+            .uiTestID("header.stopwatch")
+        case .pomodoro:
+            let active = timer.state?.mode == .pomodoro
+            HeaderButton(symbol: "leaf.fill", isOn: active, tint: PanelStyle.breakTime,
+                         help: active ? "Show Pomodoro" : "Start Pomodoro") {
+                if !active {
+                    timer.applyConfig(settings.pomodoroConfig)
+                    timer.startPomodoro()
+                }
+                vm.select(.timer)
+            }
+            .uiTestID("header.pomodoro")
+        case .volume:
+            VolumeMenu()
+        case .scanQR:
+            ScanQRButton()
+        case .ports:
+            PortsMenu()
+        case .systemStats:
+            SystemStatsMenu()
         }
     }
 }
@@ -202,6 +281,7 @@ struct OutputMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .uiTestID("outputMenu")
         .help("Sound output")
     }
 }
@@ -212,6 +292,7 @@ struct ActionsMenu: View {
     @EnvironmentObject var timer: TimerService
     @EnvironmentObject var audio: AudioDeviceService
     @EnvironmentObject var settings: AppSettings
+    @ObservedObject private var recorder = ScreenRecorder.shared
 
     var body: some View {
         Menu {
@@ -236,17 +317,272 @@ struct ActionsMenu: View {
                 vm.collapse()
                 QuickActions.pickColor()
             }
+            if recorder.isRecording {
+                Button("Stop Recording") { recorder.stop() }
+            } else {
+                Button("Record Screen") {
+                    vm.collapse()
+                    QuickActions.recordScreen()
+                }
+                Button("Record Area") {
+                    vm.collapse()
+                    QuickActions.recordArea()
+                }
+            }
             Divider()
             Button(audio.isMicMuted ? "Unmute Microphone" : "Mute Microphone") { audio.toggleMicMute() }
             Divider()
             Button("Settings…") { vm.openSettings() }
         } label: {
-            HeaderGlyph(symbol: "ellipsis.circle")
+            if recorder.isRecording {
+                Image(systemName: "record.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.red)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            } else {
+                HeaderGlyph(symbol: "ellipsis.circle")
+            }
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .uiTestID("actionsMenu")
         .help("Actions")
+    }
+}
+
+/// Volume: mute toggle + level presets (VolumeService); the glyph follows the level.
+struct VolumeMenu: View {
+    @State private var reading: LevelReading?
+
+    private static let levels: [Int] = [0, 25, 50, 75, 100]
+
+    var body: some View {
+        Menu {
+            let current = reading
+            Button(current?.muted == true ? "Unmute" : "Mute") {
+                VolumeService.shared.setMuted(!(current?.muted ?? false))
+                refresh()
+            }
+            Divider()
+            ForEach(VolumeMenu.levels, id: \.self) { level in
+                Button {
+                    VolumeService.shared.setLevel(Double(level) / 100)
+                    if current?.muted == true { VolumeService.shared.setMuted(false) }
+                    refresh()
+                } label: {
+                    if let c = current, Int((c.level * 100).rounded()) == level {
+                        Label("\(level) %", systemImage: "checkmark")
+                    } else {
+                        Text("\(level) %")
+                    }
+                }
+            }
+            if let c = current {
+                Divider()
+                Text("Now \(Format.percent(c.level))\(c.muted ? " · muted" : "")")
+            }
+        } label: {
+            HeaderGlyph(symbol: glyph)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .uiTestID("volumeMenu")
+        .help("Volume")
+        .onAppear(perform: refresh)
+        .onReceive(VolumeService.shared.changes.receive(on: DispatchQueue.main)) { reading = $0 }
+    }
+
+    private var glyph: String {
+        guard let r = reading else { return "speaker.wave.2" }
+        if r.muted || r.level <= 0.001 { return "speaker.slash.fill" }
+        if r.level < 0.34 { return "speaker.wave.1.fill" }
+        if r.level < 0.67 { return "speaker.wave.2.fill" }
+        return "speaker.wave.3.fill"
+    }
+
+    private func refresh() {
+        reading = VolumeService.shared.read()
+    }
+}
+
+/// Scan QR Code: select an area; the decoded text is copied. A link turns the button into "Open link" (20 s).
+struct ScanQRButton: View {
+    @EnvironmentObject var vm: IslandViewModel
+    @ObservedObject private var scanner = QRScanner.shared
+
+    var body: some View {
+        if scanner.pendingURL != nil {
+            HeaderButton(symbol: "safari.fill", isOn: true, tint: PanelStyle.today,
+                         help: "Open \(scanner.pendingURL?.absoluteString ?? "link")") {
+                scanner.openPending()
+                vm.collapse()
+            }
+            .uiTestID("header.qrOpen")
+        } else {
+            HeaderButton(symbol: "qrcode.viewfinder", isOn: scanner.isScanning, tint: .white, help: "Scan QR code") {
+                vm.collapse()
+                scanner.scan { title, body, symbol in
+                    vm.postNotification(title: title, body: body, symbol: symbol)
+                }
+            }
+            .uiTestID("header.scanQR")
+        }
+    }
+}
+
+/// Ports: listening TCP ports; "Stop" sits in a submenu with a confirm item.
+struct PortsMenu: View {
+    @ObservedObject private var service = PortsService.shared
+
+    var body: some View {
+        Menu {
+            if service.ports.isEmpty {
+                Text("No listening ports")
+            } else {
+                ForEach(service.ports) { port in
+                    Menu("\(port.port) · \(port.command)") {
+                        Text("PID \(port.pid) · \(port.address)")
+                        if let url = URL(string: "http://localhost:\(port.port)") {
+                            Button("Open localhost:\(port.port)") { NSWorkspace.shared.open(url) }
+                        }
+                        Divider()
+                        Menu("Stop \(port.command)…") {
+                            Button("Confirm: Stop PID \(port.pid)") { service.stop(port) }
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Refresh") { service.refresh() }
+        } label: {
+            HeaderGlyph(symbol: "point.3.connected.trianglepath.dotted")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .uiTestID("portsMenu")
+        .help("Listening ports")
+        .onAppear { service.acquire() }
+        .onDisappear { service.release() }
+    }
+}
+
+/// System Stats: CPU, memory, disk, Mac battery temperature.
+struct SystemStatsMenu: View {
+    @EnvironmentObject var vm: IslandViewModel
+    @EnvironmentObject var system: SystemMonitorService
+    @EnvironmentObject var devices: DeviceBatteryService
+
+    var body: some View {
+        Menu {
+            Text("CPU \(Int((system.cpu * 100).rounded())) %")
+            if system.memoryTotal > 0 {
+                Text("Memory \(Format.bytes(Double(system.memoryUsed))) of \(Format.bytes(Double(system.memoryTotal)))")
+            }
+            if system.diskTotal > 0 {
+                Text("Disk \(Format.bytes(Double(system.diskFree))) free")
+            }
+            if let detail = devices.devices.first(where: { $0.kind == .mac })?.detail {
+                Text("Battery \(detail)")
+            }
+            Text("Network ↓ \(Format.rate(system.netIn)) ↑ \(Format.rate(system.netOut))")
+            Divider()
+            Button("Open System Tab") { vm.select(.system) }
+        } label: {
+            HStack(spacing: 2) {
+                Image(systemName: "gauge.with.dots.needle.33percent")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("\(Int((system.cpu * 100).rounded()))%")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(Color.white.opacity(0.75))
+            .frame(height: 22)
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .uiTestID("systemStatsMenu")
+        .help("System stats")
+        .onAppear { SystemSampling.acquire("headerStats") }
+        .onDisappear { SystemSampling.release("headerStats") }
+    }
+}
+
+/// Keep Awake (cup) — click opens a menu of durations; the tooltip shows the time left.
+struct KeepAwakeMenu: View {
+    let tint: Color
+
+    @EnvironmentObject var keepAwake: KeepAwakeService
+    @EnvironmentObject var settings: AppSettings
+
+    /// The next six whole hours (the first at least 30 minutes away).
+    private var untilHours: [Date] {
+        let cal = Calendar.current
+        let now = Date()
+        guard let nextHour = cal.nextDate(after: now.addingTimeInterval(1800), matching: DateComponents(minute: 0, second: 0),
+                                          matchingPolicy: .nextTime) else { return [] }
+        return (0..<6).compactMap { cal.date(byAdding: .hour, value: $0, to: nextHour) }
+    }
+
+    static func hourText(_ date: Date, format: TimeFormat) -> String {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate(format.template)
+        return formatter.string(from: date)
+    }
+
+    private static let durations: [(String, TimeInterval)] = [
+        ("15 Minutes", 900), ("30 Minutes", 1800), ("1 Hour", 3600), ("2 Hours", 7200), ("4 Hours", 14_400),
+    ]
+
+    var body: some View {
+        // Re-render every 30 s so the tooltip's "time left" stays current.
+        TimelineView(.periodic(from: Date(), by: 30)) { _ in
+            menu
+        }
+    }
+
+    private var menu: some View {
+        Menu {
+            ForEach(KeepAwakeMenu.durations, id: \.0) { item in
+                Button(item.0) { keepAwake.keepAwake(for: item.1) }
+            }
+            Menu("Until…") {
+                ForEach(untilHours, id: \.self) { date in
+                    Button("Until \(KeepAwakeMenu.hourText(date, format: settings.timeFormat))") {
+                        keepAwake.keepAwake(until: date)
+                    }
+                }
+            }
+            Button("Until Stopped") { keepAwake.keepAwake(for: nil) }
+            if keepAwake.isOn {
+                Divider()
+                Button("Turn Off") { keepAwake.set(false) }
+            }
+        } label: {
+            Image(systemName: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(keepAwake.isOn ? tint : Color.white.opacity(0.75))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Color.white.opacity(keepAwake.isOn ? 0.16 : 0)))
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)   // keeps the label's tint (borderlessButton renders it as a template image)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .uiTestID("keepAwakeMenu")
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        guard keepAwake.isOn else { return "Keep Awake: Off" }
+        if let left = keepAwake.remainingText() { return "Keep Awake: \(left)" }
+        return "Keep Awake: On until stopped"
     }
 }
 

@@ -118,6 +118,67 @@ final class AIUsageService: ObservableObject {
             if self.codex != codexResult { self.codex = codexResult }
             if self.hasCodexData != (codexResult != nil) { self.hasCodexData = codexResult != nil }
             self.lastUpdated = now
+            self.checkLimitWarnings(now: now)
+        }
+    }
+
+    // MARK: Limit warnings (main queue)
+
+    /// Keys of blocks / windows already warned about (persisted so a relaunch does not repeat a warning).
+    private static let warnedKey = "dn.data.aiLimitWarned"
+    private lazy var warned: Set<String> = Set(UserDefaults.standard.stringArray(forKey: AIUsageService.warnedKey) ?? [])
+
+    /// Settings → AI Usage → Limit warnings: one notification island when the active Claude block passes the
+    /// configured % of the largest finished block, or a Codex window's used % passes it (once per block / window).
+    private func checkLimitWarnings(now: Date) {
+        let settings = AppSettings.shared
+        guard settings.aiLimitWarnings else { return }
+        let threshold = Double(settings.aiLimitWarnPercent)
+        var changed = false
+
+        if let block = claudeBlock, claudeMaxBlockTokens > 0 {
+            let percent = Double(block.usage.total) / Double(claudeMaxBlockTokens) * 100
+            let key = "claude:\(Int(block.start.timeIntervalSince1970))"
+            if percent >= threshold, !warned.contains(key) {
+                warned.insert(key)
+                changed = true
+                let left = Format.countdown(block.end.timeIntervalSince(now))
+                let title = percent > 100 ? "Claude Code: biggest block yet" : "Claude Code at \(Int(percent))%"
+                let body = percent > 100
+                    ? "\(Format.tokens(block.usage.total)) tokens · resets in \(left)"
+                    : "of your largest 5-hour block · resets in \(left)"
+                ScreenRecorder.notify(title: title, body: body, symbol: "sparkles", category: .aiUsage)
+                logger.info("claude limit warning at \(Int(percent))%")
+            }
+        }
+
+        if let codex = codex {
+            for (name, window) in [("primary", codex.primary), ("secondary", codex.secondary)] {
+                guard let window = window else { continue }
+                if let resets = window.resetsAt, resets <= now { continue }   // stale window
+                let resetStamp = window.resetsAt.map { String(Int($0.timeIntervalSince1970 / 60)) } ?? "?"
+                let key = "codex:\(name):\(resetStamp)"
+                if window.usedPercent >= threshold {
+                    guard !warned.contains(key) else { continue }
+                    warned.insert(key)
+                    changed = true
+                    let span = (window.windowMinutes ?? 0) >= 1440 ? "weekly" : "5-hour"
+                    var body = "\(span.capitalized) limit used"
+                    if let resets = window.resetsAt { body += " · resets in " + Format.countdown(resets.timeIntervalSince(now)) }
+                    ScreenRecorder.notify(title: "Codex at \(Int(window.usedPercent))%", body: body, symbol: "gauge.with.dots.needle.67percent",
+                                          category: .aiUsage)
+                    logger.info("codex \(name, privacy: .public) limit warning at \(Int(window.usedPercent))%")
+                } else if warned.remove(key) != nil {
+                    changed = true   // dropped below again (window without a reset time) → re-arm
+                }
+            }
+        }
+
+        if changed {
+            // Keep the list short: only the most recent keys matter.
+            let list = Array(warned.sorted().suffix(40))
+            warned = Set(list)
+            UserDefaults.standard.set(list, forKey: AIUsageService.warnedKey)
         }
     }
 

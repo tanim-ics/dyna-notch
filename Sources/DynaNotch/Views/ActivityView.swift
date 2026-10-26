@@ -14,6 +14,8 @@ struct ActivityView: View {
     let activity: LiveActivity
     @EnvironmentObject var vm: IslandViewModel
     @EnvironmentObject var settings: AppSettings
+    /// Observed so the unplug island picks up macOS's "time remaining" estimate as soon as it is known.
+    @EnvironmentObject var battery: BatteryService
 
     private var geometry: ActivityGeometry {
         let p = IslandPresentation.activity(activity)
@@ -36,7 +38,8 @@ struct ActivityView: View {
                 HUDCompactActivity(geometry: geometry, kind: kind, level: level, muted: muted)
             }
         case let .charging(level, isCharging, pluggedIn):
-            ChargingActivity(geometry: geometry, level: level, isCharging: isCharging, pluggedIn: pluggedIn)
+            ChargingActivity(geometry: geometry, level: level, isCharging: isCharging, pluggedIn: pluggedIn,
+                             minutesLeft: pluggedIn || !settings.unplugActivity ? nil : vm.unplugMinutesLeft)
         case let .lowBattery(level):
             LowBatteryActivity(geometry: geometry, level: level)
         case let .bluetooth(name, device, battery, connected):
@@ -81,7 +84,7 @@ struct HUDCompactActivity: View {
 
     private var trailing: some View {
         HStack(spacing: 4) {
-            LevelBar(level: shown, color: .white)
+            LevelBar(level: shown, color: LevelTint.color(for: shown, kind: kind))
                 .frame(width: 38, height: 4)
             Text(Format.percent(shown))
                 .font(.system(size: 11, weight: .medium))
@@ -101,6 +104,8 @@ struct ChargingActivity: View {
     let level: Double
     let isCharging: Bool
     let pluggedIn: Bool
+    /// Unplug island: battery time left ("4 h 5 min left"); nil while macOS is still estimating.
+    var minutesLeft: Int? = nil
 
     private var tint: Color {
         if isCharging || pluggedIn { return IslandColors.charging }
@@ -109,7 +114,15 @@ struct ChargingActivity: View {
 
     private var label: String {
         if isCharging { return "Charging" }
+        if !pluggedIn, let minutes = minutesLeft, minutes > 0 { return ChargingActivity.timeLeft(minutes) }
         return pluggedIn ? "Plugged In" : "On Battery"
+    }
+
+    /// "4 h 5 min left", "2 h left", "35 min left".
+    static func timeLeft(_ minutes: Int) -> String {
+        let h = minutes / 60, m = minutes % 60
+        if h == 0 { return "\(m) min left" }
+        return m == 0 ? "\(h) h left" : "\(h) h \(m) min left"
     }
 
     var body: some View {

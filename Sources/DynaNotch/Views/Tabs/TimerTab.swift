@@ -7,13 +7,44 @@ struct TimerTab: View {
     @EnvironmentObject var timer: TimerService
 
     var body: some View {
-        if let state = timer.state {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                TimerRunningView(state: state, date: context.date)
+        ZStack(alignment: .top) {
+            if let state = timer.state {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    TimerRunningView(state: state, date: context.date)
+                }
+            } else {
+                TimerSetupView()
             }
-        } else {
-            TimerSetupView()
+            if timer.isAlarmRinging {
+                TimerAlarmBanner()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: timer.isAlarmRinging)
+    }
+}
+
+/// "Time's up" banner with a Stop button while a repeating alarm rings (settings.repeatAlarm).
+struct TimerAlarmBanner: View {
+    @EnvironmentObject var timer: TimerService
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bell.and.waves.left.and.right.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PanelStyle.timer)
+            Text("Time's up")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white)
+            Spacer(minLength: 8)
+            PanelPillButton(title: "Stop Alarm", symbol: "stop.fill", tint: IslandColors.low.opacity(0.85)) {
+                timer.stopAlarm()
+            }
+            .uiTestID("timer.stopAlarm")
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 0.16)))
     }
 }
 
@@ -32,13 +63,22 @@ enum TimerSetupMode: String, CaseIterable {
 }
 
 struct TimerSetupView: View {
+    @EnvironmentObject var settings: AppSettings
     @State private var mode: TimerSetupMode = .standard
+
+    /// settings.pomodoroOnly hides Standard and Stopwatch.
+    private var shownMode: TimerSetupMode { settings.pomodoroOnly ? .pomodoro : mode }
 
     var body: some View {
         VStack(spacing: 12) {
-            TimerModePicker(selection: $mode)
+            HStack(spacing: 8) {
+                if !settings.pomodoroOnly {
+                    TimerModePicker(selection: $mode)
+                }
+                PomodoroOnlyToggle()
+            }
             Group {
-                switch mode {
+                switch shownMode {
                 case .standard: StandardTimerSetup()
                 case .pomodoro: PomodoroSetup()
                 case .stopwatch: StopwatchSetup()
@@ -75,8 +115,49 @@ struct TimerModePicker: View {
     }
 }
 
+/// Small chip toggling settings.pomodoroOnly (same setting as Settings → Timer).
+struct PomodoroOnlyToggle: View {
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        TimerOptionChip(title: settings.pomodoroOnly ? "Pomodoro only" : "Only Pomodoro",
+                        symbol: "leaf.fill", isOn: settings.pomodoroOnly) {
+            settings.pomodoroOnly.toggle()
+        }
+        .uiTestID("timer.pomodoroOnly")
+        .help(settings.pomodoroOnly ? "Show Standard and Stopwatch again" : "Hide Standard and Stopwatch")
+    }
+}
+
+/// Capsule on/off chip used for timer options.
+struct TimerOptionChip: View {
+    let title: String
+    let symbol: String
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 9, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isOn ? Color.white : PanelStyle.secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(Capsule().fill(isOn ? PanelStyle.timer.opacity(0.55) : Color.white.opacity(0.06)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+}
+
 struct StandardTimerSetup: View {
     @EnvironmentObject var timer: TimerService
+    @EnvironmentObject var settings: AppSettings
     @State private var customMinutes: Int = 15
 
     private let presets: [Int] = [1, 2, 3, 5, 10, 25]
@@ -95,6 +176,12 @@ struct StandardTimerSetup: View {
                     .overlay(Color.white.opacity(0.12))
                 customStepper
             }
+            TimerOptionChip(title: settings.repeatTimer ? "Repeats" : "Repeat", symbol: "repeat",
+                            isOn: settings.repeatTimer) {
+                settings.repeatTimer.toggle()
+            }
+            .uiTestID("timer.repeat")
+            .help("Start the same timer again when it finishes")
         }
     }
 
@@ -152,9 +239,12 @@ struct PomodoroSetup: View {
             Text("Long break after \(settings.pomodoroCycles) sessions")
                 .font(.system(size: 10))
                 .foregroundStyle(PanelStyle.secondary)
-            PanelPillButton(title: "Start Focus", symbol: "play.fill", tint: PanelStyle.timer.opacity(0.8)) {
-                timer.applyConfig(settings.pomodoroConfig)
-                timer.startPomodoro()
+            HStack(spacing: 14) {
+                PanelPillButton(title: "Start Focus", symbol: "play.fill", tint: PanelStyle.timer.opacity(0.8)) {
+                    timer.applyConfig(settings.pomodoroConfig)
+                    timer.startPomodoro()
+                }
+                PomodoroStatsRow()
             }
         }
     }
@@ -195,6 +285,7 @@ struct TimerRunningView: View {
     let date: Date
 
     @EnvironmentObject var timer: TimerService
+    @EnvironmentObject var settings: AppSettings
 
     private var tint: Color { TimerTint.color(for: state) }
 
@@ -205,6 +296,7 @@ struct TimerRunningView: View {
                 header
                 if state.mode == .pomodoro {
                     sessionDots
+                    PomodoroStatsRow()
                 }
                 controls
             }
@@ -293,6 +385,45 @@ struct TimerRunningView: View {
                     timer.skipPhase()
                 }
             }
+            if state.mode == .countdown {
+                TimerOptionChip(title: "Repeat", symbol: "repeat", isOn: settings.repeatTimer) {
+                    settings.repeatTimer.toggle()
+                }
+                .uiTestID("timer.repeatRunning")
+            }
         }
+    }
+}
+
+/// Today · streak · total focus sessions (PomodoroStatsService).
+struct PomodoroStatsRow: View {
+    @EnvironmentObject var statsService: PomodoroStatsService
+
+    var body: some View {
+        let stats = statsService.stats
+        let now = Date()
+        HStack(spacing: 12) {
+            stat(symbol: "checkmark.circle.fill", value: stats.today(now: now), label: "today", color: PanelStyle.timer)
+            stat(symbol: "flame.fill", value: stats.streak(now: now), label: stats.streak(now: now) == 1 ? "day streak" : "days streak",
+                 color: Color.orange)
+            stat(symbol: "sum", value: stats.total, label: "total", color: PanelStyle.secondary)
+        }
+        .help("Completed focus sessions")
+    }
+
+    private func stat(symbol: String, value: Int, label: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(color)
+            Text("\(value)")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(Color.white)
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(PanelStyle.secondary)
+        }
+        .lineLimit(1)
     }
 }

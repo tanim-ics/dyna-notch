@@ -13,6 +13,11 @@ final class DeviceBatteryService: NSObject, ObservableObject {
 
     /// Mac first, then devices by name; only entries with a known level.
     @Published private(set) var devices: [DeviceBattery] = []
+    /// Accessory low (≤ 20 %) / fully-charged alerts, never for the Mac.
+    let alerts = PassthroughSubject<AccessoryAlert, Never>()
+    private var alertDetector = AccessoryAlertDetector(lowThreshold: 20)
+    /// The detector is seeded only once real sources have reported (not on the Mac-only first publish).
+    private var hasReadSources = false
 
     private let logger = Logger(subsystem: "com.tanim.dynanotch", category: "devicebattery")
     private let queue = DispatchQueue(label: "com.tanim.dynanotch.devicebattery", qos: .utility)
@@ -64,6 +69,7 @@ final class DeviceBatteryService: NSObject, ObservableObject {
                 guard let self = self else { return }
                 self.profilerDevices = profiler
                 self.hidDevices = hid
+                self.hasReadSources = true
                 self.publish()
             }
         }
@@ -97,6 +103,9 @@ final class DeviceBatteryService: NSObject, ObservableObject {
         if let mac = macDevice { sources.append([mac]) }
         let merged = DeviceBatteryMerge.merge(sources).filter { $0.kind == .mac || $0.displayLevel != nil }
         if merged != devices { devices = merged }
+        guard hasReadSources else { return }
+        // AccessoryAlertDetector skips the Mac itself; its first call only seeds.
+        for alert in alertDetector.update(merged.filter { $0.kind != .mac }) { alerts.send(alert) }
     }
 
     // MARK: Sources (background queue)

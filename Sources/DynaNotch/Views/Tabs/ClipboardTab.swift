@@ -2,13 +2,14 @@ import SwiftUI
 import AppKit
 import DynaNotchCore
 
-/// Clipboard history: search, pin, delete; click pastes, ⌥-click pastes plain text.
+/// Clipboard history: search, pin, delete; click pastes, ⌥-click pastes plain text, 1–9 pastes the n-th row.
 struct ClipboardTab: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var clipboard: ClipboardService
     @EnvironmentObject var vm: IslandViewModel
 
     @State private var query = ""
+    @State private var numberKeys = ClipNumberKeyMonitor()
 
     private var items: [ClipItem] { clipboard.history.search(query) }
 
@@ -25,6 +26,12 @@ struct ClipboardTab: View {
                 header
                 list
             }
+            .onAppear {
+                numberKeys.query = query
+                numberKeys.install(vm: vm)
+            }
+            .onDisappear { numberKeys.remove() }
+            .onChange(of: query) { numberKeys.query = query }
         }
     }
 
@@ -55,7 +62,9 @@ struct ClipboardTab: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 2) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { entry in
-                        ClipRow(item: entry.element, index: entry.offset + 1)
+                        ClipRow(item: entry.element,
+                                index: settings.pasteWithNumbers && entry.offset < 9 ? entry.offset + 1 : nil,
+                                position: entry.offset)
                     }
                 }
             }
@@ -96,13 +105,56 @@ struct ClipboardSearchField: View {
     }
 }
 
+/// Local key monitor: while the Clipboard tab is on screen and the panel is key, 1–9 pastes the n-th visible row
+/// (ignored while a text field is being edited or with ⌘ / ⌃ / ⌥ / ⇧ held).
+final class ClipNumberKeyMonitor {
+    var query = ""
+    private var monitor: Any?
+
+    func install(vm: IslandViewModel) {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak vm] event in
+            guard let self = self, let vm = vm else { return event }
+            return self.handle(event, vm: vm) ? nil : event
+        }
+    }
+
+    func remove() {
+        if let monitor = monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+
+    deinit { remove() }
+
+    private func handle(_ event: NSEvent, vm: IslandViewModel) -> Bool {
+        guard AppSettings.shared.pasteWithNumbers,
+              AppSettings.shared.clipboardEnabled,
+              vm.presentation == .expanded, vm.selectedTab == .clipboard,
+              event.window is NotchPanel else { return false }
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard modifiers.isEmpty, !event.isARepeat else { return false }
+        if event.window?.firstResponder is NSText { return false }   // typing in the search field
+        guard let chars = event.charactersIgnoringModifiers, chars.count == 1,
+              let digit = Int(chars), (1...9).contains(digit) else { return false }
+        let items = ClipboardService.shared.history.search(query)
+        guard digit <= items.count else { return false }
+        vm.paste(items[digit - 1])
+        return true
+    }
+}
+
 struct ClipRow: View {
     let item: ClipItem
-    let index: Int
+    /// 1–9 badge for number-key pasting (nil = no badge).
+    let index: Int?
+    /// Row position in the list (UI-test ids).
+    var position: Int = 0
 
     @EnvironmentObject var vm: IslandViewModel
     @EnvironmentObject var clipboard: ClipboardService
+    @EnvironmentObject var settings: AppSettings
     @State private var hovering = false
+    @State private var cleaned = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -120,6 +172,9 @@ struct ClipRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if settings.offerCleanCopy && clipboard.offersCleanCopy(for: item) {
+                cleanLinkButton
+            }
             trailing
         }
         .padding(.horizontal, 6)
@@ -150,6 +205,38 @@ struct ClipRow: View {
 
     private var filePath: String { ClipFilePaths.first(of: item) }
 
+    /// Settings › Clipboard › Offer a clean copy: the link was kept as copied; this copies it without trackers.
+    @ViewBuilder
+    private var cleanLinkButton: some View {
+        if cleaned {
+            CopiedBadge(text: "Clean copy")
+        } else {
+            Button {
+                if clipboard.copyCleanLink(item) {
+                    withAnimation(.easeOut(duration: 0.15)) { cleaned = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                        withAnimation(.easeIn(duration: 0.2)) { cleaned = false }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("Clean link")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(Color.white.opacity(0.9))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.white.opacity(0.14)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Copy this link without tracking parameters")
+            .uiTestID("clipCleanLink.\(position)")
+        }
+    }
+
     @ViewBuilder
     private var trailing: some View {
         if hovering {
@@ -170,11 +257,18 @@ struct ClipRow: View {
                         .font(.system(size: 8))
                         .foregroundStyle(PanelStyle.timer)
                 }
-                Text("\(index)")
-                    .font(.system(size: 10, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(PanelStyle.tertiary)
-                    .frame(minWidth: 16, alignment: .trailing)
+                if let index = index {
+                    Text("\(index)")
+                        .font(.system(size: 9, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.white.opacity(0.6))
+                        .frame(width: 15, height: 15)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.white.opacity(0.1))
+                        )
+                        .help("Press \(index) to paste")
+                }
             }
             .frame(height: 20)
         }

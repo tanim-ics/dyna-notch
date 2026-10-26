@@ -18,15 +18,27 @@ final class SettingsWindowController: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    var testWindow: NSWindow? { window }
+
+    /// Debug (`dynanotch://snapshot-settings/<page>`): renders the settings window content to a PNG.
+    func snapshot(to url: URL) {
+        guard let view = window?.contentView,
+              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        if let data = rep.representation(using: .png, properties: [:]) {
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: url)
+        }
+    }
+
     private func makeWindow() -> NSWindow {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 860, height: 640),
             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "DynaNotch Settings"
-        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
 
         let root = SettingsRootView()
@@ -38,7 +50,7 @@ final class SettingsWindowController: NSObject {
             .environmentObject(FocusService.shared)
             .environmentObject(MediaKeyTap.shared)
         window.contentViewController = NSHostingController(rootView: root)
-        window.setContentSize(NSSize(width: 720, height: 520))
+        window.setContentSize(NSSize(width: 860, height: 640))
         window.center()
         return window
     }

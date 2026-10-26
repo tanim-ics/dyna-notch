@@ -56,9 +56,9 @@ Optional: **Calendar** (events), **Location** (weather; or type a city in Settin
 
 ## Troubleshooting
 
-- **Accessibility keeps resetting after rebuilds.** In the Accessibility list remove the old DynaNotch with "–" and
-  add it again. To fix it for good, create a free "Apple Development" certificate in Xcode → Settings → Accounts;
-  `build.sh` uses it automatically.
+- **A permission keeps asking again after rebuilds.** Builds since v3.2 keep a stable code identity, so grants survive
+  rebuilds. If an old grant is stuck, remove DynaNotch from that list in System Settings → Privacy & Security
+  (or run `tccutil reset Calendar com.tanim.dynanotch`) and allow it once more.
 - **Build fails with odd cache errors.** Run `rm -rf .build build && ./build.sh`. Logs are in `build/logs/`.
 - **No music showing.** Play something, then check `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
 - **Island missing on an external display.** Settings → General → "Show island on" → Main display or Follow mouse.

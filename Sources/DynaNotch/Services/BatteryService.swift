@@ -11,10 +11,16 @@ final class BatteryService: ObservableObject {
 
     @Published private(set) var info: BatteryInfo?
     let events = PassthroughSubject<PowerEvent, Never>()
+    /// Fires once when the Mac reaches `settings.fullChargeLevel` while plugged in and `settings.fullChargeActivity`
+    /// is on (re-armed after unplugging or dropping 5 % below that level).
+    let fullyCharged = PassthroughSubject<BatteryInfo, Never>()
 
     private let logger = Logger(subsystem: "com.tanim.dynanotch", category: "battery")
     private var started = false
-    private var detector = PowerEventDetector()
+    private var detector = PowerEventDetector(thresholds: BatteryService.thresholds(AppSettings.shared.lowBatteryThreshold))
+    private var thresholdObserver: AnyCancellable?
+    private var fullChargeArmed = false
+    private var fullChargeSeeded = false
     private var runLoopSource: CFRunLoopSource?
     private var timer: AnyCancellable?
 
@@ -41,10 +47,43 @@ final class BatteryService: ObservableObject {
         timer = Timer.publish(every: 60, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.refresh() }
+        thresholdObserver = AppSettings.shared.$lowBatteryThreshold
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] threshold in self?.rebuildDetector(threshold) }
         refresh()
+        DrainMonitor.shared.start()
     }
 
     // MARK: Private (main queue)
+
+    private static func thresholds(_ threshold: Int) -> [Int] {
+        threshold > 10 ? [threshold, 10] : [threshold]
+    }
+
+    /// New threshold: a fresh detector, seeded with the current reading so changing it does not fire immediately.
+    private func rebuildDetector(_ threshold: Int) {
+        detector = PowerEventDetector(thresholds: BatteryService.thresholds(threshold))
+        if let info = info { _ = detector.update(info) }
+    }
+
+    /// Fires `fullyCharged` once when the level reaches `settings.fullChargeLevel` (80…100 %) while plugged in;
+    /// re-armed after unplugging or dropping 5 % below the target.
+    private func checkFullCharge(_ info: BatteryInfo) {
+        let target = Double(min(max(AppSettings.shared.fullChargeLevel, 80), 100)) / 100
+        let full = info.isPluggedIn && info.level >= target - 0.005
+        defer { fullChargeSeeded = true }
+        if full {
+            // Already at the target at launch: do not announce.
+            if fullChargeArmed && fullChargeSeeded && AppSettings.shared.fullChargeActivity {
+                fullyCharged.send(info)
+            }
+            fullChargeArmed = false
+        } else if !info.isPluggedIn || info.level < target - 0.05 {
+            fullChargeArmed = true
+        }
+    }
 
     private func refresh() {
         guard let newInfo = BatteryService.readInternalBattery() else {
@@ -54,6 +93,7 @@ final class BatteryService: ObservableObject {
         if info != newInfo { info = newInfo }
         let newEvents = detector.update(newInfo)
         for event in newEvents { events.send(event) }
+        checkFullCharge(newInfo)
     }
 
     private static func readInternalBattery() -> BatteryInfo? {

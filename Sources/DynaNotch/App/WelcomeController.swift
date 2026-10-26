@@ -23,36 +23,43 @@ private final class WelcomeWindow: NSPanel {
     }
 }
 
-/// First-launch experience: full-screen "hello" → welcome → tip cards under the notch.
+/// First-launch experience: an island pop-up grows out of the notch with the handwritten "hello",
+/// "Welcome to DynaNotch" and tip cards, then shrinks back into the notch.
 final class WelcomeController: NSObject {
     static let shared = WelcomeController()
 
     private var window: WelcomeWindow?
-    private var tipsWindow: WelcomeWindow?
+    private let closer = WelcomeCloser()
+    private let logger = Logger(subsystem: "com.tanim.dynanotch", category: "welcome")
 
     private override init() {
         super.init()
     }
 
-    func show() {
-        guard window == nil, tipsWindow == nil,
+    func show(greetingOnly: Bool = false) {
+        guard window == nil,
               let screen = ScreenLocator.targetScreen(mode: AppSettings.shared.displayMode) else { return }
-        let panel = makeWindow(frame: screen.frame, level: .screenSaver)
-        panel.contentView = NSHostingView(rootView: WelcomeView { [weak self] in self?.finishGreeting(reason: "button") })
-        panel.onEscape = { [weak self] in self?.finishGreeting(reason: "escape") }
+        let measured = ScreenLocator.metrics(for: screen)
+        // Non-notch displays: a small black tab at the top edge to grow from.
+        let notch = measured.hasPhysicalNotch ? measured
+            : NotchMetrics(width: NotchMetrics.fallback.width, height: max(24, measured.height), hasPhysicalNotch: false)
+        let size = WelcomeView.canvasSize(notch: notch)
+        let frame = NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.maxY - size.height,
+                           width: size.width, height: size.height)
+        // Above the island panel (.mainMenu + 3) so the pop-up covers it while it grows out of the notch.
+        let panel = makeWindow(frame: frame, level: NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 4))
+        panel.contentView = NSHostingView(rootView: WelcomeView(notch: notch, greetingOnly: greetingOnly, closer: closer) {
+            [weak self] in self?.finish()
+        })
+        panel.onEscape = { [weak self] in self?.closer.close?() }
         window = panel
-        panel.alphaValue = 0
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.5
-            panel.animator().alphaValue = 1
-        }
     }
 
-    /// Debug (`dynanotch://snapshot-welcome/<name>`): renders the visible welcome or tips window to a PNG.
+    /// Debug (`dynanotch://snapshot-welcome/<name>`): renders the visible welcome window to a PNG.
     func snapshot(to url: URL) {
-        guard let view = (window ?? tipsWindow)?.contentView,
+        guard let view = window?.contentView,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
         if let data = rep.representation(using: .png, properties: [:]) {
@@ -76,57 +83,11 @@ final class WelcomeController: NSObject {
         return panel
     }
 
-    private let logger = Logger(subsystem: "com.tanim.dynanotch", category: "welcome")
-
-    private func finishGreeting(reason: String) {
-        logger.info("greeting finished: \(reason, privacy: .public)")
-        guard let panel = window else { return }
+    private func finish() {
+        logger.info("welcome finished")
+        window?.orderOut(nil)
         window = nil
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.45
-            panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            panel.orderOut(nil)
-            self?.showTips()
-        })
-    }
-
-    private func showTips() {
-        guard let screen = ScreenLocator.targetScreen(mode: AppSettings.shared.displayMode) else {
-            markSeen()
-            return
-        }
-        let host = NSHostingView(rootView: WelcomeTipsView { [weak self] in self?.finishTips() })
-        let size = host.fittingSize
-        let notchHeight = ScreenLocator.metrics(for: screen).height
-        let frame = NSRect(x: screen.frame.midX - size.width / 2,
-                           y: screen.frame.maxY - notchHeight - 14 - size.height,
-                           width: size.width, height: size.height)
-        let panel = makeWindow(frame: frame, level: NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 4))
-        panel.contentView = host
-        panel.onEscape = { [weak self] in self?.finishTips() }
-        tipsWindow = panel
-        panel.alphaValue = 0
-        panel.makeKeyAndOrderFront(nil)
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            panel.animator().alphaValue = 1
-        }
-    }
-
-    private func finishTips() {
-        guard let panel = tipsWindow else { return }
-        tipsWindow = nil
-        markSeen()
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            panel.animator().alphaValue = 0
-        }, completionHandler: {
-            panel.orderOut(nil)
-        })
-    }
-
-    private func markSeen() {
+        closer.close = nil
         AppSettings.shared.hasSeenWelcome = true
         AppSettings.shared.hasCompletedOnboarding = true
     }

@@ -19,12 +19,18 @@ struct ShelfTab: View {
             VStack(spacing: 8) {
                 toolbar
                 if shelf.items.isEmpty {
-                    ShelfDropPlaceholder()
+                    ShelfDropPlaceholder(retention: retentionText)
                 } else {
                     tiles
                 }
             }
         }
+    }
+
+    /// "Files leave after 1 day" — nil when kept until cleared.
+    private var retentionText: String? {
+        guard settings.shelfRetention != .untilCleared else { return nil }
+        return "Files leave after \(settings.shelfRetention.title.lowercased())"
     }
 
     private var toolbar: some View {
@@ -37,6 +43,19 @@ struct ShelfTab: View {
                 .monospacedDigit()
                 .foregroundStyle(PanelStyle.secondary)
             Spacer(minLength: 8)
+            if let retention = retentionText, !shelf.items.isEmpty {
+                HStack(spacing: 3) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(PanelStyle.tertiary)
+                    Text(retention)
+                        .font(.system(size: 10, weight: .medium))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(PanelStyle.tertiary)
+                .help("Settings › Tabs › Shelf retention")
+                .uiTestID("shelfRetention")
+            }
             if !shelf.items.isEmpty {
                 PanelPillButton(title: "AirDrop All", symbol: "dot.radiowaves.up.forward") { shelf.airDrop(shelf.items) }
                 PanelPillButton(title: "Clear", symbol: "trash") { shelf.clear() }
@@ -58,6 +77,8 @@ struct ShelfTab: View {
 }
 
 struct ShelfDropPlaceholder: View {
+    var retention: String? = nil
+
     var body: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .strokeBorder(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
@@ -69,7 +90,7 @@ struct ShelfDropPlaceholder: View {
                     Text("Drop files here")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.7))
-                    Text("Drag them out again into any app")
+                    Text(retention.map { "Drag them out again into any app · \($0)" } ?? "Drag them out again into any app")
                         .font(.system(size: 10))
                         .foregroundStyle(PanelStyle.tertiary)
                 }

@@ -32,8 +32,14 @@ public struct WeatherSnapshot: Equatable {
     public var isDay: Bool
     public var locationName: String
     public var fetchedAt: Date
+    /// Today's sunrise / sunset (request `daily=…,sunrise,sunset`); nil when the response has none.
+    public var sunrise: Date?
+    public var sunset: Date?
 
-    public init(temperature: Double, high: Double, low: Double, code: Int, isDay: Bool, locationName: String, fetchedAt: Date) {
+    public init(temperature: Double, high: Double, low: Double, code: Int, isDay: Bool, locationName: String, fetchedAt: Date,
+                sunrise: Date? = nil, sunset: Date? = nil) {
+        self.sunrise = sunrise
+        self.sunset = sunset
         self.temperature = temperature
         self.high = high
         self.low = low
@@ -99,8 +105,21 @@ public enum OpenMeteoParser {
         let daily = dict["daily"] as? [String: Any]
         let high = (daily?["temperature_2m_max"] as? [Any])?.first.flatMap { JSONValue.double($0) } ?? temperature
         let low = (daily?["temperature_2m_min"] as? [Any])?.first.flatMap { JSONValue.double($0) } ?? temperature
+        let offset = JSONValue.double(dict["utc_offset_seconds"]) ?? 0
+        let sunrise = ((daily?["sunrise"] as? [Any])?.first as? String).flatMap { localISO($0, utcOffset: offset) }
+        let sunset = ((daily?["sunset"] as? [Any])?.first as? String).flatMap { localISO($0, utcOffset: offset) }
         return WeatherSnapshot(temperature: temperature, high: high, low: low, code: code, isDay: isDay,
-                               locationName: locationName, fetchedAt: now)
+                               locationName: locationName, fetchedAt: now, sunrise: sunrise, sunset: sunset)
+    }
+
+    /// Open-Meteo local time "2026-10-26T07:12" (timezone=auto) + the location's UTC offset → absolute date.
+    public static func localISO(_ s: String, utcOffset: Double) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = s.count > 16 ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd'T'HH:mm"
+        guard let utc = formatter.date(from: s) else { return nil }
+        return utc.addingTimeInterval(-utcOffset)
     }
 
     public static func parseGeocoding(_ data: Data) -> (latitude: Double, longitude: Double, name: String)? {

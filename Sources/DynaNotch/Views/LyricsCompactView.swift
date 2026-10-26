@@ -35,7 +35,7 @@ struct CompactLyricLine: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var index: Int? {
-        lyrics.currentIndex(at: nowPlaying.snapshot.elapsed(at: date))
+        lyrics.currentIndex(at: nowPlaying.snapshot.elapsed(at: date) + AppSettings.shared.lyricsOffset)
     }
 
     private var text: String {

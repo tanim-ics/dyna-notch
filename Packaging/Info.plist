@@ -19,9 +19,9 @@
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.0</string>
+    <string>3.2.0</string>
     <key>CFBundleVersion</key>
-    <string>300</string>
+    <string>320</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
@@ -50,6 +50,12 @@
     <string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>The Mirror tab shows your camera so you can check yourself before a call. Nothing is recorded.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -21,6 +21,7 @@ struct AIUsageHeader: View {
     let now: Date
 
     @EnvironmentObject var usage: AIUsageService
+    @EnvironmentObject var settings: AppSettings
 
     var body: some View {
         HStack(spacing: 8) {
@@ -33,10 +34,45 @@ struct AIUsageHeader: View {
                     .foregroundStyle(PanelStyle.tertiary)
             }
             Spacer(minLength: 4)
+            LiveSessionsBadge()
+            if settings.aiHidePersonalInfo {
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(PanelStyle.tertiary)
+                    .help("Personal info hidden (Settings › AI Usage)")
+            }
             PanelIconButton(symbol: "arrow.clockwise", size: 10, frame: 20, help: "Refresh") {
                 usage.refresh()
+                CodingAgentsService.shared.refresh()
             }
         }
+    }
+}
+
+/// "● 2 live · dyna-notch, api" — Claude Code / Codex sessions active in the last 10 min; project names are
+/// masked with settings.aiHidePersonalInfo.
+struct LiveSessionsBadge: View {
+    @ObservedObject private var agents = CodingAgentsService.shared
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        Group {
+            if !agents.sessions.isEmpty {
+                let names = Array(Set(agents.sessions.map(\.project))).sorted().prefix(2)
+                    .map { PersonalInfo.project($0, hidden: settings.aiHidePersonalInfo) }
+                HStack(spacing: 4) {
+                    Circle().fill(IslandColors.charging).frame(width: 5, height: 5)
+                    Text("\(agents.sessions.count) live · " + names.joined(separator: ", "))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(PanelStyle.secondary)
+                        .lineLimit(1)
+                }
+                .uiTestID("ai.liveSessions")
+                .help(agents.sessions.map { "\($0.tool): \(PersonalInfo.project($0.project, hidden: settings.aiHidePersonalInfo))" }
+                    .joined(separator: "\n"))
+            }
+        }
+        .onAppear { agents.start() }
     }
 }
 
@@ -56,7 +92,7 @@ struct ClaudeUsageCard: View {
                     Spacer(minLength: 0)
                     totals
                 } else {
-                    Text("No Claude Code usage found. DynaNotch reads the session logs in ~/.claude/projects.")
+                    Text("No Claude Code usage found. DynaNotch reads the local Claude Code session logs.")
                         .font(.system(size: 10))
                         .foregroundStyle(PanelStyle.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -161,7 +197,7 @@ struct CodexUsageCard: View {
                             .foregroundStyle(PanelStyle.secondary)
                     }
                 } else {
-                    Text("No Codex usage found. DynaNotch reads the session logs in ~/.codex/sessions.")
+                    Text("No Codex usage found. DynaNotch reads the local Codex session logs.")
                         .font(.system(size: 10))
                         .foregroundStyle(PanelStyle.secondary)
                         .fixedSize(horizontal: false, vertical: true)

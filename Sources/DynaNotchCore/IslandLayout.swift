@@ -36,6 +36,13 @@ public enum IslandLayout {
     static let hudExpandedExtraHeight: CGFloat = 34
     static let lyricsExtraHeight: CGFloat = 26
     static let notificationExtraHeight: CGFloat = 40
+    /// Unplug activity: wide enough for "On Battery" / "4 h 5 min left".
+    public static let unpluggedSide: CGFloat = 100
+    /// Timer controls on hover: compact timer row plus a row of buttons below the notch.
+    public static let timerControlsSide: CGFloat = 64
+    public static let timerControlsExtraHeight: CGFloat = 36
+    /// Settings → Appearance → Closed Pill Size range.
+    public static let pillScaleRange: ClosedRange<CGFloat> = 0.8...1.3
 
     private static func isNotification(_ activity: LiveActivity) -> Bool {
         if case .notification = activity.kind { return true }
@@ -55,7 +62,8 @@ public enum IslandLayout {
         case .activity(let activity):
             switch activity.kind {
             case .hud: return hudStyle == .expanded ? 60 : 72
-            case .charging, .lowBattery: return 64
+            case .charging(_, _, let pluggedIn): return pluggedIn ? 64 : unpluggedSide
+            case .lowBattery: return 64
             case .bluetooth: return 84
             case .focus: return 72
             case .calendar: return 96
@@ -109,6 +117,92 @@ public enum IslandLayout {
                 : IslandRadii(top: 6, bottom: 11)
         case .expanded: return IslandRadii(top: 14, bottom: 28)
         }
+    }
+
+    /// Hover controls under the compact timer (pause / +1 min / stop).
+    public static func timerControlsSize(notch: NotchMetrics) -> CGSize {
+        let top = timerControlsRadii.top
+        return CGSize(width: notch.width + 2 * top + 2 * timerControlsSide,
+                      height: notch.height + timerControlsExtraHeight)
+    }
+
+    /// Same ear radius as the compact timer so its row lines up; rounder bottom like the peek.
+    public static let timerControlsRadii = IslandRadii(top: 6, bottom: 16)
+
+    /// Visible size of the closed pill scaled by Closed Pill Size (clamped to `pillScaleRange`).
+    public static func scaled(_ size: CGSize, by scale: CGFloat) -> CGSize {
+        let s = min(max(scale, pillScaleRange.lowerBound), pillScaleRange.upperBound)
+        return CGSize(width: size.width * s, height: size.height * s)
+    }
+
+    // MARK: v3.4 panel size (Settings → Appearance → Panel)
+
+    /// Settings → Appearance → Panel width range.
+    public static let panelWidthRange: ClosedRange<CGFloat> = 520...820
+    /// Settings → Appearance → Maximum panel height range (content below the notch row).
+    public static let panelMaxHeightRange: ClosedRange<CGFloat> = 150...320
+    /// Room around the open panel for its shadow / glow inside the canvas.
+    public static let canvasMargin: CGFloat = 40
+
+    /// Height a tab's content wants below the notch row (Fit Content); clamped by `expandedContentHeight(…)`.
+    public static func preferredContentHeight(for tab: PanelTab) -> CGFloat {
+        switch tab {
+        case .home: return 190
+        case .nowPlaying: return 176
+        case .timer: return 176
+        case .clipboard: return 240
+        case .shelf: return 160
+        case .notes: return 210
+        case .calculator: return 220
+        case .emoji: return 230
+        case .quickSearch: return 160
+        case .launcher: return 200
+        case .shortcuts: return 220
+        case .reminders: return 220
+        case .mirror: return 230
+        case .system: return 190
+        case .aiUsage: return 190
+        case .calendar: return 240
+        case .quickSettings: return 176
+        }
+    }
+
+    /// Content height below the notch row: Fixed → the maximum height; Fit Content → the tab's preferred height,
+    /// never taller than the maximum. Always within `panelMaxHeightRange`.
+    public static func expandedContentHeight(tab: PanelTab, sizing: PanelSizing, maxHeight: CGFloat) -> CGFloat {
+        let maxH = clamp(maxHeight, panelMaxHeightRange)
+        switch sizing {
+        case .fixed: return maxH
+        case .fitContent: return min(maxH, clamp(preferredContentHeight(for: tab), panelMaxHeightRange))
+        }
+    }
+
+    /// Open panel size for a width setting and content height (width never narrower than the notch + header room).
+    public static func expandedSize(notch: NotchMetrics, width: CGFloat, contentHeight: CGFloat) -> CGSize {
+        let top = radii(for: .expanded, hudStyle: .compact).top
+        let w = max(clamp(width, panelWidthRange), notch.width + 2 * top + 160)
+        return CGSize(width: w, height: notch.height + contentHeight)
+    }
+
+    /// Canvas big enough for the widest / tallest panel the settings allow (never smaller than `canvasSize`).
+    public static func canvasSize(panelWidth: CGFloat, panelMaxHeight: CGFloat, notchHeight: CGFloat) -> CGSize {
+        let w = clamp(panelWidth, panelWidthRange) + 2 * canvasMargin
+        let h = notchHeight + clamp(panelMaxHeight, panelMaxHeightRange) + canvasMargin
+        return CGSize(width: max(canvasSize.width, ceil(w)), height: max(canvasSize.height, ceil(h)))
+    }
+
+    /// Rect in a canvas of the given size, origin top-left, island centred horizontally at y = 0.
+    public static func canvasRect(for size: CGSize, canvas: CGSize) -> CGRect {
+        CGRect(x: (canvas.width - size.width) / 2, y: 0, width: size.width, height: size.height)
+    }
+
+    /// Panel frame for a canvas of the given size pinned to top-centre of `screenFrame`.
+    public static func panelFrame(screenFrame: CGRect, canvas: CGSize) -> CGRect {
+        screenRect(for: canvas, screenFrame: screenFrame)
+    }
+
+    private static func clamp(_ v: CGFloat, _ r: ClosedRange<CGFloat>) -> CGFloat {
+        min(max(v, r.lowerBound), r.upperBound)
     }
 
     /// Rect in canvas coordinates, origin top-left, island centred horizontally at y = 0.

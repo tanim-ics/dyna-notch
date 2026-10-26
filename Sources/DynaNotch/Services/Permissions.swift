@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 /// TCC helpers. Nothing here blocks or shows modal UI of our own.
@@ -27,6 +28,15 @@ enum Permissions {
 
     static func openCalendarSettings() {
         openPrivacyPane("Privacy_Calendars")
+    }
+
+    /// Screen Recording (Record Screen / Record Area run screencapture as our child process).
+    static var screenRecordingGranted: Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+
+    static func openScreenRecordingSettings() {
+        openPrivacyPane("Privacy_ScreenCapture")
     }
 
     static func openBluetoothSettings() {

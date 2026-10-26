@@ -38,7 +38,7 @@ struct HUDExpandedView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .frame(width: 20)
-                LevelBar(level: shown, color: .white)
+                LevelBar(level: shown, color: LevelTint.color(for: shown, kind: kind))
                     .frame(height: 6)
                 Text(Format.percent(shown))
                     .font(.system(size: 11, weight: .medium))

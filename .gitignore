@@ -1,5 +1,6 @@
 # SwiftPM / Xcode
 .build/
+.build-*/
 .swiftpm/
 DerivedData/
 xcuserdata/
@@ -12,3 +13,7 @@ build/
 .DS_Store
 scratch/
 .agent/
+
+# screen recordings used as design references
+*.mov
+*.mp4

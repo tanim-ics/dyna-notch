@@ -290,9 +290,16 @@ fi
 
 sign_all() {
     # $1 = identity
+    # Ad-hoc signatures default to a cdhash designated requirement, which changes on every build, so
+    # macOS privacy permissions (Calendar, Reminders, Camera, Accessibility …) were forgotten after
+    # each rebuild. An explicit identifier-only requirement keeps the app's identity stable.
+    local req_args=()
+    if [ "$1" = "-" ]; then
+        req_args=(--requirements "=designated => identifier \"$BUNDLE_ID\"")
+    fi
     codesign --force --sign "$1" --timestamp=none \
         "$APP_DIR/Contents/Resources/libMediaRemoteAdapter.dylib" >>"$SIGN_LOG" 2>&1 \
-    && codesign --force --sign "$1" --identifier "$BUNDLE_ID" --timestamp=none \
+    && codesign --force --sign "$1" --identifier "$BUNDLE_ID" --timestamp=none ${req_args[@]+"${req_args[@]}"} \
         "$APP_DIR" >>"$SIGN_LOG" 2>&1
 }
 
@@ -314,7 +321,7 @@ else
     warn "codesign --verify reported a problem (see $SIGN_LOG); continuing."
 fi
 if [ "$IDENTITY" = "-" ]; then
-    info "Ad-hoc signed: macOS may ask for Accessibility again after each rebuild (see README)."
+    info "Ad-hoc signed with a stable requirement: permissions granted once survive rebuilds."
 fi
 
 # ---------------------------------------------------------------------------

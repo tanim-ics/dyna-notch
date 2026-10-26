@@ -2,85 +2,164 @@ import SwiftUI
 import AppKit
 import DynaNotchCore
 
-/// First-launch greeting: the handwritten "hello" draws itself, then "Welcome to DynaNotch".
+/// First-launch greeting as an island pop-up: it grows out of the notch, the handwritten "hello" draws itself,
+/// then "Welcome to DynaNotch" and (first launch only) the tip cards appear in the same island, which finally
+/// shrinks back into the notch.
 struct WelcomeView: View {
+    let notch: NotchMetrics
+    let greetingOnly: Bool
+    var closer = WelcomeCloser()
     let onFinish: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var drawn: CGFloat = 0
-    @State private var helloLifted = false
-    @State private var showsWelcome = false
+    private enum Phase: Equatable { case closed, hello, welcome, tips, closing }
 
-    private static let gradient = LinearGradient(
+    static let helloSize = CGSize(width: 560, height: 256)
+    static let tipsSize = CGSize(width: 460, height: 178)
+    /// Window canvas: room for the largest island plus its shadow.
+    static func canvasSize(notch: NotchMetrics) -> CGSize {
+        CGSize(width: helloSize.width + 80, height: notch.height + helloSize.height + 60)
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase: Phase = .closed
+    @State private var drawn: CGFloat = 0
+    @State private var tipIndex = 0
+
+    static let gradient = LinearGradient(
         colors: [Color(red: 0.25, green: 0.55, blue: 1.0), Color(red: 0.62, green: 0.38, blue: 1.0),
                  Color(red: 1.0, green: 0.33, blue: 0.6), Color(red: 1.0, green: 0.55, blue: 0.25)],
         startPoint: .leading, endPoint: .trailing)
 
-    var body: some View {
-        ZStack {
-            VisualEffectBlur(material: .fullScreenUI)
-            Color.black.opacity(0.62)
+    private var isOpen: Bool { phase != .closed && phase != .closing }
 
+    private var islandSize: CGSize {
+        switch phase {
+        case .closed, .closing: return CGSize(width: notch.width + 12, height: notch.height)
+        case .hello, .welcome: return CGSize(width: WelcomeView.helloSize.width, height: notch.height + WelcomeView.helloSize.height)
+        case .tips: return CGSize(width: WelcomeView.tipsSize.width, height: notch.height + WelcomeView.tipsSize.height)
+        }
+    }
+
+    private var shape: IslandShape {
+        IslandShape(isPill: false, topRadius: isOpen ? 14 : 6, bottomRadius: isOpen ? 34 : 9)
+    }
+
+    private var spring: Animation {
+        reduceMotion ? .easeInOut(duration: 0.25) : .spring(response: 0.55, dampingFraction: 0.8)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
+                shape
+                    .fill(Color.black)
+                    .shadow(color: Color.black.opacity(isOpen ? 0.45 : 0), radius: 22, y: 10)
+                if isOpen {
+                    content
+                        .padding(.top, notch.height)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: islandSize.width, height: islandSize.height)
+            .clipShape(shape)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .environment(\.colorScheme, .dark)
+        .onAppear {
+            closer.close = close
+            play()
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if phase == .tips {
+            WelcomeTipsView(index: $tipIndex, onFinish: close)
+                .padding(.horizontal, 26)
+                .padding(.vertical, 14)
+        } else {
             VStack(spacing: 0) {
                 HelloShape()
                     .trim(from: 0, to: drawn)
                     .stroke(WelcomeView.gradient,
-                            style: StrokeStyle(lineWidth: 13, lineCap: .round, lineJoin: .round))
-                    .frame(width: 520, height: 246)
-                    .shadow(color: Color(red: 0.8, green: 0.4, blue: 1.0).opacity(0.35), radius: 24)
-                    .scaleEffect(helloLifted ? 0.62 : 1)
-                    .offset(y: helloLifted ? -40 : 0)
-
-                if showsWelcome {
+                            style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+                    .frame(width: 300, height: 142)
+                    .shadow(color: Color(red: 0.8, green: 0.4, blue: 1.0).opacity(0.4), radius: 16)
+                    .scaleEffect(phase == .welcome ? 0.72 : 1)
+                    .padding(.top, phase == .welcome ? 0 : 50)
+                if phase == .welcome {
                     welcome
-                        .transition(.opacity.combined(with: .offset(y: 14)))
+                        .transition(.opacity.combined(with: .offset(y: 10)))
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .ignoresSafeArea()
-        .environment(\.colorScheme, .dark)
-        .onAppear(perform: play)
     }
 
     private var welcome: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             Text("Welcome to DynaNotch")
-                .font(.system(size: 40, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(Color.white)
             Text("Your notch, reimagined — music, timers, clipboard and more, one hover away.")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.white.opacity(0.65))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.white.opacity(0.62))
                 .multilineTextAlignment(.center)
-            Button(action: onFinish) {
-                Text("Get Started")
-                    .font(.system(size: 15, weight: .semibold))
+                .padding(.horizontal, 40)
+            Button(action: next) {
+                Text(greetingOnly ? "Done" : "Get Started")
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.black)
-                    .padding(.horizontal, 30)
-                    .frame(height: 40)
+                    .padding(.horizontal, 24)
+                    .frame(height: 32)
                     .background(Capsule().fill(Color.white))
             }
             .buttonStyle(PressableButtonStyle())
             .keyboardShortcut(.defaultAction)
-            .padding(.top, 22)
+            .padding(.top, 12)
         }
-        .offset(y: -30)
+        .offset(y: -12)
     }
 
     private func play() {
-        if reduceMotion {
-            drawn = 1
-            withAnimation(.easeInOut(duration: 0.3).delay(0.8)) {
-                helloLifted = true
-                showsWelcome = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(spring) { phase = .hello }
+            if reduceMotion {
+                drawn = 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    withAnimation(.easeInOut(duration: 0.3)) { phase = .welcome }
+                }
+                return
             }
-            return
-        }
-        withAnimation(.timingCurve(0.45, 0.05, 0.35, 1, duration: 2.8)) { drawn = 1 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.86)) { helloLifted = true }
-            withAnimation(.easeOut(duration: 0.6).delay(0.25)) { showsWelcome = true }
+            withAnimation(.timingCurve(0.45, 0.05, 0.35, 1, duration: 2.6).delay(0.35)) { drawn = 1 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.3) {
+                guard phase == .hello else { return }
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) { phase = .welcome }
+            }
         }
     }
+
+    /// Get Started: tips on first launch, otherwise back into the notch.
+    func next() {
+        if greetingOnly {
+            close()
+        } else {
+            withAnimation(spring) { phase = .tips }
+        }
+    }
+
+    /// Esc / Skip / Done: shrink into the notch, then let the controller remove the window.
+    func close() {
+        guard phase != .closing else { return }
+        withAnimation(spring) { phase = .closing }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: onFinish)
+    }
+}
+
+/// Lets the controller's Esc handler reach the view's `close()`.
+final class WelcomeCloser {
+    var close: (() -> Void)?
 }
 
 // MARK: - Tips
@@ -104,11 +183,10 @@ struct WelcomeTip {
     ]
 }
 
-/// Notchy-style tip card shown under the notch after the welcome.
+/// Notchy-style tip cards, shown inside the welcome island after "Get Started".
 struct WelcomeTipsView: View {
+    @Binding var index: Int
     let onFinish: () -> Void
-
-    @State private var index = 0
 
     private var tip: WelcomeTip { WelcomeTip.all[index] }
     private var isLast: Bool { index == WelcomeTip.all.count - 1 }
@@ -133,17 +211,7 @@ struct WelcomeTipsView: View {
             dots
             controls
         }
-        .padding(16)
-        .frame(width: 330)
-        .background(
-            ZStack {
-                VisualEffectBlur(material: .hudWindow)
-                Color.black.opacity(0.35)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.6))
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .environment(\.colorScheme, .dark)
         .animation(.easeInOut(duration: 0.2), value: index)
     }

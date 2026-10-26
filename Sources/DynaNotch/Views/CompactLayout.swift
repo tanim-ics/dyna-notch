@@ -62,3 +62,14 @@ enum BatteryGlyph {
         return "battery.0percent"
     }
 }
+
+/// Settings → Appearance → Color-Coded Levels: volume / brightness bars go red when low, amber in between,
+/// green when high; plain white otherwise.
+enum LevelTint {
+    static func color(for level: Double, kind: HUDKind) -> Color {
+        guard AppSettings.shared.colorCodedLevels else { return .white }
+        if level < 0.25 { return IslandColors.low }
+        if level < 0.6 { return Color(red: 1.0, green: 0.72, blue: 0.2) }
+        return IslandColors.charging
+    }
+}
