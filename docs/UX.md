@@ -33,3 +33,17 @@
   · **Every Display** (2026-10-27): the primary island where Built-in puts it plus one island per other display, each
   in that display's shape (Notch / Floating pill), hovering and opening on its own. Activities and notifications show on
   all of them; sounds and edge glow happen once; shortcuts act on the island under the pointer; Hide hides all.
+
+### Lock screen (2026-10-27, CONTRACTS §6.11)
+- **Widgets while locked** (owner feedback 2026-10-27: on the main display, centred under the clock, in the clock's
+  typeface, Notchy-style icons): a 760 × 150 pt window on the main display, centred, top at 34 % of the screen height.
+  Two cards side by side (white 14 %, 1 pt white 20 % border, 24 pt continuous corners, 112 pt tall, 14 pt apart):
+  **weather**: multicolour SF Symbol 40 pt, temperature in SF Pro 40 pt semibold, then "Place · Sky · H … L …" 13 pt
+  semibold at 70 % white; **batteries**: up to four 50 pt rings (5 pt stroke, green, red at ≤ 20 %, a bolt on top
+  when charging) with the device glyph inside and the level below in 13 pt semibold. All text is SF Pro, white
+  92 %, with a soft shadow, like the system clock. A card with no data is left out; no data at all → transparent.
+- It appears on lock and disappears on unlock with no animation (the lock screen's own transition covers it).
+- **Unlocked popup:** the compact toggle activity with a green open lock on the left and "Unlocked" on the right, for
+  the usual short activity time, on every island.
+- **Sounds:** Lock = Pop and Unlock = Purr by default. They are listed both on the Lock Screen page and in Popups → Alert
+  Sounds.

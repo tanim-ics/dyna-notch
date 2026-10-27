@@ -55,6 +55,9 @@ Use only one of the two ways at a time, so there is a single DynaNotch in `/Appl
   actions menu (stopwatch, Pomodoro, screenshot, colour picker, mute mic), pin open, lock screen.
 - **Floating pill** instead of the notch shape if you prefer (Settings → Appearance): set its width (never narrower than
   the MacBook's notch) and height with the Pill Width / Pill Height sliders.
+- **Lock screen** (Settings → Lock Screen): weather and battery widgets under the clock on your main display while the
+  Mac is locked, a sound when you lock and unlock, and an *Unlocked* popup when you come back. The lock-screen widgets use
+  a private macOS feature, so a macOS update may switch it off; the sounds and popup keep working.
 - **Glass panel** that blurs your desktop (or plain black: Settings → Panel), and an iPhone-style *hello* on first launch.
 
 ## Using it

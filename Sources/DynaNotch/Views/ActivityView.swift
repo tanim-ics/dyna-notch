@@ -427,7 +427,11 @@ struct ToggleActivity: View {
     let label: String
     let on: Bool
 
+    /// Label of the lock screen's "Unlocked" popup, which says so instead of "On".
+    static let unlockedLabel = "Unlocked"
+
     private var tint: Color { on ? IslandColors.charging : Color.white.opacity(0.6) }
+    private var status: String { label == ToggleActivity.unlockedLabel ? label : (on ? "On" : "Off") }
 
     var body: some View {
         CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii) {
@@ -435,7 +439,7 @@ struct ToggleActivity: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
         } trailing: {
-            Text(on ? "On" : "Off")
+            Text(status)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(tint)
                 .lineLimit(1)

@@ -26,7 +26,7 @@
 | Multi-display | ✅ | notch screen, main screen, or follow mouse |
 | Hide in full screen | ✅ | |
 | Launch at login, menu-bar icon toggle | ✅ | SMAppService |
-| Lock-screen widgets | ❌ | out of scope (private APIs) |
+| Lock-screen widgets | ✅ (owner saw it on a real lock) | weather card + battery rings under the clock on the main display, via a private SkyLight space (owner lifted the non-goal, DECISIONS §14); fallback: nothing drawn |
 
 ### 2b. Notchy feature parity (reference: notchy.dev/features + /demo, checked 2026-10-26)
 
@@ -129,7 +129,8 @@ Legend: ✅ done (v3.2 shipped 2026-10-26) · ⏳ later · ❌ out of scope.
 | Tabs | Stocks, Home Controls, Apps & Updates, Terminal, Cuely, Notifications | ❌ |
 | Home | Card grid editor (columns, add/remove cards) | ⏳ |
 | Home | Weather city / location ✅ · Saved links · Colour tools (pick + format + history) | ✅ colour format + history; saved links ⏳ |
-| Lock Screen / Knock / Face Unlock / Pointer / Typing Sounds / Desktop Pet | | ❌ |
+| Lock Screen | Weather + battery widgets under the lock-screen clock · lock / unlock sounds · Unlocked popup | ✅ |
+| Face Unlock / Pointer / Typing Sounds / Desktop Pet | | ❌ |
 | Now Playing | Island ✅ · peek on hover · synced lyrics ✅ · lyrics timing offset · lyrics on pill ✅ | ✅ lyrics offset; peek on hover ⏳ |
 | Calendar | Lead time ✅ · **Full-screen meeting alert with Join button** · keep until joined | ✅ (alert once per event, Join / Dismiss) |
 | Activity | Screen Time (time per app today) | ✅ System tab rail |
@@ -224,7 +225,7 @@ lives ("Stays on this Mac").
 | Home | Desktop widgets (clock, weather, now playing, batteries) | P3 | ⏳ | desktop-level `NSPanel` |
 | Knock | Modifier-key knock (tap ⌃ 1–3×) → action palette | P2 | ✅ (simulated taps; a physical knock needs Accessibility) | global `.flagsChanged` monitor |
 | Knock | Chassis knock | — | ❌ | accelerometer is private |
-| Lock Screen | Unlock island + sound when you come back | P3 | ⏳ | `com.apple.screenIsUnlocked` distributed notification |
+| Lock Screen | Unlock island + sound when you come back | P3 | ✅ | `com.apple.screenIsLocked` / `screenIsUnlocked` distributed notifications; Settings → Lock Screen |
 | Now Playing | Show track info on hover / always / never; peek on hover | P1 | ✅ peek on hover; always/never picker ⏳ | (peek was §2d ⏳) |
 | Now Playing | Media keys always drive the current player; stop Music.app auto-opening; default music app | P1 | ✅ (media keys need Accessibility); default-app picker ⏳ | MediaKeyTap consumes play/next/prev; terminate `com.apple.Music` launched < 2 s after a key |
 | Now Playing | Desktop Lyrics floating panel | P2 | ✅ (window checked; content not rendered in tests) | click-through `NSPanel` with LyricsService line |
@@ -264,4 +265,4 @@ lives ("Stays on this Mac").
 | Permissions | Grouped (Required / Features / Advanced), "Still not working?" help, copy diagnostics | P1 | ✅ | `PermissionDiagnostics.report()` |
 | About | Clear caches with sizes · Uninstall (remove data, login item, hooks) · What's New | P2 | ✅ (Uninstall never run in tests) | App Support sizes; `SMAppService.unregister` |
 | About | Updates, crash reports, iCloud sync, Insights / Wrapped | — | ❌ | personal unsigned build |
-| Calls & Messages, Stocks, Cuely, Terminal, Face Unlock, Pointer, Typing Sounds, Desktop Pet, Lock-screen widgets | | — | ❌ | private APIs / paid data / non-goals (unchanged) |
+| Calls & Messages, Stocks, Cuely, Terminal, Face Unlock, Pointer, Typing Sounds, Desktop Pet | | — | ❌ | private APIs / paid data / non-goals (unchanged) |

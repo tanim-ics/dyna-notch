@@ -27,7 +27,7 @@ Code comments citing "CLAUDE.md §2…" or "§6.x" refer to the section numbers 
 shelf, notes, calendar, system, AI usage …); system HUDs and live activities; Notchy feature parity where public APIs
 allow. **Never get in the way:** click-through outside the island, hidden in full screen, no Dock icon, idle CPU ≈ 0.
 
-**Non-goals:** private SkyLight APIs (lock-screen widgets, Face Unlock), mirroring other apps' notifications, paid or
+**Non-goals:** private SkyLight APIs (Face Unlock …; the lock-screen strip is the one owner-approved exception, `docs/DECISIONS.md` §14), mirroring other apps' notifications, paid or
 keyed network services, App Store / notarised distribution, licensing. Network use is limited to keyless public APIs
 (iTunes Search, LRCLIB, Open-Meteo); everything else stays on the Mac.
 
@@ -36,8 +36,8 @@ keyed network services, App Store / notarised distribution, licensing. Network u
 | Task | Command |
 |---|---|
 | Test, build, sign, install, launch | `./build.sh` (`--skip-tests`, `--no-install`, `--dmg`, `--debug`) |
-| Unit tests (Core, 234) | `swift test` |
-| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 110 UI checks against the running app |
+| Unit tests (Core, 240) | `swift test` |
+| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 120 UI checks against the running app |
 | Health (crashes, hangs, log errors, idle energy) | `scripts/health.sh [days]` |
 | Live log | `log stream --predicate 'subsystem == "com.tanim.dynanotch"'` |
 

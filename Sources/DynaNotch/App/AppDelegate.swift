@@ -30,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screensCoordinator = coordinator
         coordinator.start()
 
+        // Lock screen: sounds, the "Unlocked" island and the weather / batteries strip (CONTRACTS §6.11).
+        LockScreenController.shared.start { [weak self] in
+            guard let self = self, let primary = self.viewModel else { return [] }
+            return [primary] + (self.screensCoordinator?.extraViewModels ?? [])
+        }
+
         settingsController = SettingsWindowController(viewModel: vm)
         statusItemController = StatusItemController(viewModel: vm)
 
@@ -261,6 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "accessibility": Permissions.accessibilityGranted,
                     "displayMode": AppSettings.shared.displayMode.rawValue,
                     "islands": screensCoordinator?.extraStates ?? [],
+                    "lockScreen": LockScreenController.shared.state,
                     "showsTimerControls": vm.showsTimerControls,
                     "sharingType": islandController?.sharingTypeName ?? "none",
                     "suppression": islandController?.suppressionReason ?? "none",
@@ -312,6 +319,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                     _ = self?.screensCoordinator?.firstExtraController?.snapshot(to: file)
+                }
+            case "lockscreen":
+                // dynanotch://lockscreen/lock|unlock → as if the screen locked / unlocked (never locks the Mac)
+                if argument == "lock" || argument == "unlock" { UserPresence.shared.simulateLock(argument == "lock") }
+            case "snapshot-lockscreen":
+                // dynanotch://snapshot-lockscreen/<name> → the lock-screen strip as it would look now
+                let name = argument.isEmpty ? "lockscreen" : argument
+                let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                    ?? URL(fileURLWithPath: NSTemporaryDirectory())
+                let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    _ = LockScreenController.shared.snapshot(to: file)
                 }
             case "timer":
                 // dynanotch://timer/25 → 25-minute countdown, dynanotch://timer/stop → reset

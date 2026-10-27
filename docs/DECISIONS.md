@@ -49,3 +49,12 @@ iPhone-style "hello" on first launch. Keep §2c as the living done/due board —
 2. The adapter dylib's install name is `@rpath/libMediaRemoteAdapter.dylib` and the formula sets `preserve_rpath`;
    otherwise Homebrew rewrites the dylib ID after install, re-signs it and breaks the app bundle's seal.
 3. SwiftPM needs `--disable-sandbox` inside Homebrew's sandbox; build.sh takes it from `DYNANOTCH_SWIFTPM_FLAGS`.
+
+## 14. Owner decisions (2026-10-27, lock screen)
+1. Lock and unlock sounds plus an unlock island, built on the public `com.apple.screenIsLocked` / `screenIsUnlocked`
+   distributed notifications.
+2. **The private-SkyLight non-goal is lifted for lock-screen widgets only:** weather and connected-device batteries on
+   the lock screen. The window joins a private SkyLight space (`SLSSpaceCreate` / `SLSSpaceSetAbsoluteLevel` /
+   `SLSShowSpaces` / `SLSSpaceAddWindowsAndRemoveFromSpaces`, all via `dlopen`/`dlsym`, nil-guarded). Fallback: when a
+   symbol is missing or a call fails, nothing is drawn on the lock screen; sounds and the unlock island still work.
+   Other private-API features (Face Unlock …) stay out.

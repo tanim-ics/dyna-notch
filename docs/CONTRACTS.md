@@ -765,3 +765,28 @@ serialised with the scratchpad `applock.sh` lock.
 - `.followMouse` (existing): the single island moves to the display under the pointer.
 - state.json: `islands` = [{screen, presentation, isPill, visible}] for the extra islands; hook
   `dynanotch://snapshot-extra/<name>` renders the first extra island.
+
+### 6.11 Lock screen: sounds, unlock island, widgets (2026-10-27, owner request — DECISIONS §14)
+- Core `AlertCategory` += `.screenLock` ("Lock", default sound "Pop") and `.screenUnlock` ("Unlock", default "Purr");
+  they appear in Popups → Alert Sounds like every category (None silences them).
+- Core `LockTransitionTracker` (pure): `mutating func update(locked: Bool) -> LockTransition?` → `.locked` / `.unlocked`
+  only on a change (the system can post the same notification twice). Core `LockScreenSummary.make(weather:devices:
+  maxDevices:) -> LockScreenSummary` → `weather: (symbol, temperature, detail, place)?` and up to `maxDevices` device items
+  (`name`, `symbol`, `level`, `isCharging`), the Mac last; devices without a level are dropped.
+- Settings (Settings → Lock Screen page, keys in `SettingsKey.all`): `unlockActivity: Bool = true` (`dn.unlockActivity`,
+  the "Unlocked" island when you come back), `lockScreenWidgets: Bool = true` (`dn.lockScreenWidgets`, master switch for
+  the lock-screen widgets), `lockScreenWeather: Bool = true`, `lockScreenBatteries: Bool = true`.
+- App: `UserPresence.lockChanges: PassthroughSubject<Bool, Never>` (main queue, on change only) and
+  `UserPresence.simulateLock(_:)` for the test hook. `LockScreenController.shared` (Window/) — started by AppDelegate:
+  on lock plays `.screenLock` and shows the widget strip (if enabled); on unlock hides it, plays `.screenUnlock` and posts
+  `.toggle(symbol: "lock.open.fill", label: "Unlocked", on: true)` to the primary island (if `unlockActivity`).
+- `SkyLightSpace.shared` (Window/): lazily `dlopen`s SkyLight on the first lock with widgets on; `isAvailable`,
+  `delegate(_ window: NSWindow) -> Bool`. No private call is made while the feature is off.
+- Hooks: `dynanotch://lockscreen/lock` · `lockscreen/unlock` (same path as the system notifications, never locks the Mac),
+  `snapshot-lockscreen/<name>` (renders the widgets). Core `LockScreenLayout.widgetsRect(size:screenFrame:)`: centred
+  on the main display (`NSScreen.screens.first`, the one showing the lock clock), top at `topFraction` (34 %) of its height. state.json `lockScreen` = {locked, shown, skyLight, delegated,
+  weather, weatherStatus, devices, lastLock, result, space, onScreen, windowNumber}. `lastLock` survives the unlock so a real
+  lock can be diagnosed afterwards. macOS 27: every SkyLight space call returns 3 even when it works and
+  `SLSCopySpacesForWindows` doesn't list custom spaces, so the window server's on-screen list is the check. The space
+  sits at absolute level 400 (`…NotificationCenterAtScreenLock`; 100 stays under the lock screen) and the window at
+  `Int32.max − 2`.

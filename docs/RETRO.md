@@ -20,3 +20,11 @@
   fewer, larger agent slices; checkpoint commits; a11y labels as controls are written.
 - **Playbook updates made:** `app-dev-playbook` 1.0.0 created from this project (all lessons above in `LESSONS.md`).
 - **Project skill:** `.claude/skills/dynanotch-dev/SKILL.md`.
+
+
+## 2026-10-27 lock-screen strip
+- First build put the SkyLight space at level 100: on screen when simulated, invisible on a real lock. Reference
+  (Lakr233/SkyLightWindow) uses 400 and window level `Int32.max − 2`. Lesson: a simulated lock can't prove lock-screen
+  visibility; compare private-API setups with a known working reference before shipping, and keep a diagnostic
+  (`lockScreen.lastLock`) that survives the real event.
+- macOS 27 SkyLight calls return 3 on success; check effects (window on-screen list), not return codes.

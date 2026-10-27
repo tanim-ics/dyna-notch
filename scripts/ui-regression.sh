@@ -117,8 +117,32 @@ check "follow mouse: single island" "$(islands x)" "0 0"
 u "set?dn.displayMode=$OLD_DM&dn.showOnNonNotchDisplays=$OLD_NN" 1.5
 check "show on: restored" "$(state displayMode)" "$OLD_DM"
 
+echo "==> Lock screen (simulated lock / unlock; never locks the Mac; sounds silenced, settings restored)"
+lsk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); l=d.get('lockScreen',{}); print(l.get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+b() { v=$(pref "$1" "$2"); [ "$v" = "1" ] && v=true; [ "$v" = "0" ] && v=false; echo "$v"; }
+OLD_AS=$(pref dn.alertSounds ""); OLD_LW=$(b dn.lockScreenWidgets true); OLD_UA=$(b dn.unlockActivity true)
+u "set?dn.alertSounds=screenLock%3DNone%2CscreenUnlock%3DNone&dn.lockScreenWidgets=true&dn.unlockActivity=true" 0.8
+u "lockscreen/lock" 1.5
+check "lock screen: locked" "$(lsk locked)" "True"
+check "lock screen: strip shown" "$(lsk shown)" "True"
+rm -f "$SNAP/reg-lockscreen.png"; u "snapshot-lockscreen/reg-lockscreen" 1.0
+rendered "lock screen: strip renders" "$SNAP/reg-lockscreen.png" 3000
+u "lockscreen/unlock" 0.3
+check "lock screen: unlocked popup" "$(state presentation | grep -o 'Unlocked' | head -1)" "Unlocked"
+check "lock screen: strip hidden" "$(lsk shown)" "False"
+u "lockscreen/lock" 0.3; u "lockscreen/lock" 0.3; u "lockscreen/unlock" 0.3
+check "lock screen: double lock, one unlock" "$(lsk locked)" "False"
+sleep 2.5
+u "set?dn.lockScreenWidgets=false&dn.unlockActivity=false" 0.8
+u "lockscreen/lock" 1.2
+check "lock screen: strip off" "$(lsk shown)" "False"
+u "lockscreen/unlock" 0.3
+check "lock screen: popup off" "$(state presentation | grep -c 'Unlocked')" "0"
+u "set?dn.alertSounds=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$OLD_AS")&dn.lockScreenWidgets=$OLD_LW&dn.unlockActivity=$OLD_UA" 0.8
+check "lock screen: sounds restored" "$(pref dn.alertSounds '')" "$OLD_AS"
+
 echo "==> Settings pages"
-PAGES="general appearance behavior popups allTools tabs home knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"
+PAGES="general appearance behavior popups allTools tabs home lockScreen knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"
 for p in $PAGES; do
     rm -f "$SNAP/settings-$p.png"; u "snapshot-settings/$p" 1.4
     rendered "settings $p: renders" "$SNAP/settings-$p.png" 40000

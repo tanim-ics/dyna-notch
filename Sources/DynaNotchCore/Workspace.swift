@@ -341,7 +341,7 @@ public enum TrackInfoMode: String, Equatable, Hashable, CaseIterable {
 }
 
 public enum AlertCategory: String, Equatable, Hashable, CaseIterable {
-    case timers, calendar, battery, devices, downloads, notifications, aiUsage
+    case timers, calendar, battery, devices, downloads, notifications, aiUsage, screenLock, screenUnlock
 
     public var title: String {
         switch self {
@@ -352,6 +352,8 @@ public enum AlertCategory: String, Equatable, Hashable, CaseIterable {
         case .downloads: return "Downloads & Files"
         case .notifications: return "Notifications"
         case .aiUsage: return "AI Usage"
+        case .screenLock: return "Lock"
+        case .screenUnlock: return "Unlock"
         }
     }
 }
@@ -367,6 +369,8 @@ public enum AlertSounds {
         switch category {
         case .timers: return "Glass"
         case .calendar: return "Ping"
+        case .screenLock: return "Pop"
+        case .screenUnlock: return "Purr"
         default: return none
         }
     }

@@ -308,6 +308,8 @@ struct PopupsSettingsPane: View {
         case .downloads: return "Finished downloads and mounted drives."
         case .notifications: return "Messages from scripts and Claude Code hooks."
         case .aiUsage: return "AI usage limit warnings."
+        case .screenLock: return "When the screen locks."
+        case .screenUnlock: return "When you unlock and come back."
         }
     }
 
@@ -320,6 +322,8 @@ struct PopupsSettingsPane: View {
         case .downloads: return "arrow.down.circle.fill"
         case .notifications: return "bell.fill"
         case .aiUsage: return "sparkles"
+        case .screenLock: return "lock.fill"
+        case .screenUnlock: return "lock.open.fill"
         }
     }
 

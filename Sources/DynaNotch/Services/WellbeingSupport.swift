@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreGraphics
+import DynaNotchCore
 import Foundation
 import os
 
@@ -79,6 +80,9 @@ final class UserPresence {
 
     /// Fires on the main queue when the user comes back (unlock, wake).
     let returned = PassthroughSubject<Void, Never>()
+    /// Fires on the main queue when the screen locks (true) or unlocks (false); repeats are dropped.
+    let lockChanges = PassthroughSubject<Bool, Never>()
+    private var lockTracker = LockTransitionTracker()
 
     private(set) var isLocked = false
     private(set) var isAsleep = false
@@ -103,14 +107,11 @@ final class UserPresence {
         let distributed = DistributedNotificationCenter.default()
         distributed.publisher(for: Notification.Name("com.apple.screenIsLocked"))
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.isLocked = true }
+            .sink { [weak self] _ in self?.setLocked(true) }
             .store(in: &cancellables)
         distributed.publisher(for: Notification.Name("com.apple.screenIsUnlocked"))
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.isLocked = false
-                self?.signalReturn()
-            }
+            .sink { [weak self] _ in self?.setLocked(false) }
             .store(in: &cancellables)
 
         let workspace = NSWorkspace.shared.notificationCenter
@@ -129,6 +130,18 @@ final class UserPresence {
                 }
                 .store(in: &cancellables)
         }
+    }
+
+    /// Test hook (`dynanotch://lockscreen/lock|unlock`): the same path as the system notifications; never locks the Mac.
+    func simulateLock(_ locked: Bool) {
+        setLocked(locked)
+    }
+
+    private func setLocked(_ locked: Bool) {
+        isLocked = locked
+        guard lockTracker.update(locked: locked) != nil else { return }
+        lockChanges.send(locked)
+        if !locked { signalReturn() }
     }
 
     private func signalReturn() {

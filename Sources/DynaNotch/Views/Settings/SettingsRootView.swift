@@ -26,7 +26,7 @@ enum SettingsGroup: Int, CaseIterable, Identifiable {
 
 enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
     case general, appearance, behavior, popups, allTools
-    case tabs, home, knock
+    case tabs, home, lockScreen, knock
     case nowPlaying, calendar, activity, aiUsage
     case timer, clipboard, quickSearch, files, screenshots
     case battery, connectivity, hud
@@ -37,7 +37,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
     var group: SettingsGroup {
         switch self {
         case .general, .appearance, .behavior, .popups, .allTools: return .main
-        case .tabs, .home, .knock: return .notch
+        case .tabs, .home, .lockScreen, .knock: return .notch
         case .nowPlaying, .calendar, .activity, .aiUsage: return .media
         case .timer, .clipboard, .quickSearch, .files, .screenshots: return .productivity
         case .battery, .connectivity, .hud: return .yourMac
@@ -52,6 +52,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .behavior: return "Behavior"
         case .popups: return "Popups"
         case .allTools: return "All Tools"
+        case .lockScreen: return "Lock Screen"
         case .knock: return "Knock"
         case .tabs: return "Tabs"
         case .home: return "Home"
@@ -79,6 +80,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .behavior: return "cursorarrow.motionlines"
         case .popups: return "bell.badge.fill"
         case .allTools: return "square.grid.3x3.fill"
+        case .lockScreen: return "lock.fill"
         case .knock: return "hand.tap.fill"
         case .tabs: return "square.grid.2x2.fill"
         case .home: return "house.fill"
@@ -106,6 +108,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .behavior: return .indigo
         case .popups: return .red
         case .allTools: return .teal
+        case .lockScreen: return .indigo
         case .knock: return .pink
         case .tabs: return .purple
         case .home: return .orange
@@ -134,6 +137,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .behavior: return "When the island opens, closes and hides, and how you interact with it."
         case .popups: return "Which short popups appear under the notch, how long they stay and how they sound."
         case .allTools: return "Every DynaNotch feature in one place: switch tools on or off, or open their settings."
+        case .lockScreen: return "Weather and batteries on the lock screen, and sounds when you lock and come back."
         case .knock: return "Tap a modifier key once, twice or three times to run an action."
         case .tabs: return "Choose and order the panel's tabs and the buttons in its header."
         case .home: return "The Home tab's card grid, world clocks, saved links, weather and colour tools."
@@ -164,6 +168,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .tabs: return "tabs order enable reorder hotkeys shortcuts keyboard header buttons battery output keep awake actions pin lock timer screenshot color picker mic calculator emoji launcher reminders mirror"
         case .home: return "weather city location unit celsius fahrenheit color format hex rgb hsl history calendar battery expanded cards card grid columns world clock time zones cities saved links bookmarks"
         case .allTools: return "all tools features toggle overview grid search enable disable"
+        case .lockScreen: return "lock screen unlock welcome back sound chime weather batteries devices airpods widgets skylight"
         case .knock: return "knock tap modifier control option command shift double triple action palette"
         case .nowPlaying: return "music artwork visualizer glow peek track lyrics offset compact pause spotify hover peek media keys play pause skip music app auto launch opening stop track info always never desktop lyrics listening history clear default music app spotify"
         case .calendar: return "events lead time alert meeting join zoom preview access join link only meetings shortcuts hotkeys calendars hide choose menu bar next meeting"
@@ -297,6 +302,7 @@ struct SettingsRootView: View {
         case .behavior: BehaviorSettingsPane()
         case .popups: PopupsSettingsPane()
         case .allTools: AllToolsSettingsPane()
+        case .lockScreen: LockScreenSettingsPane()
         case .knock: KnockSettingsPane()
         case .tabs: TabsSettingsPane()
         case .home: HomeSettingsPane()

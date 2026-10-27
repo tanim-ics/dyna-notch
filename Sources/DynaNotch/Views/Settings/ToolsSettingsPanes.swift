@@ -290,3 +290,77 @@ struct ToolCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.08)))
     }
 }
+
+// MARK: - Lock Screen
+
+struct LockScreenSettingsPane: View {
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        SettingsPageView(page: .lockScreen) {
+            Section {
+                SettingToggle(symbol: "lock.rectangle.stack.fill", color: .indigo, title: "Lock Screen Widgets",
+                              detail: "Weather and battery widgets under the clock on your main display while the Mac is locked. Uses a private macOS feature; if a macOS update breaks it, nothing is shown.",
+                              isOn: $settings.lockScreenWidgets, testID: "setting-lockScreenWidgets")
+                SettingToggle(symbol: "cloud.sun.fill", color: .blue, title: "Weather",
+                              detail: settings.weatherEnabled
+                                  ? "Temperature, sky and today's high and low from the last update (no extra network use)."
+                                  : "Turn on Weather in Home settings first; the widget shows the last update.",
+                              isOn: $settings.lockScreenWeather, testID: "setting-lockScreenWeather")
+                    .disabled(!settings.lockScreenWidgets)
+                SettingToggle(symbol: "airpods.pro", color: .green, title: "Device Batteries",
+                              detail: "Rings for up to three accessories, then the Mac. Read once when you lock.",
+                              isOn: $settings.lockScreenBatteries, testID: "setting-lockScreenBatteries")
+                    .disabled(!settings.lockScreenWidgets)
+            } header: {
+                Text("While Locked")
+            } footer: {
+                PrivacyFooter(text: "Everything shown comes from this Mac's last readings and stays on this Mac.")
+            }
+            Section {
+                soundRow(.screenLock, symbol: "lock.fill", detail: "Plays when the screen locks.")
+                soundRow(.screenUnlock, symbol: "lock.open.fill", detail: "Plays when you unlock and come back.")
+                SettingToggle(symbol: "lock.open.fill", color: .green, title: "Unlocked Popup",
+                              detail: "A short \u{201C}Unlocked\u{201D} popup under the notch when you come back.",
+                              isOn: $settings.unlockActivity, testID: "setting-unlockActivity")
+            } header: {
+                Text("Lock & Unlock")
+            } footer: {
+                SettingsFooter("The same sounds are listed in Popups → Alert Sounds. Choose None to keep one silent.")
+            }
+            RestoreDefaultsSection(keys: [SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather,
+                                          SettingsKey.lockScreenBatteries, SettingsKey.unlockActivity])
+        }
+    }
+
+    private func soundRow(_ category: AlertCategory, symbol: String, detail: String) -> some View {
+        let binding = Binding<String>(get: {
+            AlertSounds.sound(for: category, in: settings.alertSounds)
+        }, set: { name in
+            settings.alertSounds = AlertSounds.setting(name, for: category, in: settings.alertSounds)
+        })
+        return SettingRow(symbol: symbol, color: .red, title: "\(category.title) Sound", detail: detail) {
+            HStack(spacing: 6) {
+                Button {
+                    AlertSoundPlayer.preview(binding.wrappedValue)
+                } label: {
+                    Image(systemName: "play.fill")
+                }
+                .buttonStyle(.borderless)
+                .disabled(binding.wrappedValue == AlertSounds.none)
+                .help("Play this sound")
+                .uiTestID("lock-sound-\(category.rawValue)-play")
+                Picker("\(category.title) sound", selection: binding) {
+                    Text("None").tag(AlertSounds.none)
+                    Divider()
+                    ForEach(AlertSounds.systemSounds, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .uiTestID("lock-sound-\(category.rawValue)")
+            }
+        }
+    }
+}
