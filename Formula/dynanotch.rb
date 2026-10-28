@@ -23,6 +23,8 @@ class Dynanotch < Formula
     ENV["DYNANOTCH_SWIFTPM_FLAGS"] = "--disable-sandbox"
     system "./build.sh", "--skip-tests", "--no-install"
     prefix.install "build/DynaNotch.app"
+    # Strip Gatekeeper quarantine so macOS does not block the ad-hoc-signed bundle on first open.
+    system "xattr", "-cr", "#{prefix}/DynaNotch.app"
   end
 
   def caveats
@@ -30,11 +32,17 @@ class Dynanotch < Formula
       DynaNotch.app was installed to:
         #{opt_prefix}/DynaNotch.app
 
-      Link it into /Applications and start it:
+      Link it into /Applications, clear Gatekeeper quarantine, and start it:
         ln -sfn #{opt_prefix}/DynaNotch.app /Applications/DynaNotch.app
+        xattr -cr /Applications/DynaNotch.app
         open /Applications/DynaNotch.app
 
-      After `brew upgrade --fetch-HEAD dynanotch`, quit and reopen DynaNotch.
+      The `xattr -cr` step is required because macOS Gatekeeper blocks ad-hoc-signed
+      apps that arrive via Homebrew. If macOS still shows "cannot be opened" after that,
+      go to System Settings → Privacy & Security and click "Open Anyway".
+
+      After `brew upgrade --fetch-HEAD dynanotch`, quit DynaNotch, then repeat the
+      `xattr -cr` and `open` commands above.
     EOS
   end
 
