@@ -18,7 +18,7 @@ v3 (2026-10-26): the tech lead wrote Core + tests + model/window/app integration
 v3 services and one UI agent built the panel tabs/settings in parallel, each building with its own `--scratch-path` and owning
 disjoint folders.
 
-README.md is the owner's short user guide (install = `./build.sh` or Homebrew); keep it brief and put design detail here instead.
+README.md is the owner's short user guide (install = `./build.sh` or the Homebrew cask); keep it brief and put design detail here instead.
 
 Definition of done: `scripts/check.sh` passes on Linux (core build, ≥ 40 unit tests green, every app file passes `swiftc -parse`), two independent compile reviews clean, and on the Mac `./build.sh` produces and launches `DynaNotch.app`.
 
@@ -58,3 +58,11 @@ iPhone-style "hello" on first launch. Keep §2c as the living done/due board —
    `SLSShowSpaces` / `SLSSpaceAddWindowsAndRemoveFromSpaces`, all via `dlopen`/`dlsym`, nil-guarded). Fallback: when a
    symbol is missing or a call fails, nothing is drawn on the lock screen; sounds and the unlock island still work.
    Other private-API features (Face Unlock …) stay out.
+
+## 15. Owner decisions (2026-10-28, Homebrew cask)
+1. Homebrew 7 refuses formulas from untrusted taps, so the HEAD-only formula (§13) is replaced by a cask, as Notchy
+   ships: `brew install --cask tanim-ics/dyna-notch/dynanotch` (the full name trusts the cask). Supersedes §13.1.
+2. The cask downloads `DynaNotch-<version>.zip` from the GitHub release `v<version>`, built by `scripts/release.sh`
+   (ad hoc, stable identifier requirement, arm64 — every notched Mac is Apple silicon).
+3. Not notarised, so the cask's `postflight_steps` strip `com.apple.quarantine` from the installed app; without it
+   Gatekeeper blocks the first launch.

@@ -6,7 +6,7 @@
 # Environment:
 #   SIGN_IDENTITY   codesign identity (name or SHA-1 hash). Default: first "Apple Development"
 #                   identity in your keychain, otherwise ad-hoc ("-").
-#   DYNANOTCH_SWIFTPM_FLAGS  extra flags for swift build (the Homebrew formula passes --disable-sandbox).
+#   DYNANOTCH_SWIFTPM_FLAGS  extra flags for swift build (e.g. --disable-sandbox inside another sandbox).
 #
 # Compatible with macOS /bin/bash 3.2.
 
