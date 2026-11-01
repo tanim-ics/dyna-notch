@@ -141,8 +141,193 @@ check "lock screen: popup off" "$(state presentation | grep -c 'Unlocked')" "0"
 u "set?dn.alertSounds=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$OLD_AS")&dn.lockScreenWidgets=$OLD_LW&dn.unlockActivity=$OLD_UA" 0.8
 check "lock screen: sounds restored" "$(pref dn.alertSounds '')" "$OLD_AS"
 
+echo "==> Copy progress pill (simulated progress; setting restored)"
+cpk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('copy',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+OLD_CP=$(b dn.copyProgress true)
+u "set?dn.copyProgress=true" 0.8
+check "copy: watching folders" "$(cpk watching)" "True"
+u "copy?name=Regression.mov&fraction=0.42&left=95" 0.6
+check "copy: pill shows progress" "$(state presentation | grep -o 'fraction: 0.42' | head -1)" "fraction: 0.42"
+rm -f "$SNAP/reg-copy.png"; u "snapshot/reg-copy" 1.0
+rendered "copy: pill renders" "$SNAP/reg-copy.png" 3000
+u "copy?done=1&name=Regression.mov" 0.4
+check "copy: done" "$(state presentation | grep -o 'fraction: 1.0' | head -1)" "fraction: 1.0"
+sleep 2
+u "set?dn.copyProgress=false" 0.8
+check "copy: off stops watching" "$(cpk subscriptions)" "0"
+u "copy?name=Regression.mov&fraction=0.5" 0.6
+check "copy: off shows nothing" "$(state presentation | grep -c fileCopy)" "0"
+u "set?dn.copyProgress=$OLD_CP" 0.8
+
+echo "==> Smart Copy conversions (clipboard saved and restored; setting restored)"
+export LC_ALL=en_US.UTF-8
+OLD_SC=$(b dn.smartCopy true); CLIP_BACKUP=$(pbpaste)
+u "collapse" 2.5   # let the previous section's popups run out
+u "set?dn.smartCopy=true" 0.6
+u "ui/pointer?x=360&y=300" 0.5
+u "convert?text=0x1F" 0.6
+check "smart copy: hex shown" "$(state presentation | grep -o 'result: "31"' | head -1)" 'result: "31"'
+u "convert?text=5%20mi" 0.6
+check "smart copy: miles shown" "$(state presentation | grep -o 'source: "5 mi"' | head -1)" 'source: "5 mi"'
+rm -f "$SNAP/reg-convert.png"; u "snapshot/reg-convert" 1.0
+rendered "smart copy: renders" "$SNAP/reg-convert.png" 3000
+u "convert?text=0x40" 0.5
+u "ui/pointer?x=360&y=12" 0.5
+check "smart copy: hover keeps it closed" "$(state presentation | grep -c conversion)" "1"
+u "ui/click?window=island&id=activity-conversion" 0.5
+check "smart copy: click copies result" "$(pbpaste)" "64"
+check "smart copy: shows Copied" "$(state presentation | grep -o 'Copied' | head -1)" "Copied"
+u "ui/pointer?x=360&y=300" 1.5
+u "set?dn.smartCopy=false" 0.6
+u "convert?text=0x1F" 0.6
+check "smart copy: off shows nothing" "$(state presentation | grep -c conversion)" "0"
+u "set?dn.smartCopy=$OLD_SC" 0.6
+u "ui/pointer" 0.3
+printf '%s' "$CLIP_BACKUP" | pbcopy
+check "smart copy: clipboard restored" "$(pbpaste)" "$CLIP_BACKUP"
+
+echo "==> Agent Island (installer on a copy; fake Claude Code requests; settings restored)"
+agk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('agent',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+OLD_AI=$(b dn.agentIsland true); OLD_AS2=$(b dn.agentStatus true)
+AGTMP=$(mktemp -d); cp ~/.claude/settings.json "$AGTMP/settings.json" 2>/dev/null || echo '{}' > "$AGTMP/settings.json"
+u "set?dn.agentIsland=true&dn.agentStatus=true" 0.6
+u "agent/install-test?settings=$AGTMP/settings.json" 1.0
+check "agent: installer on a copy" "$(agk installTest)" "ok=true installed=true removed=true"
+check "agent: copy restored" "$(cmp -s "$AGTMP/settings.json" ~/.claude/settings.json 2>/dev/null && echo same || ([ -f ~/.claude/settings.json ] && echo differs || echo same))" "same"
+HOOK="$HOME/Library/Application Support/DynaNotch/hooks/agent-hook.pl"
+check "agent: hook script runs" "$("$HOOK" check < /dev/null)" "ok"   # also warms up a freshly written script
+REQ='{"session_id":"reg","cwd":"/tmp/regression","tool_name":"Bash","tool_input":{"command":"echo regression"}}'
+# Wait until the card (and its button frames) are on screen: requests queue, the island shows the oldest.
+agent_card() {   # waits until the card has finished opening (same frame twice); leaves state.json current
+    local last="" now
+    for _ in $(seq 1 20); do
+        rm -f "$STATE"; u state 0.3; now="$(center agent-allow)"
+        [ "$now" != "0 0" ] && [ "$now" = "$last" ] && return 0
+        last="$now"
+    done
+    return 1
+}
+pkill -f "agent-hook.pl permission" 2>/dev/null; sleep 2.5   # start from an empty queue (the app drops dead hooks' requests)
+for decision in allow deny terminal; do
+    ( echo "$REQ" | "$HOOK" permission > "$AGTMP/out-$decision" ) &
+    agent_card
+    check "agent: $decision request shown" "$(state presentation | grep -o 'agentRequest' | head -1)" "agentRequest"
+    u "ui/click?window=island&id=agent-$decision" 1.0
+    if [ "$decision" = terminal ]; then
+        check "agent: terminal hands back to Claude" "$(cat "$AGTMP/out-$decision")$(agk pending | grep -c regression)" "0"
+    else
+        check "agent: $decision reaches Claude" "$(grep -o "\"behavior\":\"$decision\"" "$AGTMP/out-$decision")" "\"behavior\":\"$decision\""
+    fi
+    sleep 2.6   # the short "Allowed" / "Denied" status
+done
+echo '{"session_id":"reg","cwd":"/tmp/regression","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"swift test"}}' | "$HOOK" status
+sleep 0.6
+check "agent: status in pill" "$(state presentation | grep -o 'Running swift test' | head -1)" "Running swift test"
+u "set?dn.agentIsland=false" 0.6
+check "agent: off answers nothing" "$(echo "$REQ" | "$HOOK" permission)" ""
+u "set?dn.agentIsland=$OLD_AI&dn.agentStatus=$OLD_AS2" 0.6
+u "ui/pointer" 0.3
+rm -rf "$AGTMP"
+
+echo "==> Drop Alchemy (files made in a temp folder, taken off the shelf afterwards)"
+alk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('alchemy',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+alwait() { for _ in $(seq 1 30); do [ "$(alk running)" = "0" ] && return 0; sleep 0.5; done; return 1; }
+OLD_AZ=$(b dn.alchemyZones true); ALTMP=$(mktemp -d); cp "/Library/User Pictures/Animals/Owl.heic" "$ALTMP/Owl.heic"
+enc() { python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$1"; }
+u "alchemy?action=png&path=$(enc "$ALTMP/Owl.heic")" 0.5; alwait
+check "alchemy: png made" "$([ -f "$ALTMP/Owl.png" ] && echo yes)" "yes"
+u "alchemy?action=cutout&path=$(enc "$ALTMP/Owl.heic")" 0.5; alwait
+check "alchemy: cutout has transparency" "$(sips -g hasAlpha "$ALTMP/Owl (cutout).png" 2>/dev/null | grep -o 'yes')" "yes"
+u "alchemy?action=shrink&path=$(enc "$ALTMP/Owl.png")" 0.5; alwait
+SMALL=$(ls "$ALTMP" | grep '(small)' | head -1)
+check "alchemy: shrink is smaller" "$(python3 -c "import os,sys;print('yes' if os.path.getsize(sys.argv[1])<os.path.getsize(sys.argv[2]) else 'no')" "$ALTMP/$SMALL" "$ALTMP/Owl.png" 2>/dev/null)" "yes"
+u "alchemy?action=png&path=$(enc "$ALTMP/notes.txt")" 0.5
+check "alchemy: wrong type refused" "$(alk last)" "failed png"
+u "pin/shelf" 1.0
+zones() { rm -f "$STATE"; u state 0.4; [ "$(center alchemy-cutout)" = "0.0 0.0" ] && echo hidden || echo shown; }
+check "alchemy: zones on the shelf" "$(zones)" "shown"
+u "set?dn.alchemyZones=false" 0.8
+check "alchemy: zones off" "$(zones)" "hidden"
+u "set?dn.alchemyZones=$OLD_AZ" 0.5
+for f in "Owl.png" "Owl (cutout).png" "$SMALL"; do u "shelf/remove?path=$(enc "$ALTMP/$f")" 0.3; done
+u "unpin" 0.5
+rm -rf "$ALTMP"
+
+echo "==> Camera Guard+ / Meeting Meter (simulated sensors; settings restored)"
+prv() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('privacy',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+OLD_MM=$(b dn.meetingMeter true); OLD_SD=$(b dn.sensorDot true)
+u "set?dn.meetingMeter=true&dn.sensorDot=true" 0.5
+u "sensor?kind=microphone&active=1&app=Regression" 0.6
+check "sensor: popup names the app" "$(state presentation | grep -o 'app: "Regression"' | head -1)" 'app: "Regression"'
+check "sensor: dot state" "$(prv inUse)" "['microphone']"
+sleep 15.5
+check "meeting: call after 15 s" "$(prv call)" "Regression since"
+check "meeting: call in the pill" "$(state presentation | grep -o 'call(app: "Regression"' | head -1)" 'call(app: "Regression"'
+u "sensor?kind=microphone&active=0" 0.6
+check "meeting: call ends" "$(prv call)" "none"
+check "sensor: logged" "$(prv log | grep -o 'microphone Regression closed' | head -1)" "microphone Regression closed"
+u "set?dn.meetingMeter=false" 0.5
+u "sensor?kind=microphone&active=1&app=Regression" 0.6; sleep 15.5
+check "meeting: off, no call" "$(prv call)" "none"
+u "sensor?kind=microphone&active=0" 0.5
+u "sensor/forget?app=Regression" 0.3   # keep the owner's log clean
+u "set?dn.meetingMeter=$OLD_MM&dn.sensorDot=$OLD_SD" 0.5
+
+echo "==> Focus Guard / Soundscapes (silent: volume 0; timer stopped; settings restored)"
+fk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('focus',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+OLD_FG=$(b dn.focusGuard true); OLD_SWP=$(b dn.soundscapeWithPomodoro true); OLD_VOL=$(pref dn.soundscapeVolume 0.4); OLD_SC=$(pref dn.soundscape none)
+u "set?dn.focusGuard=true&dn.soundscapeVolume=0&dn.soundscapeWithPomodoro=false" 0.5
+S0=$(fk shakes)
+u "focusguard?app=com.tinyspeck.slackmacgap&name=Slack" 0.6
+check "focus guard: idle without Pomodoro" "$(fk shakes)" "$S0"
+u "ui/action?name=startPomodoro" 1.0
+check "focus guard: focusing" "$(fk focusing)" "True"
+u "focusguard?app=com.tinyspeck.slackmacgap&name=Slack" 0.6
+check "focus guard: shakes" "$(fk shakes)" "$((S0 + 1))"
+check "focus guard: nudge" "$(state presentation | grep -o 'Back to focus' | head -1)" "Back to focus"
+u "focusguard?app=com.apple.dt.Xcode&name=Xcode" 0.5
+check "focus guard: other apps fine" "$(fk current)" ""
+u "soundscape/rain" 0.8
+check "soundscape: plays" "$(fk playing)" "rain"
+u "soundscape/stop" 1.5
+check "soundscape: stops" "$(fk playing)" "none"
+u "timer/stop" 0.5; u "collapse" 0.5
+u "set?dn.focusGuard=$OLD_FG&dn.soundscapeWithPomodoro=$OLD_SWP&dn.soundscapeVolume=$OLD_VOL&dn.soundscape=$OLD_SC" 0.5
+
+echo "==> Mac Vitals (alerts shown through the hook; setting restored)"
+OLD_MV=$(b dn.macVitals true)
+u "set?dn.macVitals=true" 0.5
+u "vitals/disk" 0.6
+check "vitals: disk alert" "$(state presentation | grep -o 'Your disk is almost full' | head -1)" "Your disk is almost full"
+u "vitals/thermal" 0.6
+check "vitals: heat alert" "$(state presentation | grep -o 'running hot' | head -1)" "running hot"
+sleep 8.5
+u "set?dn.macVitals=false" 0.5
+u "vitals/memory" 0.6
+check "vitals: off shows nothing" "$(state presentation | grep -c 'Memory is')" "0"
+u "set?dn.macVitals=$OLD_MV" 0.5
+
+echo "==> Daily Wrap (shown on demand; nothing changed)"
+wk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('wrap',{}).get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
+u "collapse" 0.5
+u "wrap" 3.0
+check "wrap: card shown" "$(state presentation | grep -o 'wrap(lines' | head -1)" "wrap(lines"
+check "wrap: next one scheduled" "$([ "$(wk next)" -gt "$(date +%s)" ] 2>/dev/null && echo yes)" "yes"
+rm -f "$SNAP/reg-wrap.png"; u "snapshot/reg-wrap" 1.0
+rendered "wrap: renders" "$SNAP/reg-wrap.png" 5000
+
+echo "==> Voice Notes (timer command only — notes / reminders would touch the owner's data; timer stopped)"
+u "collapse" 0.5
+u "voice?text=set%20a%20timer%20for%2025%20minutes" 0.6
+check "voice: timer command" "$(state presentation | grep -o 'Timer 25 min' | head -1)" "Timer 25 min"
+check "voice: timer runs" "$(rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('timer',''))" "$STATE")" "countdown"
+u "timer/stop" 3.0
+u "voice?text=" 0.6
+check "voice: nothing heard" "$(state presentation | grep -o "Didn" | head -1)" "Didn"
+
 echo "==> Settings pages"
 PAGES="general appearance behavior popups allTools tabs home lockScreen knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"
+u "settings" 2.0   # open the Settings window once before the first snapshot
 for p in $PAGES; do
     rm -f "$SNAP/settings-$p.png"; u "snapshot-settings/$p" 1.4
     rendered "settings $p: renders" "$SNAP/settings-$p.png" 40000

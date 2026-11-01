@@ -44,6 +44,9 @@ final class AppActions {
         case .toggleKeepAwake:
             KeepAwakeService.shared.toggle()
             return
+        case .voiceNote:
+            VoiceNoteService.shared.toggle()
+            return
         default:
             break
         }
@@ -72,6 +75,7 @@ final class AppActions {
         case .toggleKeepAwake: perform(.toggleKeepAwake)
         case .screenshot: QuickActions.captureScreenshot()
         case .timer: target?.openFocused(.timer)
+        case .voiceNote: VoiceNoteService.shared.toggle()
         }
     }
 

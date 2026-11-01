@@ -28,7 +28,10 @@ final class UITestDriver {
     /// Mouse down + up at `point` (top-left origin, points) in `window`. The mouse-up is queued before the
     /// mouse-down is delivered, because controls like switches and sliders run their own tracking loop that
     /// reads the release from the event queue (exactly what happens with a real click).
-    func click(in window: NSWindow, at point: NSPoint, modifiers: NSEvent.ModifierFlags = []) {
+    /// Scripted tests: what the last synthetic click hit (state.json `lastClick`).
+    private(set) var lastClick = "none"
+
+    func click(in window: NSWindow, at point: NSPoint, modifiers: NSEvent.ModifierFlags = [], direct: Bool = false) {
         guard let content = window.contentView else { return }
         let location = NSPoint(x: point.x, y: content.bounds.height - point.y)
         let time = ProcessInfo.processInfo.systemUptime
@@ -38,8 +41,17 @@ final class UITestDriver {
                                pressure: type == .leftMouseDown ? 1 : 0)
         }
         guard let down = event(.leftMouseDown), let up = event(.leftMouseUp) else { return }
-        NSApp.postEvent(up, atStart: false)
-        window.sendEvent(down)
+        let hit = content.hitTest(location).map { String(describing: type(of: $0)) } ?? "nil"
+        lastClick = "at \(Int(point.x)),\(Int(point.y)) hit=\(hit) ignores=\(window.ignoresMouseEvents) key=\(window.isKeyWindow)"
+        if direct {
+            // The island is a never-key panel driven by tap gestures: deliver both events now. A queued mouse-up
+            // can arrive late there and complete a tap on whatever is under it later.
+            window.sendEvent(down)
+            window.sendEvent(up)
+        } else {
+            NSApp.postEvent(up, atStart: false)   // a Button's tracking loop reads the mouse-up from the queue
+            window.sendEvent(down)
+        }
         logger.info("click \(point.x, privacy: .public),\(point.y, privacy: .public) in \(window.title, privacy: .public)")
     }
 

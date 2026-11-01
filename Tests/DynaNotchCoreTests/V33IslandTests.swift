@@ -40,6 +40,6 @@ final class V33IslandTests: XCTestCase {
         XCTAssertTrue(ActivityKind.calendar(title: "c", minutesUntil: 5).isQuietedDuringFocus)
         XCTAssertFalse(ActivityKind.lowBattery(level: 0.1).isQuietedDuringFocus)
         XCTAssertFalse(ActivityKind.timerFinished(label: "t").isQuietedDuringFocus)
-        XCTAssertFalse(ActivityKind.sensor(.camera, active: true).isQuietedDuringFocus)
+        XCTAssertFalse(ActivityKind.sensor(.camera, active: true, app: "").isQuietedDuringFocus)
     }
 }

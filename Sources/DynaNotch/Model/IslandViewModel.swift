@@ -355,6 +355,15 @@ final class IslandViewModel: ObservableObject {
                 setTimerControls(true)
                 return
             }
+            // Smart Copy: a conversion under the pointer stays (and doesn't open the panel) so it can be clicked.
+            if case .activity(let activity) = presentation, case let .conversion(_, result, _) = activity.kind,
+               result != SmartCopyService.copiedLabel {
+                engine.post(activity.kind, now: Date(), duration: 6)
+                refresh()
+                return
+            }
+            // Agent Island: the panel must not open over Allow / Deny.
+            if case .activity(let activity) = presentation, case .agentRequest = activity.kind { return }
             var delay = settings.hoverDelay
             if settings.peekOnHover && (presentation == .nowPlaying || presentation == .lyrics) {
                 beginHoverPeek()
@@ -414,7 +423,76 @@ final class IslandViewModel: ObservableObject {
         }
     }
 
-    func tap() {
+    // MARK: Agent Island
+
+
+    /// Shows the oldest waiting request for the rest of its timeout; clears the slot when none is left.
+    private func showAgentRequest(_ request: AgentRequest?) {
+        guard let request = request else {
+            if case .activity(let a) = presentation, case .agentRequest = a.kind { engine.dismissCurrent(now: Date()); refresh() }
+            return
+        }
+        let left = max(1, AgentIslandService.shared.timeout - Date().timeIntervalSince(request.createdAt))
+        let kind = ActivityKind.agentRequest(id: request.id, project: request.project, tool: request.tool,
+                                             detail: request.detail)
+        guard isAllowed(kind) else { return }
+        engine.post(kind, now: Date(), duration: left)
+        if isPrimary { AlertSoundPlayer.play(.notifications) }
+        refresh()
+    }
+
+    /// Allow / Deny / Terminal (a click on the card, or `dynanotch://agent/answer`).
+    func answerAgent(id: String, project: String, _ decision: AgentDecision) {
+        guard AgentIslandService.shared.answer(id: id, decision) else { return }
+        if AgentIslandService.shared.requests.isEmpty {
+            engine.post(.agentStatus(project: project, detail: decision.label, done: true), now: Date())
+            refresh()
+        }
+    }
+
+    /// Focus Guard: bumping this runs one horizontal shake of the island (`ShakeEffect`).
+    @Published private(set) var shakeCount = 0
+
+    func shake() {
+        withAnimation(.linear(duration: 0.45)) { shakeCount += 1 }
+    }
+
+    /// Scripted tests: what the last island click saw (state.json `lastTap`).
+    private(set) var lastTap = "none"
+
+    func tap(at location: CGPoint? = nil) {
+        lastTap = String(describing: presentation).prefix(60) + " @ \(Date().timeIntervalSince1970)"
+        // Daily Wrap: a click closes the card.
+        if case .activity(let activity) = presentation, case .wrap = activity.kind {
+            engine.dismissCurrent(now: Date())
+            refresh()
+            return
+        }
+        // Mac Vitals: a click on the alert opens Activity Monitor.
+        if case .activity(let activity) = presentation, case .vitals = activity.kind {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app"))
+            engine.dismissCurrent(now: Date())
+            refresh()
+            return
+        }
+        // Agent Island: below the title row, the card's three equal buttons split it in thirds (Deny · Terminal ·
+        // Allow). A click on the title row does nothing.
+        if case .activity(let activity) = presentation, case let .agentRequest(id, project, _, _) = activity.kind {
+            if let decision = location.flatMap({ AgentDecision.button(at: $0, cardWidth: islandSize.width,
+                                                                       titleRowHeight: notch.height) }) {
+                answerAgent(id: id, project: project, decision)
+            }
+            return
+        }
+        // Smart Copy: clicking a conversion copies its result instead of opening the panel.
+        if case .activity(let activity) = presentation, case let .conversion(source, result, symbol) = activity.kind,
+           result != SmartCopyService.copiedLabel {
+            SmartCopyService.shared.copyResult(result)
+            engine.post(.conversion(source: source, result: SmartCopyService.copiedLabel, symbol: symbol), now: Date(),
+                        duration: 1.2)
+            refresh()
+            return
+        }
         if showsTimerControls && presentation == .timer {
             expand()
             return
@@ -627,7 +705,9 @@ final class IslandViewModel: ObservableObject {
         case .bluetooth: return .devices
         case .download: return .downloads
         case .notification: return .notifications
-        case .hud, .focus, .sensor, .toggle: return nil
+        case .hud, .focus, .sensor, .toggle, .fileCopy, .conversion, .agentRequest, .agentStatus, .call: return nil
+        case .vitals: return .battery
+        case .wrap, .voice: return nil
         }
     }
 
@@ -756,7 +836,7 @@ final class IslandViewModel: ObservableObject {
         case .download:
             engine.post(.download(name: "DynaNotch.dmg", finished: true), now: now)
         case .camera:
-            engine.post(.sensor(.camera, active: true), now: now)
+            engine.post(.sensor(.camera, active: true, app: "FaceTime"), now: now)
         case .capsLock:
             engine.post(.toggle(symbol: "capslock.fill", label: "Caps Lock", on: true), now: now)
         case .unplug:
@@ -810,6 +890,22 @@ final class IslandViewModel: ObservableObject {
             return settings.privacyActivity
         case .toggle:
             return true   // callers check the specific toggle setting
+        case .fileCopy:
+            return settings.copyProgress
+        case .conversion:
+            return settings.smartCopy && settings.clipboardEnabled
+        case .agentRequest:
+            return settings.agentIsland
+        case .agentStatus:
+            return settings.agentIsland && settings.agentStatus
+        case .call:
+            return settings.meetingMeter
+        case .vitals:
+            return settings.macVitals
+        case .wrap:
+            return true   // the service checks dn.dailyWrap; `dynanotch://wrap` shows it on demand
+        case .voice:
+            return true   // only ever started by the user (shortcut / knock)
         }
     }
 
@@ -964,10 +1060,69 @@ final class IslandViewModel: ObservableObject {
 
         PrivacyMonitor.shared.changes
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] sensor, active in
+            .sink { [weak self] sensor, active, app in
                 // Our own Mirror tab turns the camera on; don't warn about it.
                 if sensor == .camera && CameraService.shared.isOwnUse { return }
-                self?.post(.sensor(sensor, active: active))
+                self?.post(.sensor(sensor, active: active, app: app))
+            }
+            .store(in: &cancellables)
+
+        VoiceNoteService.shared.updates
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] update in self?.post(.voice(text: update.text, result: update.result)) }
+            .store(in: &cancellables)
+
+        DailyWrapService.shared.wraps
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] lines in self?.post(.wrap(lines: lines)) }
+            .store(in: &cancellables)
+
+        MacVitalsService.shared.alerts
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] a in self?.post(.vitals(title: a.title, detail: a.detail, symbol: a.symbol)) }
+            .store(in: &cancellables)
+
+        FocusGuardService.shared.shakes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.shake() }
+            .store(in: &cancellables)
+
+        MeetingMeter.shared.calls
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] call in
+                guard let self = self else { return }
+                if let call = call {
+                    self.post(.call(app: call.app, startedAt: call.startedAt, talkShare: call.talkShare))
+                } else if case .activity(let a) = self.presentation, case .call = a.kind {
+                    self.engine.dismissCurrent(now: Date())
+                    self.refresh()
+                }
+            }
+            .store(in: &cancellables)
+
+        AgentIslandService.shared.$requests
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] requests in self?.showAgentRequest(requests.first) }
+            .store(in: &cancellables)
+
+        AgentIslandService.shared.statuses
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                // A waiting request owns the agent slot.
+                guard let self = self, AgentIslandService.shared.requests.isEmpty else { return }
+                self.post(.agentStatus(project: status.project, detail: status.detail, done: status.done))
+            }
+            .store(in: &cancellables)
+
+        SmartCopyService.shared.conversions
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] c in self?.post(.conversion(source: c.source, result: c.result, symbol: c.symbol)) }
+            .store(in: &cancellables)
+
+        FileCopyMonitor.shared.events
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] s in
+                self?.post(.fileCopy(name: s.label, fraction: s.fraction, secondsLeft: s.secondsLeft))
             }
             .store(in: &cancellables)
 
@@ -1135,6 +1290,14 @@ final class IslandViewModel: ObservableObject {
         DownloadsMonitor.shared.start()
         HotKeyService.shared.start()
         DeviceBatteryService.shared.start()
+        FileCopyMonitor.shared.start()
+        SmartCopyService.shared.start()
+        AgentIslandService.shared.start()
+        MeetingMeter.shared.start()
+        FocusGuardService.shared.start()
+        MacVitalsService.shared.start()
+        DailyWrapService.shared.start()
+        SoundscapeService.shared.start()
         if settings.clipboardEnabled {
             ClipboardService.shared.start()
         } else {

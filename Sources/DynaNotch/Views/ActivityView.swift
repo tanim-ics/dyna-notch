@@ -54,10 +54,26 @@ struct ActivityView: View {
             NotificationActivity(geometry: geometry, title: title, message: body, symbol: symbol)
         case let .download(name, finished):
             DownloadActivity(geometry: geometry, name: name, finished: finished)
-        case let .sensor(sensor, active):
-            SensorActivity(geometry: geometry, sensor: sensor, active: active)
+        case let .sensor(sensor, active, app):
+            SensorActivity(geometry: geometry, sensor: sensor, active: active, app: app)
         case let .toggle(symbol, label, on):
             ToggleActivity(geometry: geometry, symbol: symbol, label: label, on: on)
+        case let .fileCopy(name, fraction, secondsLeft):
+            FileCopyActivity(geometry: geometry, name: name, fraction: fraction, secondsLeft: secondsLeft)
+        case let .conversion(source, result, symbol):
+            ConversionActivity(geometry: geometry, source: source, result: result, symbol: symbol)
+        case let .agentRequest(_, project, tool, detail):
+            AgentRequestActivity(geometry: geometry, project: project, tool: tool, detail: detail)
+        case let .agentStatus(project, detail, done):
+            AgentStatusActivity(geometry: geometry, project: project, detail: detail, done: done)
+        case let .call(app, startedAt, talkShare):
+            CallActivity(geometry: geometry, app: app, startedAt: startedAt, talkShare: talkShare)
+        case let .vitals(title, detail, symbol):
+            NotificationActivity(geometry: geometry, title: title, message: detail, symbol: symbol)
+        case let .wrap(lines):
+            WrapActivity(geometry: geometry, lines: lines)
+        case let .voice(text, result):
+            VoiceActivity(geometry: geometry, text: text, result: result)
         }
     }
 }
@@ -396,6 +412,7 @@ struct SensorActivity: View {
     let geometry: ActivityGeometry
     let sensor: SensorKind
     let active: Bool
+    let app: String
 
     private var tint: Color {
         guard active else { return Color.white.opacity(0.5) }
@@ -408,14 +425,14 @@ struct SensorActivity: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(tint)
         } trailing: {
-            Text(active ? "In use" : "Off")
+            Text(active ? (app.isEmpty ? "In use" : app) : "Off")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(active ? tint : Color.white.opacity(0.6))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
         .help(sensor == .camera ? "Camera" : "Microphone")
-        .accessibilityLabel(sensor == .camera ? "Camera" : "Microphone")
+        .accessibilityLabel("\(sensor == .camera ? "Camera" : "Microphone") \(active ? "in use" : "off")\(app.isEmpty ? "" : " by \(app)")")
     }
 }
 
@@ -446,5 +463,373 @@ struct ToggleActivity: View {
         }
         .help(label)
         .accessibilityLabel(label)
+    }
+}
+
+// MARK: - File copy (CONTRACTS §6.12)
+
+/// The pill as a progress bar: green fills from the left; the text is white over black and dark over green, split
+/// exactly at the fill edge.
+struct FileCopyActivity: View {
+    let geometry: ActivityGeometry
+    let name: String
+    let fraction: Double
+    let secondsLeft: Int?
+
+    private var done: Bool { fraction >= 1 }
+    private var clamped: CGFloat { CGFloat(min(max(fraction, 0), 1)) }
+
+    private var trailingText: String {
+        if done { return "Done" }
+        let percent = CopyFormat.percent(fraction)
+        guard let left = secondsLeft else { return percent }
+        return "\(percent) · \(CopyFormat.remaining(left))"
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let filled = proxy.size.width * clamped
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(IslandColors.charging)
+                    .frame(width: filled)
+                row(Color.white)
+                    .mask(alignment: .trailing) { Rectangle().frame(width: max(0, proxy.size.width - filled)) }
+                row(Color.black.opacity(0.82))
+                    .mask(alignment: .leading) { Rectangle().frame(width: filled) }
+            }
+            .animation(.easeOut(duration: 0.35), value: fraction)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(done ? "Copied \(name)" : "Copying \(name), \(trailingText)")
+    }
+
+    private func row(_ color: Color) -> some View {
+        CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                   leadingAlignment: .leading, trailingAlignment: .trailing) {
+            HStack(spacing: 5) {
+                Image(systemName: done ? "checkmark.circle.fill" : "doc.on.doc.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.leading, 6)
+        } trailing: {
+            Text(trailingText)
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .padding(.trailing, 6)
+        }
+        .foregroundStyle(color)
+    }
+}
+
+// MARK: - Smart Copy conversion (CONTRACTS §6.13)
+
+/// "€42" on the left, "$45.30" on the right; clicking the island copies the result (the view model handles it).
+struct ConversionActivity: View {
+    let geometry: ActivityGeometry
+    let source: String
+    let result: String
+    let symbol: String
+
+    private var copied: Bool { result == SmartCopyService.copiedLabel }
+
+    var body: some View {
+        CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                   leadingAlignment: .leading, trailingAlignment: .trailing) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(copied ? IslandColors.charging : Color.white.opacity(0.85))
+                Text(source)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(IslandColors.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.leading, 6)
+        } trailing: {
+            HStack(spacing: 4) {
+                if !copied {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(IslandColors.secondary)
+                }
+                Text(result)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(copied ? IslandColors.charging : Color.white)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .padding(.trailing, 6)
+        }
+        .contentShape(Rectangle())
+        .uiTestID("activity-conversion")
+        .help(copied ? "Copied" : "Click to copy \(result)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(copied ? "Copied" : "\(source) is \(result). Click to copy.")
+    }
+}
+
+// MARK: - Agent Island (CONTRACTS §6.14)
+
+enum AgentColors {
+    static let claude = Color(red: 0.85, green: 0.47, blue: 0.34)
+}
+
+/// Claude Code asks for permission: what it wants to run, and Deny / Terminal / Allow (equal thirds of the card).
+/// The island's own tap answers by where the click lands (`AgentDecision.button(at:…)`).
+struct AgentRequestActivity: View {
+    let geometry: ActivityGeometry
+    let project: String
+    let tool: String
+    let detail: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                       leadingAlignment: .leading, trailingAlignment: .trailing) {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(AgentColors.claude)
+                    Text(project)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .padding(.leading, 8)
+            } trailing: {
+                Text("wants \(tool)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(IslandColors.secondary)
+                    .lineLimit(1)
+                    .padding(.trailing, 8)
+            }
+            VStack(spacing: 8) {
+                Text(detail)
+                    .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.1)))
+                    .help(detail)
+                HStack(spacing: 8) {
+                    button("Deny", .deny, color: IslandColors.low)
+                    button("Terminal", .terminal, color: Color.white.opacity(0.18))
+                    button("Allow", .allow, color: IslandColors.charging)
+                }
+            }
+            .padding(.horizontal, geometry.radii.bottom)
+            .padding(.top, 4)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Claude Code in \(project) wants \(tool): \(detail)")
+    }
+
+    private func button(_ title: String, _ decision: AgentDecision, color: Color) -> some View {
+        Text(title)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(decision == .allow ? Color.black.opacity(0.85) : Color.white)
+            .frame(maxWidth: .infinity, minHeight: 24)
+            .background(Capsule().fill(color))
+            .accessibilityAddTraits(.isButton)
+            .uiTestID("agent-\(decision.rawValue)")
+    }
+}
+
+/// What a Claude Code session is doing ("Running npm test"), or "Done".
+struct AgentStatusActivity: View {
+    let geometry: ActivityGeometry
+    let project: String
+    let detail: String
+    let done: Bool
+
+    var body: some View {
+        CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                   leadingAlignment: .leading, trailingAlignment: .trailing) {
+            HStack(spacing: 5) {
+                Image(systemName: done ? "checkmark.circle.fill" : "sparkle")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(done ? IslandColors.charging : AgentColors.claude)
+                Text(project)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.leading, 6)
+        } trailing: {
+            Text(detail)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(done ? IslandColors.charging : IslandColors.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.trailing, 6)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Claude Code, \(project): \(detail)")
+    }
+}
+
+// MARK: - Meeting Meter (CONTRACTS §6.16)
+
+/// A call in progress: the app on the left, a live timer (and your talk share) on the right.
+struct CallActivity: View {
+    let geometry: ActivityGeometry
+    let app: String
+    let startedAt: Date
+    let talkShare: Int?
+
+    var body: some View {
+        CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                   leadingAlignment: .leading, trailingAlignment: .trailing) {
+            HStack(spacing: 5) {
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(IslandColors.charging)
+                Text(app)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
+            }
+            .padding(.leading, 6)
+        } trailing: {
+            HStack(spacing: 4) {
+                Text(startedAt, style: .timer)   // SwiftUI updates it; no timer of ours
+                    .font(.system(size: 12, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.white)
+                if let share = talkShare {
+                    Text("· you \(share)%")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(IslandColors.secondary)
+                }
+            }
+            .lineLimit(1)
+            .padding(.trailing, 6)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Call in \(app)")
+    }
+}
+
+/// Small dots at the island's top right while the camera (green) or microphone (orange) is on.
+struct SensorDots: View {
+    @ObservedObject private var privacy = PrivacyMonitor.shared
+
+    var body: some View {
+        HStack(spacing: 3) {
+            if privacy.inUse.contains(.camera) { dot(IslandColors.charging) }
+            if privacy.inUse.contains(.microphone) { dot(Color.orange) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(privacy.inUse.isEmpty ? "" : "Camera or microphone in use")
+    }
+
+    private func dot(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 6, height: 6).shadow(color: color.opacity(0.6), radius: 2)
+    }
+}
+
+// MARK: - Daily Wrap (CONTRACTS §6.19)
+
+/// Today's highlights: "Today" + date on the notch row, then one line per fact.
+struct WrapActivity: View {
+    let geometry: ActivityGeometry
+    let lines: [WrapLine]
+
+    private static let day: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("EEEE d MMM")
+        return f
+    }()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                       leadingAlignment: .leading, trailingAlignment: .trailing) {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.yellow)
+                    Text("Your Day")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.white)
+                }
+                .padding(.leading, 8)
+            } trailing: {
+                Text(Self.day.string(from: Date()))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(IslandColors.secondary)
+                    .padding(.trailing, 8)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(lines, id: \.self) { line in
+                    HStack(spacing: 8) {
+                        Image(systemName: line.symbol)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                            .frame(width: 16)
+                        Text(line.text)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.white)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .frame(height: 16)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, geometry.radii.bottom + 6)
+            .padding(.top, 8)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Your day: " + lines.map(\.text).joined(separator: ", "))
+    }
+}
+
+// MARK: - Voice Notes (CONTRACTS §6.20)
+
+/// Listening: a red mic and the words as they come; afterwards a green check and what happened.
+struct VoiceActivity: View {
+    let geometry: ActivityGeometry
+    let text: String
+    let result: String?
+
+    var body: some View {
+        CompactRow(notch: geometry.notch, side: geometry.side, radii: geometry.radii,
+                   leadingAlignment: .leading, trailingAlignment: .trailing) {
+            HStack(spacing: 6) {
+                Image(systemName: result == nil ? "mic.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(result == nil ? IslandColors.low : IslandColors.charging)
+                Text(result ?? "Listening…")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
+            }
+            .padding(.leading, 6)
+        } trailing: {
+            Text(text.isEmpty ? "Speak now" : text)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(IslandColors.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)   // the newest words stay visible
+                .padding(.trailing, 6)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(result ?? "Listening")
     }
 }

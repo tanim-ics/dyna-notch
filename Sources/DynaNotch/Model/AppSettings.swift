@@ -465,6 +465,81 @@ final class AppSettings: ObservableObject {
     @Published var lockScreenBatteries: Bool = true {
         didSet { defaults.set(lockScreenBatteries, forKey: SettingsKey.lockScreenBatteries) }
     }
+
+    // MARK: Smart Copy (CONTRACTS §6.12)
+
+    @Published var copyProgress: Bool = true {
+        didSet { defaults.set(copyProgress, forKey: SettingsKey.copyProgress) }
+    }
+    @Published var smartCopy: Bool = true {
+        didSet { defaults.set(smartCopy, forKey: SettingsKey.smartCopy) }
+    }
+    @Published var homeCurrency: String = "EUR" {
+        didSet { defaults.set(homeCurrency, forKey: SettingsKey.homeCurrency) }
+    }
+
+    // MARK: Agent Island (CONTRACTS §6.14)
+
+    @Published var agentIsland: Bool = true {
+        didSet { defaults.set(agentIsland, forKey: SettingsKey.agentIsland) }
+    }
+    @Published var agentStatus: Bool = true {
+        didSet { defaults.set(agentStatus, forKey: SettingsKey.agentStatus) }
+    }
+    @Published var dailyWrap: Bool = true {
+        didSet { defaults.set(dailyWrap, forKey: SettingsKey.dailyWrap) }
+    }
+    @Published var dailyWrapMinutes: Double = 1080 {
+        didSet {
+            let clamped = AppSettings.clamp(dailyWrapMinutes, 0, 1439)
+            if clamped != dailyWrapMinutes { dailyWrapMinutes = clamped }
+            defaults.set(dailyWrapMinutes, forKey: SettingsKey.dailyWrapMinutes)
+        }
+    }
+    @Published var dailyWrapWeekdays: Bool = true {
+        didSet { defaults.set(dailyWrapWeekdays, forKey: SettingsKey.dailyWrapWeekdays) }
+    }
+    @Published var macVitals: Bool = true {
+        didSet { defaults.set(macVitals, forKey: SettingsKey.macVitals) }
+    }
+    @Published var focusGuard: Bool = true {
+        didSet { defaults.set(focusGuard, forKey: SettingsKey.focusGuard) }
+    }
+    @Published var focusGuardApps: String = FocusGuard.defaultApps {
+        didSet { defaults.set(focusGuardApps, forKey: SettingsKey.focusGuardApps) }
+    }
+    @Published var soundscape: String = "none" {
+        didSet { defaults.set(soundscape, forKey: SettingsKey.soundscape) }
+    }
+    @Published var soundscapeVolume: Double = 0.4 {
+        didSet {
+            let clamped = AppSettings.clamp(soundscapeVolume, 0, 1)
+            if clamped != soundscapeVolume { soundscapeVolume = clamped }
+            defaults.set(soundscapeVolume, forKey: SettingsKey.soundscapeVolume)
+        }
+    }
+    @Published var soundscapeWithPomodoro: Bool = true {
+        didSet { defaults.set(soundscapeWithPomodoro, forKey: SettingsKey.soundscapeWithPomodoro) }
+    }
+    @Published var sensorDot: Bool = true {
+        didSet { defaults.set(sensorDot, forKey: SettingsKey.sensorDot) }
+    }
+    @Published var meetingMeter: Bool = true {
+        didSet { defaults.set(meetingMeter, forKey: SettingsKey.meetingMeter) }
+    }
+    @Published var meetingTalkShare: Bool = false {
+        didSet { defaults.set(meetingTalkShare, forKey: SettingsKey.meetingTalkShare) }
+    }
+    @Published var alchemyZones: Bool = true {
+        didSet { defaults.set(alchemyZones, forKey: SettingsKey.alchemyZones) }
+    }
+    @Published var agentTimeout: Double = 60 {
+        didSet {
+            let clamped = AppSettings.clamp(agentTimeout, 15, 300)
+            if clamped != agentTimeout { agentTimeout = clamped }
+            defaults.set(agentTimeout, forKey: SettingsKey.agentTimeout)
+        }
+    }
     @Published var screenSharingPrivacy: Bool = false {
         didSet { defaults.set(screenSharingPrivacy, forKey: SettingsKey.screenSharingPrivacy) }
     }
@@ -688,7 +763,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.calendarEnabled,
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
         SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
-        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries,
+        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -809,6 +884,25 @@ final class AppSettings: ObservableObject {
         lockScreenWidgets = defaults.object(forKey: SettingsKey.lockScreenWidgets) as? Bool ?? true
         lockScreenWeather = defaults.object(forKey: SettingsKey.lockScreenWeather) as? Bool ?? true
         lockScreenBatteries = defaults.object(forKey: SettingsKey.lockScreenBatteries) as? Bool ?? true
+        copyProgress = defaults.object(forKey: SettingsKey.copyProgress) as? Bool ?? true
+        smartCopy = defaults.object(forKey: SettingsKey.smartCopy) as? Bool ?? true
+        homeCurrency = defaults.string(forKey: SettingsKey.homeCurrency) ?? "EUR"
+        agentIsland = defaults.object(forKey: SettingsKey.agentIsland) as? Bool ?? true
+        agentStatus = defaults.object(forKey: SettingsKey.agentStatus) as? Bool ?? true
+        agentTimeout = AppSettings.clamp(defaults.object(forKey: SettingsKey.agentTimeout) as? Double ?? 60, 15, 300)
+        alchemyZones = defaults.object(forKey: SettingsKey.alchemyZones) as? Bool ?? true
+        sensorDot = defaults.object(forKey: SettingsKey.sensorDot) as? Bool ?? true
+        meetingMeter = defaults.object(forKey: SettingsKey.meetingMeter) as? Bool ?? true
+        meetingTalkShare = defaults.object(forKey: SettingsKey.meetingTalkShare) as? Bool ?? false
+        focusGuard = defaults.object(forKey: SettingsKey.focusGuard) as? Bool ?? true
+        focusGuardApps = defaults.string(forKey: SettingsKey.focusGuardApps) ?? FocusGuard.defaultApps
+        soundscape = defaults.string(forKey: SettingsKey.soundscape) ?? "none"
+        soundscapeVolume = AppSettings.clamp(defaults.object(forKey: SettingsKey.soundscapeVolume) as? Double ?? 0.4, 0, 1)
+        soundscapeWithPomodoro = defaults.object(forKey: SettingsKey.soundscapeWithPomodoro) as? Bool ?? true
+        macVitals = defaults.object(forKey: SettingsKey.macVitals) as? Bool ?? true
+        dailyWrap = defaults.object(forKey: SettingsKey.dailyWrap) as? Bool ?? true
+        dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
+        dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -989,6 +1083,25 @@ final class AppSettings: ObservableObject {
         lockScreenWidgets = defaults.object(forKey: SettingsKey.lockScreenWidgets) as? Bool ?? true
         lockScreenWeather = defaults.object(forKey: SettingsKey.lockScreenWeather) as? Bool ?? true
         lockScreenBatteries = defaults.object(forKey: SettingsKey.lockScreenBatteries) as? Bool ?? true
+        copyProgress = defaults.object(forKey: SettingsKey.copyProgress) as? Bool ?? true
+        smartCopy = defaults.object(forKey: SettingsKey.smartCopy) as? Bool ?? true
+        homeCurrency = defaults.string(forKey: SettingsKey.homeCurrency) ?? "EUR"
+        agentIsland = defaults.object(forKey: SettingsKey.agentIsland) as? Bool ?? true
+        agentStatus = defaults.object(forKey: SettingsKey.agentStatus) as? Bool ?? true
+        agentTimeout = AppSettings.clamp(defaults.object(forKey: SettingsKey.agentTimeout) as? Double ?? 60, 15, 300)
+        alchemyZones = defaults.object(forKey: SettingsKey.alchemyZones) as? Bool ?? true
+        sensorDot = defaults.object(forKey: SettingsKey.sensorDot) as? Bool ?? true
+        meetingMeter = defaults.object(forKey: SettingsKey.meetingMeter) as? Bool ?? true
+        meetingTalkShare = defaults.object(forKey: SettingsKey.meetingTalkShare) as? Bool ?? false
+        focusGuard = defaults.object(forKey: SettingsKey.focusGuard) as? Bool ?? true
+        focusGuardApps = defaults.string(forKey: SettingsKey.focusGuardApps) ?? FocusGuard.defaultApps
+        soundscape = defaults.string(forKey: SettingsKey.soundscape) ?? "none"
+        soundscapeVolume = AppSettings.clamp(defaults.object(forKey: SettingsKey.soundscapeVolume) as? Double ?? 0.4, 0, 1)
+        soundscapeWithPomodoro = defaults.object(forKey: SettingsKey.soundscapeWithPomodoro) as? Bool ?? true
+        macVitals = defaults.object(forKey: SettingsKey.macVitals) as? Bool ?? true
+        dailyWrap = defaults.object(forKey: SettingsKey.dailyWrap) as? Bool ?? true
+        dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
+        dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -1190,6 +1303,25 @@ final class AppSettings: ObservableObject {
         lockScreenWidgets = true
         lockScreenWeather = true
         lockScreenBatteries = true
+        copyProgress = true
+        smartCopy = true
+        homeCurrency = "EUR"
+        agentIsland = true
+        agentStatus = true
+        agentTimeout = 60
+        alchemyZones = true
+        sensorDot = true
+        meetingMeter = true
+        meetingTalkShare = false
+        focusGuard = true
+        focusGuardApps = FocusGuard.defaultApps
+        soundscape = "none"
+        soundscapeVolume = 0.4
+        soundscapeWithPomodoro = true
+        macVitals = true
+        dailyWrap = true
+        dailyWrapMinutes = 1080
+        dailyWrapWeekdays = true
         screenSharingPrivacy = false
         hideWhileMirroring = false
         fullscreenScope = .allApps

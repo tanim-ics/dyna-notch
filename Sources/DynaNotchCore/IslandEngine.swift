@@ -117,9 +117,9 @@ extension ActivityKind {
     /// Low battery, finished timers, privacy (camera / mic), charging and the Focus change itself still show.
     public var isQuietedDuringFocus: Bool {
         switch self {
-        case .hud, .toggle, .bluetooth, .download, .notification, .calendar:
+        case .hud, .toggle, .bluetooth, .download, .notification, .calendar, .conversion, .wrap:
             return true
-        case .charging, .lowBattery, .focus, .timerFinished, .sensor:
+        case .charging, .lowBattery, .focus, .timerFinished, .sensor, .fileCopy, .agentRequest, .agentStatus, .call, .vitals, .voice:
             return false
         }
     }

@@ -31,8 +31,14 @@ final class IslandWindowController: NSObject {
     /// After a panel menu closes the pointer is often below the panel (long menus); keep it open until the pointer
     /// comes back over the island, or for a few seconds.
     private var menuGraceUntil: Date?
-    /// Scripted UI tests (`dynanotch://ui/pointer`): overrides the real pointer location for hover decisions.
-    var testPointer: NSPoint?
+    /// Scripted UI tests (`dynanotch://ui/pointer`): a canvas point (top-left origin) that overrides the real pointer
+    /// for hover decisions. Kept in canvas coordinates so it stays on the same spot of the island when the panel
+    /// frame changes (screen coordinates captured once drifted).
+    private var testCanvasPoint: NSPoint?
+    /// The scripted pointer in screen coordinates, or nil for the real pointer.
+    var testPointer: NSPoint? {
+        testCanvasPoint.map { NSPoint(x: panel.frame.minX + $0.x, y: panel.frame.maxY - $0.y) }
+    }
     /// Scripted tests (`dynanotch://ui/override`): fake full screen, frontmost app and mirroring.
     var testFullscreen: Bool? { didSet { updateSuppression() } }
     var testFrontBundle: String? { didSet { updateSuppression() } }
@@ -155,11 +161,7 @@ final class IslandWindowController: NSObject {
     var screenName: String { currentScreen?.localizedName ?? "none" }
 
     func setTestPointer(canvasPoint: NSPoint?) {
-        if let p = canvasPoint {
-            testPointer = NSPoint(x: panel.frame.minX + p.x, y: panel.frame.maxY - p.y)
-        } else {
-            testPointer = nil
-        }
+        testCanvasPoint = canvasPoint
         updateHover()
     }
 

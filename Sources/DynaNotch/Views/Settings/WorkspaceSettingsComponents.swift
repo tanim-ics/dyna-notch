@@ -208,6 +208,7 @@ extension HotKeyAction {
         case .pastePlainText: return "doc.plaintext.fill"
         case .startPomodoro: return "brain.head.profile"
         case .toggleKeepAwake: return "cup.and.saucer.fill"
+        case .voiceNote: return "mic.badge.plus"
         }
     }
 
@@ -223,6 +224,7 @@ extension HotKeyAction {
         case .pastePlainText: return .teal
         case .startPomodoro: return .orange
         case .toggleKeepAwake: return .brown
+        case .voiceNote: return .red
         }
     }
 
@@ -238,6 +240,7 @@ extension HotKeyAction {
         case .pastePlainText: return "Paste the clipboard without formatting. Needs Accessibility."
         case .startPomodoro: return "Start a Pomodoro focus session."
         case .toggleKeepAwake: return "Keep your Mac awake, or let it sleep again."
+        case .voiceNote: return "Speak a note, \u{201C}remind me to …\u{201D} or \u{201C}timer 10\u{201D}; press again to stop. Recognised on this Mac; asks for Speech and Microphone access the first time."
         }
     }
 }

@@ -47,3 +47,64 @@
   the usual short activity time, on every island.
 - **Sounds:** Lock = Pop and Unlock = Purr by default. They are listed both on the Lock Screen page and in Popups → Alert
   Sounds.
+
+### Copy progress pill (2026-11-01, CONTRACTS §6.12)
+- While Finder copies, the compact pill is 120 pt per side: left a copy glyph + the item name (middle-truncated),
+  right "42% · 2 min" (time once it can be estimated).
+- Green (`IslandColors.charging`) fills from the left edge to `fraction` of the pill's width, eased over 0.35 s per
+  update. The row is drawn twice: white over black, 82 % black over green, masked at the fill edge, so a glyph that
+  straddles the edge is split in two colours.
+- Finished: full green, a check glyph and "Done" for 1.5 s. Priority 40: a volume HUD or a notification shows over it
+  and the bar comes back.
+
+### Smart Copy conversion (2026-11-01, CONTRACTS §6.13)
+- Compact activity, 110 pt sides, 4 s: left the kind's glyph + the copied text (60 % white, middle-truncated), right
+  "→ result" (semibold white, shrinks to 75 % before truncating). Numbers follow the Mac's locale (Austria: "8,05 km").
+- Hovering keeps it 6 s longer and does not open the panel (like the timer's hover controls); a click copies the
+  result and the right side turns green "Copied" for 1.2 s. The copy is ours, so it neither lands in the history nor
+  converts again.
+
+### Agent Island (2026-11-01, CONTRACTS §6.14)
+- **Request card:** 150 pt sides, 66 pt below the notch row. Title row: Claude-orange sparkle + project (left),
+  "wants Bash" (right, 60 % white). Below: the command in 11.5 pt monospaced on a 10 % white rounded field (one line,
+  full text on hover), then three equal capsules 24 pt tall — Deny (red), Terminal (18 % white), Allow (green, dark
+  text). The card stays until answered or the timeout; hovering it never opens the panel; a click on the title row
+  does nothing. A short notification sound when it appears.
+- **After answering:** "Allowed" / "Denied" / "Ask in Terminal" as a 2.5 s status.
+- **Status pill** (optional): sparkle + project left, "Running swift test" / "Editing App.swift" / "Thinking…" right,
+  renewed while Claude works; green check + "Done" for 2.5 s when it stops.
+
+### Drop Alchemy (2026-11-01, CONTRACTS §6.15)
+- Shelf tab, under the toolbar: four equal zones 26 pt tall (Cutout · Text · Shrink · PNG), glyph + label, 6 % white
+  fill with a dashed 22 % border; while a file hovers a zone it turns 90 % white with dark text (0.12 s). Always shown
+  (setting Drop Alchemy), so nothing moves during a drag.
+- Each shelf file's context menu has an "Alchemy" submenu with the actions that fit its type (incl. JPEG).
+- When done: a notification island ("Remove the background · Owl (cutout).png", "Text copied · 37 characters"),
+  the new file on the shelf; failures say why ("No subject found in the picture").
+
+### Camera Guard+ and Meeting Meter (2026-11-01, CONTRACTS §6.16)
+- Sensor popup: 96 pt sides; right side names the recording app ("Zoom") in the sensor colour, "In use" when unknown.
+- Dots: 6 pt circles with a soft glow at the island's top right (4 pt from the top), green camera, orange mic,
+  side by side; closed island only.
+- Call pill: green phone + app left, live "m:ss" timer right (SwiftUI's own timer text) and "· you 61%" when talk
+  share is on. Ends with a notification island "Zoom · Call 42 min · you spoke 61%".
+
+### Focus Guard and Soundscapes (2026-11-01, CONTRACTS §6.17)
+- Shake: the whole island moves ±7 pt side to side, three wiggles over 0.45 s, then the "Back to focus · Slack ·
+  25 min left" notification. "Focus done · 3 min in distractions" when a focus phase ends after ≥ 30 s away.
+- Timer tab: a headphones glyph at the top right opens the sound menu; while a sound plays the glyph becomes the
+  sound's symbol in the timer colour. Stopping fades out over 1 s.
+
+### Mac Vitals (2026-11-01, CONTRACTS §6.18)
+- Uses the notification layout (glyph + "now" on the notch row, title + one line below), 8 s, priority above
+  notifications. Glyphs: thermometer.high, memorychip.fill, internaldrive.fill, cpu.fill. A click opens Activity
+  Monitor and closes the alert. Each kind at most once per 30 min.
+
+### Daily Wrap (2026-11-01, CONTRACTS §6.19)
+- Card: 150 pt sides; notch row "✨ Your Day" (yellow sparkles, bold) left, the weekday and date right; below, up to
+  five lines (glyph 16 pt column at 70 % white, 12 pt medium text), 6 pt apart. 20 s, a click closes it.
+
+### Voice Notes (2026-11-01, CONTRACTS §6.20)
+- Listening: red mic + "Listening…" left, the live words right (head-truncated so the newest stay visible; "Speak
+  now" before any). Finished: green check + "Note saved" / "Reminder added" / "Timer 10 min", 2.5 s. Errors use the
+  same row ("Allow Speech Recognition in System Settings › Privacy & Security").

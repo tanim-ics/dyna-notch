@@ -50,6 +50,24 @@ Use only one of the two ways at a time, so there is a single DynaNotch in `/Appl
   actions menu (stopwatch, Pomodoro, screenshot, colour picker, mute mic), pin open, lock screen.
 - **Floating pill** instead of the notch shape if you prefer (Settings → Appearance): set its width (never narrower than
   the MacBook's notch) and height with the Pill Width / Pill Height sliders.
+- **Copy progress**: while Finder copies files, the pill turns into a green progress bar with the name, percent and
+  time left (Settings → Popups → File Copies).
+- **Smart Copy**: copy "€42", "5 mi", "3pm PST" or "0x1F" and the notch shows it converted; click it to copy the
+  result (Settings → Clipboard → Smart Copy).
+- **Drop Alchemy**: drop a picture or PDF on the Shelf's zones to cut out the subject, copy its text, shrink it or
+  make a PNG — on your Mac, the new file lands next to the original.
+- **Camera & mic**: the popup says which app is recording, a small dot stays on while the camera or mic is on, and
+  Settings → Popups lists recent use. **Meeting Meter** shows a call timer in the pill and a recap afterwards.
+- **Focus**: during a Pomodoro, opening Slack & co. shakes the island and nudges you back; focus sounds (rain,
+  brown noise, fireplace) play from the Timer tab and can follow your Pomodoro (Settings → Timer → Focus).
+- **Mac Vitals**: a heads-up when your Mac runs hot, memory gets tight, the disk is almost full or an app keeps a
+  core busy; click it to open Activity Monitor.
+- **Daily Wrap**: at 18:00 on weekdays a card sums up your day — time at the Mac, Pomodoros, commits, your
+  most-played song and Claude Code cost (Settings → Activity).
+- **Voice Notes**: give "Voice Note" a shortcut (Behavior) or a knock, then say a note, "remind me to …" or
+  "timer 10". Recognised on your Mac only.
+- **Agent Island**: when Claude Code asks for permission, the notch shows the command with Deny · Terminal · Allow,
+  and the pill shows what Claude is doing. Install the hooks once in Settings → AI Usage.
 - **Lock screen** (Settings → Lock Screen): weather and battery widgets under the clock on your main display while the
   Mac is locked, a sound when you lock and unlock, and an *Unlocked* popup when you come back. The lock-screen widgets use
   a private macOS feature, so a macOS update may switch it off; the sounds and popup keep working.

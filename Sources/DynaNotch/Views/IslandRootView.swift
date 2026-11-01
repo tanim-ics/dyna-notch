@@ -4,6 +4,9 @@ import DynaNotchCore
 
 /// Root of the notch panel: fills the fixed canvas and draws the island at top-centre.
 struct IslandRootView: View {
+    /// The island's own coordinate space (tap locations, Agent Island button frames).
+    static let space = "island"
+
     @EnvironmentObject var vm: IslandViewModel
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var nowPlaying: NowPlayingService
@@ -70,16 +73,26 @@ struct IslandRootView: View {
             contentLayer
         }
         .frame(width: vm.islandSize.width, height: vm.islandSize.height)
+        .overlay(alignment: .topTrailing) {
+            if settings.sensorDot && !isExpanded {
+                SensorDots()
+                    .padding(.top, 4)
+                    .padding(.trailing, vm.radii.top + 10)
+                    .allowsHitTesting(false)
+            }
+        }
         .contentShape(shape)
-        .gesture(TapGesture().onEnded {
+        .coordinateSpace(name: IslandRootView.space)
+        .gesture(SpatialTapGesture(coordinateSpace: .named(IslandRootView.space)).onEnded { value in
             // Clicks inside the open panel (between controls, around the scrubber) must not collapse it;
             // collapsing is driven by mouse-leave and outside clicks (window controller).
-            if !isExpanded { vm.tap() }
+            if !isExpanded { vm.tap(at: value.location) }
         }, including: vm.showsTimerControls ? .subviews : .all)   // timer controls handle their own taps
         .accessibilityElement(children: .contain)
         .accessibilityLabel("DynaNotch")
         // Closed Pill Size scales the whole closed island (content included) from its top edge.
         .scaleEffect(hoverScale * vm.pillScale, anchor: .top)
+        .modifier(ShakeEffect(shakes: CGFloat(vm.shakeCount)))
         .opacity(restingOpacity)
         .offset(y: vm.topInset)
     }
@@ -342,5 +355,18 @@ struct VisualEffectBlur: NSViewRepresentable {
 
     func updateNSView(_ view: NSVisualEffectView, context: Context) {
         view.material = material
+    }
+}
+
+/// Focus Guard: a short side-to-side shake (three wiggles per unit of `shakes`), run once per bump.
+struct ShakeEffect: GeometryEffect {
+    var shakes: CGFloat
+    var animatableData: CGFloat {
+        get { shakes }
+        set { shakes = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 7 * sin(shakes * .pi * 6), y: 0))
     }
 }

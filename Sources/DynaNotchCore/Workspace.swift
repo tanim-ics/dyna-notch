@@ -10,7 +10,7 @@ import CoreGraphics
 /// What a global shortcut does.
 public enum HotKeyAction: String, Equatable, Hashable, CaseIterable, Codable {
     case togglePanel, clipboard, hide, commandPalette, emergencyQuit, joinMeeting, openCalendar, pastePlainText
-    case startPomodoro, toggleKeepAwake
+    case startPomodoro, toggleKeepAwake, voiceNote
 
     public var title: String {
         switch self {
@@ -24,6 +24,7 @@ public enum HotKeyAction: String, Equatable, Hashable, CaseIterable, Codable {
         case .pastePlainText: return "Paste as Plain Text"
         case .startPomodoro: return "Start Pomodoro"
         case .toggleKeepAwake: return "Toggle Keep Awake"
+        case .voiceNote: return "Voice Note"
         }
     }
 }
@@ -151,7 +152,7 @@ public enum KnockKey: String, Equatable, Hashable, CaseIterable {
 }
 
 public enum KnockAction: String, Equatable, Hashable, CaseIterable {
-    case none, togglePanel, clipboard, commandPalette, playPause, lockScreen, toggleKeepAwake, screenshot, timer
+    case none, togglePanel, clipboard, commandPalette, playPause, lockScreen, toggleKeepAwake, screenshot, timer, voiceNote
 
     public var title: String {
         switch self {
@@ -164,6 +165,7 @@ public enum KnockAction: String, Equatable, Hashable, CaseIterable {
         case .toggleKeepAwake: return "Keep Awake"
         case .screenshot: return "Screenshot"
         case .timer: return "Timer"
+        case .voiceNote: return "Voice Note"
         }
     }
 

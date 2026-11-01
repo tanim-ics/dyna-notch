@@ -44,9 +44,24 @@ public enum IslandLayout {
     /// Settings → Appearance → Closed Pill Size range.
     public static let pillScaleRange: ClosedRange<CGFloat> = 0.8...1.3
 
-    private static func isNotification(_ activity: LiveActivity) -> Bool {
-        if case .notification = activity.kind { return true }
+    /// Claude Code permission request: notch row + detail + buttons.
+    static let agentRequestExtraHeight: CGFloat = 66
+
+    private static func wrapLineCount(_ activity: LiveActivity) -> Int {
+        if case .wrap(let lines) = activity.kind { return lines.count }
+        return 0
+    }
+
+    private static func isAgentRequest(_ activity: LiveActivity) -> Bool {
+        if case .agentRequest = activity.kind { return true }
         return false
+    }
+
+    private static func isNotification(_ activity: LiveActivity) -> Bool {
+        switch activity.kind {
+        case .notification, .vitals: return true
+        default: return false
+        }
     }
 
     private static func isExpandedHUD(_ activity: LiveActivity, hudStyle: HUDStyle) -> Bool {
@@ -70,8 +85,16 @@ public enum IslandLayout {
             case .timerFinished: return 96
             case .notification: return 110
             case .download: return 84
-            case .sensor: return 72
+            case .sensor: return 96
             case .toggle: return 64
+            case .fileCopy: return 120
+            case .conversion: return 110
+            case .agentRequest: return 150
+            case .agentStatus: return 110
+            case .call: return 110
+            case .vitals: return 110
+            case .wrap: return 150
+            case .voice: return 150
             }
         case .idle, .expanded, .hidden:
             return 0
@@ -94,6 +117,12 @@ public enum IslandLayout {
         case .activity(let activity) where isExpandedHUD(activity, hudStyle: hudStyle):
             let side = sideWidth(for: p, hudStyle: hudStyle)
             return CGSize(width: base + 2 * side, height: notch.height + hudExpandedExtraHeight)
+        case .activity(let activity) where wrapLineCount(activity) > 0:
+            let side = sideWidth(for: p, hudStyle: hudStyle)
+            return CGSize(width: base + 2 * side, height: notch.height + 30 + 22 * CGFloat(wrapLineCount(activity)))
+        case .activity(let activity) where isAgentRequest(activity):
+            let side = sideWidth(for: p, hudStyle: hudStyle)
+            return CGSize(width: base + 2 * side, height: notch.height + agentRequestExtraHeight)
         case .activity(let activity) where isNotification(activity):
             let side = sideWidth(for: p, hudStyle: hudStyle)
             return CGSize(width: base + 2 * side, height: notch.height + notificationExtraHeight)
@@ -112,7 +141,8 @@ public enum IslandLayout {
         case .nowPlaying, .timer: return IslandRadii(top: 6, bottom: 11)
         case .peek, .lyrics: return IslandRadii(top: 8, bottom: 16)
         case .activity(let activity):
-            return isExpandedHUD(activity, hudStyle: hudStyle) || isNotification(activity)
+            return isExpandedHUD(activity, hudStyle: hudStyle) || isNotification(activity) || isAgentRequest(activity)
+                || wrapLineCount(activity) > 0
                 ? IslandRadii(top: 8, bottom: 16)
                 : IslandRadii(top: 6, bottom: 11)
         case .expanded: return IslandRadii(top: 14, bottom: 28)

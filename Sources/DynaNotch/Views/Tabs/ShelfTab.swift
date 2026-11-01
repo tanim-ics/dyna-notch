@@ -18,6 +18,7 @@ struct ShelfTab: View {
         } else {
             VStack(spacing: 8) {
                 toolbar
+                if settings.alchemyZones { AlchemyZones() }
                 if shelf.items.isEmpty {
                     ShelfDropPlaceholder(retention: retentionText)
                 } else {
@@ -153,7 +154,68 @@ struct ShelfTile: View {
         Button("Open") { shelf.open(item) }
         Button("Reveal in Finder") { shelf.reveal(item) }
         Button("AirDrop") { shelf.airDrop([item]) }
+        let url = shelf.url(for: item)
+        let actions = AlchemyAction.allCases.filter { $0.accepts(fileExtension: url.pathExtension) }
+        if !actions.isEmpty {
+            Menu("Alchemy") {
+                ForEach(actions, id: \.self) { action in
+                    Button(action.detail) { AlchemyService.shared.run(action, on: url) }
+                }
+            }
+        }
         Divider()
         Button("Remove from Shelf") { shelf.remove(item) }
+    }
+}
+
+/// Drop Alchemy (CONTRACTS §6.15): drop a file on a zone to turn it into a cutout, its text, a smaller copy or a PNG.
+/// Each zone is its own drop target, always on screen (nothing appears or disappears during a drag).
+struct AlchemyZones: View {
+    private static let zones: [AlchemyAction] = [.cutout, .text, .shrink, .png]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Self.zones, id: \.self) { action in
+                AlchemyZone(action: action)
+            }
+        }
+    }
+}
+
+private struct AlchemyZone: View {
+    let action: AlchemyAction
+    @State private var targeted = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: action.symbol)
+                .font(.system(size: 11, weight: .semibold))
+            Text(action.title)
+                .font(.system(size: 11, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(targeted ? Color.black.opacity(0.85) : Color.white.opacity(0.8))
+        .frame(maxWidth: .infinity, minHeight: 26)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(targeted ? Color.white.opacity(0.9) : Color.white.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        )
+        .animation(.easeOut(duration: 0.12), value: targeted)
+        .onDrop(of: [UTType.fileURL], isTargeted: $targeted) { providers in
+            let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+            for provider in files {
+                FileURLLoader.load(from: provider) { url in
+                    if let url = url { AlchemyService.shared.run(action, on: url) }
+                }
+            }
+            return !files.isEmpty
+        }
+        .help("Drop a file here: \(action.detail.lowercased())")
+        .accessibilityLabel("\(action.title) drop zone: \(action.detail)")
+        .uiTestID("alchemy-\(action.rawValue)")
     }
 }

@@ -790,3 +790,164 @@ serialised with the scratchpad `applock.sh` lock.
   `SLSCopySpacesForWindows` doesn't list custom spaces, so the window server's on-screen list is the check. The space
   sits at absolute level 400 (`…NotificationCenterAtScreenLock`; 100 stays under the lock screen) and the window at
   `Int32.max − 2`.
+
+### 6.12 Smart Copy · part 1: copy progress pill (2026-11-01, owner request)
+- Core `ActivityKind` += `.fileCopy(name: String, fraction: Double, secondsLeft: Int?)` (category `.fileCopy`, priority 40
+  so other popups show over it and it comes back, default duration 8 s, renewed on every update; not quieted by Focus;
+  silent). `fraction` 1 = finished ("Done", posted for 1.5 s).
+- Core `CopyProgressTracker` (pure): `update(id:name:fraction:now:)`, `remove(id:)`, `summary(now:) -> CopySummary?`
+  (`label`: the item's name or "N items", `fraction`: mean of the copies, `secondsLeft`: from the overall rate once
+  ≥ 3 % and ≥ 2 s in), `shouldPublish(fraction:now:)` (≥ 0.5 % change or ≥ 1 s since the last post, always at 0 / 1).
+  `CopyFormat.remaining(_ seconds:) -> String` ("12 s", "3 min", "1 h 5 min").
+- Setting `copyProgress: Bool = true` (`dn.copyProgress`, Popups → Privacy & Files → File Copies).
+- App `FileCopyMonitor.shared` (Services/): while the setting is on, `Progress.addSubscriber(forFileURL:)` on the volume
+  roots and the home folders (home, Desktop, Documents, Downloads, Movies, Music, Pictures), plus folders added on the
+  fly from an FSEvents stream over home and every volume root (streams don't cross volumes; restarted on mount;
+  latency 1 s, ~/Library excluded, at most 48, oldest dropped).
+  Only file operation kind copying / duplicating counts (read from `userInfo`: Finder's proxies leave
+  `fileOperationKind` nil). A subscription only sees copies **into that folder** (checked
+  on macOS 27: `/` and parent folders see nothing). Publishes `events: PassthroughSubject<CopySummary?, Never>` on main.
+- View: the pill fills green from the left by `fraction`; the text (doc icon + name left, "42 % · 1 min" right) is
+  drawn white on black and dark on green, split at the fill edge.
+- Hooks: `dynanotch://copy?name=&fraction=&left=` (simulated progress), `copy?done=1`. state.json `copy` = {active,
+  label, fraction, subscriptions}.
+
+### 6.13 Smart Copy · part 2: conversions (2026-11-01)
+- Core `SmartConvert.convert(_ text: String, context: ConvertContext) -> SmartConversion?` for one-line text ≤ 32
+  characters: currency ("€42", "42 EUR", "$1,299.99", "CHF 20" → home currency, or USD when it already is the home
+  currency; EUR when home is USD), units (mi↔km, ft↔m, in↔cm, yd→m, lb↔kg, oz↔g, °F↔°C, gal↔L, fl oz↔ml, mph↔km/h),
+  time ("3pm PST", "15:00 UTC" → local time, "+1 day" when it crosses midnight), numbers ("0x1F", "0b1010" → decimal;
+  a 10- or 13-digit Unix timestamp → local date). `SmartConversion` = {kind, source, result, symbol}.
+  `ConvertContext` = {homeCurrency, rates: CurrencyRates?, timeZone, now, locale}. Numbers accept "1,299.99" and
+  "1.299,99"; a single separator followed by exactly three digits is grouping.
+- Core `CurrencyRates` {base, date, rates} + `parse(_ data:)` for Frankfurter's `/v1/latest` JSON;
+  `convert(_ amount:from:to:) -> Double?`.
+- Core `ActivityKind` += `.conversion(source: String, result: String, symbol: String)` (category `.conversion`,
+  priority 45, 4 s, quieted during Focus, silent, 110 pt sides).
+- Settings (Clipboard page → Smart Copy; needs clipboard history): `smartCopy: Bool = true` (`dn.smartCopy`),
+  `homeCurrency: String = "EUR"` (`dn.homeCurrency`).
+- App: `ClipboardService.copiedText: PassthroughSubject<String, Never>` (main; external text copies only, never our
+  own writes). `SmartCopyService.shared`: converts, fetches rates only when an amount is copied and the cache
+  (`dn.data.fxRates`) is older than 12 h; `conversions: PassthroughSubject<SmartConversion, Never>`;
+  `copyResult(_:)` writes the result to the clipboard as our own change. Clicking the island while a conversion
+  shows copies the result ("Copied", 1.2 s) instead of expanding.
+- Hooks: `dynanotch://convert?text=` (same path, clipboard untouched). state.json `smartCopy` = {last, ratesDate}.
+
+### 6.14 Agent Island (2026-11-01)
+- **Hook script** `agent-hook.pl` (App Support/DynaNotch/hooks/, perl + core JSON::PP), installed by
+  `ShellHookInstaller.installAgentHooks()` into ~/.claude/settings.json (one-time backup, reversible, path override
+  `DYNANOTCH_CLAUDE_SETTINGS` / `claudeSettingsOverride`): `PermissionRequest` → `agent-hook.pl permission` (hook
+  timeout = Agent timeout + 30 s); `UserPromptSubmit`, `PreToolUse`, `Stop`, `Notification` → `agent-hook.pl status`; `agent-hook.pl check` prints `ok` (sanity check).
+- **Handshake** in App Support/DynaNotch/agent/: the app writes `app.pid` (its pid) and `timeout` (seconds) while the
+  feature is on. `permission`: if the pid is alive, writes `requests/<id>.json` {id, session, cwd, tool, input,
+  createdAt} and waits up to the timeout for `answers/<id>` = `allow` | `deny` | `terminal`; prints
+  `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}` (deny adds
+  `"message":"Denied from DynaNotch"`); `terminal`, a timeout or no app → no output (Claude asks in the terminal).
+  `status`: writes `status/<session>.json` {session, cwd, event, tool, input, at}. Never blocks except `permission`.
+- Core `AgentRequest` (Codable) + `AgentSummary.detail(tool:input:)` ("npm test", "Sources/App.swift", "github.com"),
+  `AgentSummary.project(cwd:)`, `AgentSummary.statusDetail(event:tool:input:)` ("Thinking…", "Running npm test",
+  "Editing App.swift", "Done", "Waiting for you"); `AgentDecision` (allow, deny, terminal).
+- Core `ActivityKind` += `.agentRequest(id: String, project: String, tool: String, detail: String)` (category `.agent`,
+  priority 97, lasts the timeout, not quieted by Focus; 150 pt sides, +66 pt below the notch row) and
+  `.agentStatus(project: String, detail: String, done: Bool)` (category `.agent`, priority 35, 6 s renewed while
+  working, 2.5 s when done; 110 pt sides). An answer replaces the request with a short status in the same category.
+- Settings (AI Usage page → Agent Island): `agentIsland: Bool = true` (`dn.agentIsland`), `agentStatus: Bool = true`
+  (`dn.agentStatus`), `agentTimeout: Double = 60` (`dn.agentTimeout`, 15–300 s); Install / Remove hooks buttons.
+- App `AgentIslandService.shared`: watches `requests/` and `status/` with directory vnode sources; while requests wait,
+  a 2 s check drops those whose hook process died (the id ends in its pid);
+  `requests: [AgentRequest]` (oldest first), `answer(id:_:) -> Bool` (ignores requests that are gone). Hovering an
+  agent request doesn't open the panel. Clicks on the card go to the island's own tap (`SpatialTapGesture`): below the title row, the
+  card's thirds are Deny · Terminal · Allow (`AgentDecision.button(at:cardWidth:titleRowHeight:)`); the title row does
+  nothing.
+- Hooks: `dynanotch://agent/answer?id=&decision=`, `agent/install-test?settings=<copy>` (install → check → remove on
+  that file, leaves `<copy>.installed`). state.json `agent` = {enabled, pending, lastAnswer, sessions, hooksInstalled, installTest}.
+  Button test IDs: `agent-allow`, `agent-deny`, `agent-terminal`.
+
+### 6.15 Drop Alchemy (2026-11-01)
+- Core `AlchemyAction` (cutout, text, shrink, png, jpeg): `title`, `symbol`, `accepts(fileExtension:)` (images for
+  all; PDF for text and shrink), `outputName(for:existing:)` ("Photo (cutout).png", "Photo (small).jpg",
+  "Report (small).pdf", "Photo.png"; " 2", " 3" … when taken; nil for text, which goes to the clipboard).
+- App `AlchemyService.shared.run(_ action:, on url:)` on a utility queue, all on this Mac: cutout = Vision
+  `VNGenerateForegroundInstanceMaskRequest` → PNG; text = `VNRecognizeTextRequest` (accurate) for images, PDFKit text
+  for PDFs → clipboard; shrink = longest side ≤ 2048 px, JPEG 0.75 (PNG only when it has transparency) / PDF re-saved with
+  JPEG images; png / jpeg = ImageIO. Output next to the original, added to the shelf, a notification island when done
+  (or why it failed). `state` = {running, last}.
+- UI: Shelf tab — a row of drop zones under the toolbar (Cutout · Text · Shrink · PNG), each its own drop target
+  (`alchemy-<action>` test IDs), plus the same actions in each shelf file's context menu ("Alchemy" submenu).
+  Setting `alchemyZones: Bool = true` (`dn.alchemyZones`, Files & Utilities → Shelf).
+- Hooks: `dynanotch://alchemy?action=<raw>&path=<file>`; `shelf/remove?path=<file>` (test cleanup).
+
+### 6.16 Camera Guard+ and Meeting Meter (2026-11-01)
+- Core `ActivityKind.sensor(SensorKind, active: Bool, app: String)` (app = who records; "" when unknown — the
+  camera never says). `.call(app: String, startedAt: Date, talkShare: Int?)` (category `.call`, priority 30, 20 s
+  renewed while the call lasts, 110 pt sides, not quieted by Focus).
+- Core `SensorUsageLog` (Codable): `begin(_:app:at:)`, `end(_:at:)`, `sessions` newest first (sensor, app, start,
+  end?), at most 50. Core `TalkMeter`: `add(level dBFS:, seconds:)` counts speech above −42 dBFS with a 0.3 s hangover;
+  `share` (0…100, nil before 10 s). `CallFormat.duration(_:)` ("4:05", "1:02:09").
+- App `PrivacyMonitor`: `@Published inUse: Set<SensorKind>`, `microphoneApps() -> [String]` (CoreAudio process list,
+  macOS 14.2+; [] before). Changes carry the recording app. `SensorUsageLogStore` keeps the log in App Support
+  (`sensor-log.json`); Settings → Popups → Camera & Microphone shows the last 8 with Clear.
+- App `MeetingMeter.shared`: mic on ≥ 15 s → a call (pill: app + live timer + talk share); mic off → recap
+  notification "Call 42 min · you spoke 61%". Talk share is opt-in: it listens to the mic *level* with AVAudioEngine
+  (nothing recorded or stored; asks for Microphone permission the first time; `NSMicrophoneUsageDescription`).
+- Settings: `sensorDot: Bool = true` (dot in the pill while the camera / mic is on), `meetingMeter: Bool = true`,
+  `meetingTalkShare: Bool = false`.
+- Hooks: `dynanotch://sensor?kind=camera|microphone&active=1|0&app=` (same path as the system change; a simulated
+  sensor stays on until the test turns it off), `sensor/forget?app=` (test cleanup),
+  state.json `privacy` = {inUse, micApps, log, call}.
+
+### 6.17 Focus Guard and Focus Soundscapes (2026-11-01)
+- Core `FocusGuard`: `isFocusing(_ state: TimerState?)` (Pomodoro, work phase, running); `apps(from:)` parses the
+  comma / newline list (lower-cased bundle IDs); `defaultApps`. `DistractionTracker`: `enter(app:at:)`, `leave(at:)`,
+  `seconds`, `reset()`.
+- Core `Soundscape` (none, rain, brown, pink, fire): `title`, `symbol`.
+- Settings (Timer page): `focusGuard: Bool = true`, `focusGuardApps: String = FocusGuard.defaultApps`,
+  `soundscape: String = "none"`, `soundscapeVolume: Double = 0.4` (0…1), `soundscapeWithPomodoro: Bool = true`.
+- App `FocusGuardService.shared`: `NSWorkspace.didActivateApplication`; a listed app during focus → the island shakes
+  (`vm.shake()`) + notification "Back to focus · <App> · 12 min left"; when the focus phase ends with distraction time,
+  "Focus done · 3 min in distractions". Hook `dynanotch://focusguard?app=<bundle id>` (same path).
+- App `SoundscapeService.shared`: generated noise with `AVAudioEngine` + `AVAudioSourceNode` (no files, nothing
+  network); `play(_:)`, `stop()`, `isPlaying`; with Pomodoro: starts on a focus phase, fades out on breaks / stop.
+  Timer tab: a sound menu at the top right. Hooks `dynanotch://soundscape/<raw|stop>`. state.json `focus` =
+  {focusing, distraction, soundscape, playing}.
+
+### 6.18 Mac Vitals (2026-11-01)
+- Core `Vitals`: `cpuPercent(previous:current:elapsed:)` (CPU ns → % of one core), `RunawayTracker.update(
+  [pid: percent], now:) -> [pid]` (≥ 90 % in 2 samples in a row, each app reported once until it calms down),
+  `diskLow(free:total:)` (< 10 GB or < 5 %), `thermalTitle(_ raw: Int) -> String?` (serious / critical only).
+- Core `ActivityKind.vitals(title: String, detail: String, symbol: String)` (category `.vitals`, priority 92, 8 s,
+  not quieted by Focus; 110 pt sides, notification height). A click opens Activity Monitor.
+- Setting `macVitals: Bool = true` (`dn.macVitals`, Settings → Popups → Privacy & Files).
+- App `MacVitalsService.shared`: `ProcessInfo.thermalStateDidChangeNotification`, `DispatchSource` memory pressure
+  (warning / critical), disk every 10 min, app CPU every 60 s (GUI apps only, `proc_pid_rusage`; paused while away
+  or off). Each alert at most once per 30 min per kind. Hook `dynanotch://vitals/<thermal|memory|disk|runaway>`
+  (shows that alert with real numbers where possible). state.json `vitals`.
+
+### 6.19 Daily Wrap (2026-11-01)
+- Core `DailyWrap`: `Input` {screenSeconds, topApps [(name, seconds)], pomodoros, songs [(title, artist)], claudeCost?,
+  commits?}; `lines(_:) -> [WrapLine]` (symbol + text, empty facts skipped, at most 5); `nextDate(after:minutes:
+  weekdaysOnly:calendar:)`; `DurationText.hm(_:)` ("6 h 12 min", "45 min").
+- Core `ActivityKind.wrap(lines: [WrapLine])` (category `.wrap`, priority 60, 20 s, quieted by Focus; 150 pt sides,
+  + 30 pt + 22 pt per line). A click closes it.
+- Settings (Your Mac → Activity page): `dailyWrap: Bool = true`, `dailyWrapMinutes: Double = 1080` (18:00),
+  `dailyWrapWeekdays: Bool = true`.
+- App `DailyWrapService.shared`: one scheduled work item for the next wrap (rescheduled on setting changes and after
+  each wrap); away at that moment → shown when you're back. Commits: `git rev-list --count --since=midnight --all
+  --author=<git user.email>` in up to 30 repos found 2 levels under ~/Desktop, ~/Developer, ~/Projects, ~/Code, ~/src.
+  Hook `dynanotch://wrap` (now). state.json `wrap` = {next, lastLines}.
+
+### 6.20 Voice Notes (2026-11-01)
+- Core `VoiceCommand.parse(_:) -> VoiceCommand`: `.reminder(String)` ("remind me to call mum", "reminder buy milk"),
+  `.timer(minutes: Double)` ("timer 10", "set a timer for 5 minutes", "10 minute timer", "timer 90 seconds",
+  "timer 1 hour"), otherwise `.note(String)`. Leading "note" / "take a note" is dropped.
+- Core `HotKeyAction.voiceNote` ("Voice Note", no default shortcut) and `KnockAction.voiceNote`.
+- Core `ActivityKind.voice(text: String, result: String?)` (category `.voice`, priority 96, not quieted by Focus,
+  150 pt sides; `result` nil = listening, renewed while listening; then 2.5 s with "Note saved" / "Reminder added" /
+  "Timer 10 min").
+- App `VoiceNoteService.shared.toggle()`: first use asks for Speech Recognition and Microphone access;
+  `SFSpeechRecognizer` with `requiresOnDeviceRecognition` (audio never leaves the Mac; refused with a message when the
+  language has no on-device model); stops on a second toggle, after 1.6 s without new words or at 30 s. Notes go to the
+  Notes tab (appended line), reminders to Apple Reminders (Notes tab to-do when Reminders access is missing), timers
+  to the Timer. `NSSpeechRecognitionUsageDescription` in Info.plist.
+- Hooks: `dynanotch://voice?text=` (runs the command path on that transcript, no listening). state.json `voice` =
+  {listening, last}.

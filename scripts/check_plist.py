@@ -31,7 +31,7 @@ if not re.fullmatch(r"\d+", str(p.get("CFBundleVersion", ""))):
 # Every privacy-sensitive API the app touches needs its usage string, or macOS kills the app on first use.
 for k in ("NSAppleEventsUsageDescription", "NSBluetoothAlwaysUsageDescription",
           "NSCalendarsFullAccessUsageDescription", "NSCalendarsUsageDescription",
-          "NSCameraUsageDescription", "NSRemindersFullAccessUsageDescription",
+          "NSCameraUsageDescription", "NSMicrophoneUsageDescription", "NSSpeechRecognitionUsageDescription", "NSRemindersFullAccessUsageDescription",
           "NSLocationUsageDescription", "NSHumanReadableCopyright"):
     if not isinstance(p.get(k), str) or not p.get(k):
         problems.append("%s missing" % k)

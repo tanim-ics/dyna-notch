@@ -233,7 +233,8 @@ struct PopupsSettingsPane: View {
             RestoreDefaultsSection(keys: [
                 SettingsKey.notificationDuration, SettingsKey.volumeHUD, SettingsKey.brightnessHUD,
                 SettingsKey.capsLockActivity, SettingsKey.focusActivity, SettingsKey.privacyActivity,
-                SettingsKey.downloadActivity, SettingsKey.notifyActivity, SettingsKey.quietDuringFocus,
+                SettingsKey.downloadActivity, SettingsKey.copyProgress, SettingsKey.notifyActivity,
+                SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.macVitals, SettingsKey.quietDuringFocus,
                 SettingsKey.alertSounds, SettingsKey.edgeGlow,
             ])
         }
@@ -286,11 +287,28 @@ struct PopupsSettingsPane: View {
     private var privacySection: some View {
         Section("Privacy & Files") {
             SettingToggle(symbol: "video.fill", color: .green, title: "Camera & Microphone in Use",
-                          detail: "A popup whenever an app starts or stops using the camera or microphone.",
+                          detail: "A popup whenever an app starts or stops using the camera or microphone, naming the app that records (the camera can't say).",
                           isOn: $settings.privacyActivity)
+            SettingToggle(symbol: "circle.fill", color: .orange, title: "Dot While On",
+                          detail: "A small green (camera) or orange (microphone) dot stays on the island while they're on.",
+                          isOn: $settings.sensorDot, testID: "setting-sensorDot")
+            SettingToggle(symbol: "phone.fill", color: .green, title: "Meeting Meter",
+                          detail: "When the microphone has been on for 15 s, the pill shows the call's length; a short recap when it ends.",
+                          isOn: $settings.meetingMeter, testID: "setting-meetingMeter")
+            SettingToggle(symbol: "waveform", color: .purple, title: "Your Talk Share",
+                          detail: "Adds how much of the call you spoke. Listens to your microphone's level only — nothing is recorded or kept. Asks for Microphone access.",
+                          isOn: $settings.meetingTalkShare, testID: "setting-meetingTalkShare")
+                .disabled(!settings.meetingMeter)
+            SensorLogRows()
+            SettingToggle(symbol: "heart.text.square.fill", color: .red, title: "Mac Vitals",
+                          detail: "Warns when the Mac runs hot, memory gets tight, the disk is almost full or an app keeps a core busy for 2 minutes. Checks apps once a minute while you're at the Mac.",
+                          isOn: $settings.macVitals, testID: "setting-macVitals")
             SettingToggle(symbol: "arrow.down.circle.fill", color: .blue, title: "Downloads",
                           detail: "When a download starts and finishes in ~/Downloads.",
                           isOn: $settings.downloadActivity)
+            SettingToggle(symbol: "doc.on.doc.fill", color: .green, title: "File Copies",
+                          detail: "The pill turns into a green progress bar while Finder copies files. Listens for Finder's own progress reports; no polling.",
+                          isOn: $settings.copyProgress, testID: "setting-copyProgress")
         }
     }
 
@@ -376,6 +394,47 @@ struct PopupsSettingsPane: View {
             Text("Feature Alerts")
         } footer: {
             SettingsFooter("Each feature's own popups live on its page.")
+        }
+    }
+}
+
+/// The last camera / microphone sessions (Settings → Popups), with Clear.
+struct SensorLogRows: View {
+    @ObservedObject private var privacy = PrivacyMonitor.shared
+
+    private static let time: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        f.doesRelativeDateFormatting = true
+        return f
+    }()
+
+    var body: some View {
+        SettingStackedRow(symbol: "list.bullet.rectangle", color: .gray, title: "Recent Camera & Microphone Use",
+                          detail: "The last \(min(8, privacy.log.sessions.count)) of up to 50 sessions. Stays on this Mac.") {
+            VStack(alignment: .leading, spacing: 4) {
+                if privacy.log.sessions.isEmpty {
+                    Text("Nothing yet").font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(Array(privacy.log.sessions.prefix(8).enumerated()), id: \.offset) { _, s in
+                    HStack(spacing: 6) {
+                        Image(systemName: s.sensor == "camera" ? "video.fill" : "mic.fill")
+                            .foregroundStyle(s.sensor == "camera" ? Color.green : Color.orange)
+                            .frame(width: 16)
+                        Text(s.app.isEmpty ? (s.sensor == "camera" ? "Camera" : "Microphone") : s.app)
+                        Spacer()
+                        Text(Self.time.string(from: s.start)).foregroundStyle(.secondary)
+                        Text(s.duration.map { CallFormat.duration($0) } ?? "now").monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                }
+                if !privacy.log.sessions.isEmpty {
+                    Button("Clear") { privacy.clearLog() }
+                        .controlSize(.small)
+                        .uiTestID("sensorLog-clear")
+                }
+            }
         }
     }
 }

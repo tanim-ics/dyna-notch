@@ -108,6 +108,25 @@ public enum SettingsKey {
     public static let lockScreenWidgets = "dn.lockScreenWidgets"
     public static let lockScreenWeather = "dn.lockScreenWeather"
     public static let lockScreenBatteries = "dn.lockScreenBatteries"
+    public static let copyProgress = "dn.copyProgress"
+    public static let smartCopy = "dn.smartCopy"
+    public static let homeCurrency = "dn.homeCurrency"
+    public static let agentIsland = "dn.agentIsland"
+    public static let agentStatus = "dn.agentStatus"
+    public static let agentTimeout = "dn.agentTimeout"
+    public static let alchemyZones = "dn.alchemyZones"
+    public static let sensorDot = "dn.sensorDot"
+    public static let meetingMeter = "dn.meetingMeter"
+    public static let meetingTalkShare = "dn.meetingTalkShare"
+    public static let focusGuard = "dn.focusGuard"
+    public static let focusGuardApps = "dn.focusGuardApps"
+    public static let soundscape = "dn.soundscape"
+    public static let soundscapeVolume = "dn.soundscapeVolume"
+    public static let soundscapeWithPomodoro = "dn.soundscapeWithPomodoro"
+    public static let macVitals = "dn.macVitals"
+    public static let dailyWrap = "dn.dailyWrap"
+    public static let dailyWrapMinutes = "dn.dailyWrapMinutes"
+    public static let dailyWrapWeekdays = "dn.dailyWrapWeekdays"
     public static let screenSharingPrivacy = "dn.screenSharingPrivacy"
     public static let hideWhileMirroring = "dn.hideWhileMirroring"
     public static let fullscreenScope = "dn.fullscreenScope"
@@ -249,7 +268,7 @@ public enum SettingsKey {
             weatherEnabled, weatherCity, temperatureUnit, aiUsageEnabled,
             downloadActivity, privacyActivity, capsLockActivity, notifyActivity,
             islandMaterial, hasSeenWelcome,
-            materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp, pillWidth, pillHeight, unlockActivity, lockScreenWidgets, lockScreenWeather, lockScreenBatteries,
+            materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp, pillWidth, pillHeight, unlockActivity, lockScreenWidgets, lockScreenWeather, lockScreenBatteries, copyProgress, smartCopy, homeCurrency, agentIsland, agentStatus, agentTimeout, alchemyZones, sensorDot, meetingMeter, meetingTalkShare, focusGuard, focusGuardApps, soundscape, soundscapeVolume, soundscapeWithPomodoro, macVitals, dailyWrap, dailyWrapMinutes, dailyWrapWeekdays,
         ]
     }
 }

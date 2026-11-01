@@ -23,6 +23,8 @@ final class ClipboardService: ObservableObject {
     private var limitObserver: AnyCancellable?
     private var saveObserver: AnyCancellable?
     private let saveRequests = PassthroughSubject<Void, Never>()
+    /// Main queue: text the user copied in another app (never our own writes) — Smart Copy listens (CONTRACTS §6.13).
+    let copiedText = PassthroughSubject<String, Never>()
     private var lastChangeCount: Int
     private var ownChangeCount: Int?
     private var pollObserver: AnyCancellable?
@@ -153,6 +155,13 @@ final class ClipboardService: ObservableObject {
         AppSettings.shared.offerCleanCopy && item.kind == .link && LinkCleaner.clean(item.text) != item.text
     }
 
+    /// Writes plain text as our own change (no history entry, no Smart Copy echo).
+    func copyText(_ text: String) {
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        markOwnChange()
+    }
+
     func copy(_ item: ClipItem) {
         write(item, plainText: false)
     }
@@ -267,6 +276,7 @@ final class ClipboardService: ObservableObject {
                 }
             }
             add(ClipItem(kind: kind, text: text, date: now, sourceApp: sourceApp))
+            copiedText.send(text)
             return
         }
 

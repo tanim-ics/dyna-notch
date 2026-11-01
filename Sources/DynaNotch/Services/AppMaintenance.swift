@@ -39,6 +39,7 @@ enum AppMaintenance {
         logger.info("uninstalling DynaNotch data")
         ShellHookInstaller.removeZshHook()
         ShellHookInstaller.removeClaudeCostHook()
+        ShellHookInstaller.removeAgentHooks()
         KeepAwakeService.shared.set(false)
         try? SMAppService.mainApp.unregister()
         try? FileManager.default.removeItem(at: AppDataStore.directory)
@@ -303,6 +304,131 @@ enum ShellHookInstaller {
         if hooks.isEmpty { root.removeValue(forKey: "hooks") } else { root["hooks"] = hooks }
         _ = writeClaudeSettings(root, to: url)
     }
+
+    // MARK: Agent Island hooks (CONTRACTS §6.14)
+
+    static let agentScriptName = "agent-hook.pl"
+    /// Events that report status; `PermissionRequest` waits for the notch.
+    static let agentStatusEvents = ["UserPromptSubmit", "PreToolUse", "Stop", "Notification"]
+
+    static var agentScriptURL: URL {
+        AppDataStore.directory.appendingPathComponent("hooks", isDirectory: true).appendingPathComponent(agentScriptName)
+    }
+
+    static var agentHooksInstalled: Bool {
+        guard let root = readClaudeSettings(), let hooks = root["hooks"] as? [String: Any],
+              let permission = hooks["PermissionRequest"] as? [Any] else { return false }
+        return permission.contains { isAgentGroup($0) }
+    }
+
+    /// Writes the script and adds our groups for PermissionRequest (waits up to `timeout` + 30 s) and the status
+    /// events. Other hooks stay; a one-time backup is written next to the file.
+    @discardableResult
+    static func installAgentHooks(timeout: Int) -> Bool {
+        guard writeScript(agentScript, to: agentScriptURL) else { return false }
+        let url = claudeSettingsURL
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        guard var root = exists ? readClaudeSettings() : [:] else {
+            logger.error("Claude settings unreadable, not installing the agent hooks")
+            return false
+        }
+        var hooks = root["hooks"] as? [String: Any] ?? [:]
+        let script = "\"\(agentScriptURL.path)\""
+        var permission = (hooks["PermissionRequest"] as? [Any] ?? []).filter { !isAgentGroup($0) }
+        permission.append(["hooks": [["type": "command", "command": "\(script) permission",
+                                      "timeout": timeout + 30]]] as [String: Any])
+        hooks["PermissionRequest"] = permission
+        for event in agentStatusEvents {
+            var list = (hooks[event] as? [Any] ?? []).filter { !isAgentGroup($0) }
+            list.append(["hooks": [["type": "command", "command": "\(script) status", "timeout": 5]]] as [String: Any])
+            hooks[event] = list
+        }
+        root["hooks"] = hooks
+        if exists { backupOnce(url) }
+        return writeClaudeSettings(root, to: url)
+    }
+
+    static func removeAgentHooks() {
+        let url = claudeSettingsURL
+        guard var root = readClaudeSettings(), var hooks = root["hooks"] as? [String: Any] else { return }
+        var changed = false
+        for event in ["PermissionRequest"] + agentStatusEvents {
+            guard let list = hooks[event] as? [Any], list.contains(where: { isAgentGroup($0) }) else { continue }
+            let remaining = list.filter { !isAgentGroup($0) }
+            if remaining.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = remaining }
+            changed = true
+        }
+        guard changed else { return }
+        if hooks.isEmpty { root.removeValue(forKey: "hooks") } else { root["hooks"] = hooks }
+        _ = writeClaudeSettings(root, to: url)
+    }
+
+    private static func isAgentGroup(_ group: Any) -> Bool {
+        guard let dict = group as? [String: Any], let list = dict["hooks"] as? [Any] else { return false }
+        return list.contains { item in
+            ((item as? [String: Any])?["command"] as? String)?.contains("/hooks/" + agentScriptName) == true
+        }
+    }
+
+    private static func writeScript(_ text: String, to url: URL) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            return true
+        } catch {
+            logger.error("script write failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    /// Perl (ships with macOS; JSON::PP is core). `permission`: hands the request to DynaNotch and waits for Allow /
+    /// Deny / Terminal; prints Claude's decision JSON, or nothing (Claude then asks in the terminal) when DynaNotch
+    /// isn't running, Agent Island is off, the user picks Terminal or the timeout passes. `status`: records what the
+    /// session is doing and returns at once. Always exits 0. `DYNANOTCH_AGENT_DIR` redirects the folder for tests.
+    static let agentScript = #"""
+    #!/usr/bin/perl
+    # DynaNotch Agent Island: Claude Code permission requests and session status in the notch. Installed by DynaNotch.
+    use strict; use warnings; use JSON::PP; use Time::HiRes qw(sleep time); use File::Path qw(make_path);
+    my $mode = shift // 'status';
+    if ($mode eq 'check') { print "ok\n"; exit 0; }       # installer / test sanity check
+    my $raw = do { local $/; <STDIN> } // '';
+    my $in = eval { decode_json($raw) } || {};
+    my $dir = $ENV{DYNANOTCH_AGENT_DIR} || "$ENV{HOME}/Library/Application Support/DynaNotch/agent";
+    sub slurp { my $f = shift; open(my $h, '<', $f) or return undef; local $/; my $t = <$h>; close $h; return $t; }
+    sub put { my ($f, $t) = @_; open(my $h, '>', "$f.tmp") or return; print $h $t; close $h; rename("$f.tmp", $f); }
+    my $pid = slurp("$dir/app.pid") // '';
+    $pid =~ s/\s+//g;
+    exit 0 unless $pid =~ /^\d+$/ && kill(0, $pid);        # DynaNotch not running or Agent Island off
+    my $json = JSON::PP->new->canonical;
+    if ($mode eq 'permission') {
+      make_path("$dir/requests", "$dir/answers");
+      my $id = sprintf('%d-%d', time() * 1000, $$);
+      my $timeout = slurp("$dir/timeout") // 60; $timeout =~ s/\s+//g; $timeout = 60 unless $timeout =~ /^\d+$/;
+      put("$dir/requests/$id.json", $json->encode({ id => $id, session => $in->{session_id} // '', cwd => $in->{cwd} // '',
+        tool => $in->{tool_name} // '', input => (ref($in->{tool_input}) eq 'HASH' ? $in->{tool_input} : {}), createdAt => time() }));
+      my ($answer, $end) = ('', time() + $timeout);
+      while (time() < $end) {
+        my $a = slurp("$dir/answers/$id");
+        if (defined $a) { ($answer = $a) =~ s/\s+//g; last; }
+        last unless kill(0, $pid);
+        sleep(0.15);
+      }
+      unlink("$dir/requests/$id.json", "$dir/answers/$id");
+      if ($answer eq 'allow') {
+        print '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}';
+      } elsif ($answer eq 'deny') {
+        print '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Denied from DynaNotch"}}}';
+      }
+      exit 0;
+    }
+    make_path("$dir/status");
+    my $session = $in->{session_id} // 'unknown'; $session =~ s/[^A-Za-z0-9._-]//g;
+    put("$dir/status/$session.json", $json->encode({ session => $session, cwd => $in->{cwd} // '',
+      event => $in->{hook_event_name} // '', tool => $in->{tool_name} // '',
+      input => (ref($in->{tool_input}) eq 'HASH' ? $in->{tool_input} : {}), at => time() }));
+    exit 0;
+    """#
 
     private static func isOurGroup(_ group: Any) -> Bool {
         guard let dict = group as? [String: Any], let list = dict["hooks"] as? [Any] else { return false }

@@ -8,12 +8,54 @@ import DynaNotchCore
 struct TimerSettingsPane: View {
     @EnvironmentObject var settings: AppSettings
 
+    private var focusSection: some View {
+        Section {
+            SettingToggle(symbol: "eye.slash.fill", color: .red, title: "Focus Guard",
+                          detail: "During a Pomodoro focus phase, opening an app from the list below shakes the island and nudges you back; you see the minutes lost when focus ends.",
+                          isOn: $settings.focusGuard, testID: "setting-focusGuard")
+            SettingStackedRow(symbol: "list.bullet", color: .gray, title: "Distraction Apps",
+                              detail: "Bundle IDs, separated by commas. Browsers aren't listed because you work in them too.") {
+                TextField("com.tinyspeck.slackmacgap, …", text: $settings.focusGuardApps, axis: .vertical)
+                    .lineLimit(2...4)
+                    .font(.system(size: 11, design: .monospaced))
+                    .uiTestID("setting-focusGuardApps")
+            }
+            .disabled(!settings.focusGuard)
+            SettingRow(symbol: "headphones", color: .indigo, title: "Focus Sound",
+                       detail: "Plays while you choose; generated on this Mac, no downloads. Stop it from the Timer tab.") {
+                Picker("Focus sound", selection: Binding(
+                    get: { Soundscape(rawValue: settings.soundscape) ?? .none },
+                    set: { sound in
+                        if sound == .none { SoundscapeService.shared.stop() } else { SoundscapeService.shared.play(sound) }
+                        settings.soundscape = sound.rawValue
+                    })) {
+                    ForEach(Soundscape.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .uiTestID("setting-soundscape")
+            }
+            SliderRow(symbol: "speaker.wave.2.fill", color: .indigo, title: "Sound Volume",
+                      detail: "Relative to your Mac's volume.", value: $settings.soundscapeVolume,
+                      range: 0...1, step: 0.05, format: { "\(Int(($0 * 100).rounded())) %" },
+                      testID: "setting-soundscapeVolume")
+            SettingToggle(symbol: "timer", color: .orange, title: "Sound With Pomodoro",
+                          detail: "Starts your focus sound with each focus phase and fades it out for breaks.",
+                          isOn: $settings.soundscapeWithPomodoro, testID: "setting-soundscapeWithPomodoro")
+        } header: {
+            Text("Focus")
+        }
+    }
+
     var body: some View {
         SettingsPageView(page: .timer) {
             pomodoroSection
+            focusSection
             displaySection
             breaksSection
             RestoreDefaultsSection(keys: [
+                SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape,
+                SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro,
                 SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes,
                 SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.pomodoroAutoContinue,
                 SettingsKey.timerSound, SettingsKey.showCompactTimer, SettingsKey.timerOverNowPlaying,
@@ -115,9 +157,11 @@ struct ClipboardSettingsPane: View {
     var body: some View {
         SettingsPageView(page: .clipboard) {
             historySection
+            smartCopySection
             pasteSection
             ignoredSection
             RestoreDefaultsSection(keys: [
+                SettingsKey.smartCopy, SettingsKey.homeCurrency,
                 SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks,
                 SettingsKey.pasteOnClick, SettingsKey.pasteWithNumbers, SettingsKey.clipboardIgnoredApps,
                 SettingsKey.clipboardAutoClearMinutes, SettingsKey.clipboardCaptureSound,
@@ -126,6 +170,33 @@ struct ClipboardSettingsPane: View {
         }
         .onReceive(permissionPoll) { _ in
             accessibilityGranted = Permissions.accessibilityGranted
+        }
+    }
+
+    private static let currencies = ["EUR", "USD", "GBP", "CHF", "JPY", "CAD", "AUD", "INR", "BDT", "SEK", "NOK",
+                                     "DKK", "PLN", "CZK", "HUF", "CNY", "TRY", "BRL", "MXN", "KRW", "SGD"]
+
+    private var smartCopySection: some View {
+        Section {
+            SettingToggle(symbol: "wand.and.stars", color: .purple, title: "Smart Copy",
+                          detail: "Copy an amount, a unit, a time with a zone or a hex number and the notch shows it converted; click to copy the result. Currency rates are fetched from the ECB (Frankfurter) at most twice a day, only when you copy an amount.",
+                          isOn: $settings.smartCopy, testID: "setting-smartCopy")
+                .disabled(!settings.clipboardEnabled)
+            SettingRow(symbol: "dollarsign.circle.fill", color: .green, title: "Home Currency",
+                       detail: "Amounts are converted into this currency; amounts already in it are shown in US dollars.") {
+                Picker("Home currency", selection: $settings.homeCurrency) {
+                    ForEach(Self.currencies, id: \.self) { Text($0).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .uiTestID("setting-homeCurrency")
+            }
+            .disabled(!settings.clipboardEnabled || !settings.smartCopy)
+        } header: {
+            Text("Smart Copy")
+        } footer: {
+            SettingsFooter(settings.clipboardEnabled ? "Converting happens on this Mac; only the currency rates come from the network."
+                                                     : "Turn on Clipboard History to use Smart Copy.")
         }
     }
 
@@ -329,6 +400,10 @@ struct FilesSettingsPane: View {
                               detail: "Take a file off the shelf once you've dragged it somewhere.",
                               isOn: $settings.shelfRemoveOnDragOut)
                     .disabled(!settings.shelfEnabled)
+                SettingToggle(symbol: "wand.and.rays", color: .purple, title: "Drop Alchemy",
+                              detail: "Zones on the shelf: drop a picture or PDF to cut out the subject, copy its text, shrink it or make a PNG. Done on this Mac; the new file goes next to the original.",
+                              isOn: $settings.alchemyZones, testID: "setting-alchemyZones")
+                    .disabled(!settings.shelfEnabled)
                 SettingStackedRow(symbol: "clock.arrow.circlepath", color: .orange, title: "Keep Files",
                                   detail: "Take files off the shelf after this long. The files themselves are never deleted.") {
                     Picker("Keep files", selection: $settings.shelfRetention) {
@@ -394,7 +469,7 @@ struct FilesSettingsPane: View {
             }
             .onAppear { zshHookInstalled = ShellHookInstaller.zshHookInstalled }
             RestoreDefaultsSection(keys: [
-                SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.shelfRetention,
+                SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.shelfRetention, SettingsKey.alchemyZones,
                 SettingsKey.downloadActivity, SettingsKey.driveActivity, SettingsKey.dmgInstallOffer,
             ])
         }

@@ -56,7 +56,7 @@ final class V3PanelTimerTests: XCTestCase {
     func testNewActivityMetadata() {
         let kinds: [ActivityKind] = [
             .timerFinished(label: "Tea"), .notification(title: "Build", body: "done", symbol: "hammer"),
-            .download(name: "a.zip", finished: true), .sensor(.camera, active: true),
+            .download(name: "a.zip", finished: true), .sensor(.camera, active: true, app: ""),
             .toggle(symbol: "mic.slash.fill", label: "Mic", on: false),
         ]
         XCTAssertEqual(kinds.map(\.category), [.timer, .notification, .download, .privacy, .toggle])

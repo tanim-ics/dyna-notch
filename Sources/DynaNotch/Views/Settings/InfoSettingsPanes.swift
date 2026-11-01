@@ -26,8 +26,45 @@ struct ActivitySettingsPane: View {
             } footer: {
                 PrivacyFooter(text: "Stays on this Mac. Nothing is uploaded.")
             }
-            RestoreDefaultsSection(keys: [SettingsKey.screenTimeEnabled])
+            Section {
+                SettingToggle(symbol: "sparkles", color: .yellow, title: "Daily Wrap",
+                              detail: "At the end of your day, one card in the notch: time at the Mac, Pomodoros, commits, your most-played song and Claude Code cost. Built from what DynaNotch already keeps here.",
+                              isOn: $settings.dailyWrap, testID: "setting-dailyWrap")
+                SettingRow(symbol: "clock.fill", color: .orange, title: "Show At",
+                           detail: "If you're away then, it waits until you're back.") {
+                    DatePicker("Show at", selection: wrapTime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .uiTestID("setting-dailyWrapTime")
+                }
+                .disabled(!settings.dailyWrap)
+                SettingToggle(symbol: "calendar", color: .blue, title: "Weekdays Only",
+                              detail: "Skip Saturdays and Sundays.",
+                              isOn: $settings.dailyWrapWeekdays, testID: "setting-dailyWrapWeekdays")
+                    .disabled(!settings.dailyWrap)
+                SettingRow(symbol: "play.fill", color: .green, title: "Show It Now",
+                           detail: "See today's wrap so far.") {
+                    Button("Show") { DailyWrapService.shared.showNow() }
+                        .uiTestID("setting-dailyWrap-now")
+                }
+            } header: {
+                Text("Daily Wrap")
+            } footer: {
+                PrivacyFooter(text: "Commits are counted with git in your code folders on this Mac; nothing is uploaded.")
+            }
+            RestoreDefaultsSection(keys: [SettingsKey.screenTimeEnabled, SettingsKey.dailyWrap,
+                                          SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays])
         }
+    }
+
+    /// dn.dailyWrapMinutes (minutes past midnight) as a time of day for the picker.
+    private var wrapTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(byAdding: .minute, value: Int(settings.dailyWrapMinutes),
+                                  to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        }, set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            settings.dailyWrapMinutes = Double((parts.hour ?? 18) * 60 + (parts.minute ?? 0))
+        })
     }
 }
 
@@ -43,14 +80,18 @@ struct AIUsageSettingsPane: View {
     @State private var copied = false
     @State private var costHookInstalled = ShellHookInstaller.claudeCostHookInstalled
     @State private var hookMessage: String?
+    @State private var agentHooksInstalled = ShellHookInstaller.agentHooksInstalled
+    @State private var agentMessage: String?
 
     var body: some View {
         SettingsPageView(page: .aiUsage) {
             aiSection
             warningsSection
+            agentSection
             costHookSection
             hookSection
             RestoreDefaultsSection(keys: [
+                SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout,
                 SettingsKey.aiUsageEnabled, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent,
                 SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo,
             ])
@@ -104,6 +145,54 @@ struct AIUsageSettingsPane: View {
             Text("Warnings & Display")
         }
         .disabled(!settings.aiUsageEnabled)
+    }
+
+    private var agentSection: some View {
+        Section {
+            SettingToggle(symbol: "sparkle", color: .orange, title: "Agent Island",
+                          detail: "When Claude Code asks for permission, the notch shows what it wants to run with Allow, Deny and Terminal. Off: Claude asks in the terminal as usual.",
+                          isOn: $settings.agentIsland, testID: "setting-agentIsland")
+            SettingToggle(symbol: "text.bubble.fill", color: .blue, title: "Session Status in the Pill",
+                          detail: "What Claude is doing right now (\u{201C}Running npm test\u{201D}) and \u{201C}Done\u{201D} when it finishes. Covers the music while Claude works.",
+                          isOn: $settings.agentStatus, testID: "setting-agentStatus")
+                .disabled(!settings.agentIsland)
+            SliderRow(symbol: "hourglass", color: .gray, title: "Answer Within",
+                      detail: "After this, Claude asks in the terminal instead. Claude waits while the notch is asking.",
+                      value: $settings.agentTimeout, range: 15...300, step: 15,
+                      format: { "\(Int($0)) s" }, testID: "setting-agentTimeout")
+                .disabled(!settings.agentIsland)
+            SettingRow(symbol: "link", color: .purple, title: "Claude Code Hooks",
+                       detail: agentHooksInstalled
+                           ? "Installed in ~/.claude/settings.json: permission requests and status reach the notch."
+                           : "Adds hooks to ~/.claude/settings.json (a backup is kept). Needed once for Agent Island.") {
+                if agentHooksInstalled {
+                    Button("Remove") {
+                        ShellHookInstaller.removeAgentHooks()
+                        agentHooksInstalled = ShellHookInstaller.agentHooksInstalled
+                        agentMessage = agentHooksInstalled ? "Could not remove the hooks." : "Hooks removed."
+                    }
+                    .uiTestID("setting-agentHooks-remove")
+                } else {
+                    Button("Install") {
+                        let ok = ShellHookInstaller.installAgentHooks(timeout: Int(settings.agentTimeout))
+                        agentHooksInstalled = ShellHookInstaller.agentHooksInstalled
+                        agentMessage = ok ? "Hooks installed. They work from the next Claude Code session."
+                                          : "Could not install the hooks — is ~/.claude/settings.json valid JSON?"
+                    }
+                    .uiTestID("setting-agentHooks-install")
+                }
+            }
+            if let message = agentMessage {
+                Label(message, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Agent Island")
+        } footer: {
+            PrivacyFooter(text: "Requests travel through files in DynaNotch's folder on this Mac; nothing leaves it.")
+        }
+        .onAppear { agentHooksInstalled = ShellHookInstaller.agentHooksInstalled }
     }
 
     private var costHookSection: some View {

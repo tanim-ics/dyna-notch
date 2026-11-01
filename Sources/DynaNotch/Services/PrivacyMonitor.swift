@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import CoreAudio
 import CoreMediaIO
@@ -7,10 +8,16 @@ import DynaNotchCore
 
 /// Reports when any app starts/stops using the camera or microphone. Driven by CoreAudio / CoreMediaIO
 /// "running somewhere" change listeners; a 15 s poll is only a safety net (main queue).
-final class PrivacyMonitor {
+final class PrivacyMonitor: ObservableObject {
     static let shared = PrivacyMonitor()
 
-    let changes = PassthroughSubject<(SensorKind, Bool), Never>()
+    /// Main queue: a sensor turned on / off, and the app recording ("" when unknown — the camera never says).
+    let changes = PassthroughSubject<(SensorKind, Bool, String), Never>()
+    /// Sensors on right now (the pill's dot).
+    @Published private(set) var inUse: Set<SensorKind> = []
+    /// Camera / mic sessions (Settings → Popups), saved in App Support.
+    @Published private(set) var log = SensorUsageLog()
+    private static let logFile = "sensor-log.json"
 
     private var started = false
     private var timer: AnyCancellable?
@@ -21,6 +28,7 @@ final class PrivacyMonitor {
     func start() {
         guard !started else { return }
         started = true
+        if let saved = AppDataStore.loadFile(SensorUsageLog.self, file: PrivacyMonitor.logFile) { log = saved }
         timer = Timer.publish(every: 15, tolerance: 3, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.poll() }
@@ -105,18 +113,87 @@ final class PrivacyMonitor {
     // MARK: Private (main queue)
 
     private func poll() {
-        let state: [SensorKind: Bool] = [
+        var state: [SensorKind: Bool] = [
             .camera: PrivacyMonitor.isCameraInUse(),
             .microphone: PrivacyMonitor.isMicrophoneInUse(),
         ]
+        state.merge(simulated) { _, test in test }   // a test's sensor stays on until the test turns it off
         defer { lastState = state }
-        guard let previous = lastState else { return }   // first poll only seeds
+        guard let previous = lastState else {   // first poll only seeds
+            inUse = Set(state.filter(\.value).map(\.key))
+            return
+        }
         for kind in SensorKind.allCases {
             let now = state[kind] ?? false
             if (previous[kind] ?? false) != now {
-                changes.send((kind, now))
+                report(kind, now, app: now && kind == .microphone ? PrivacyMonitor.microphoneApps().first ?? "" : "")
             }
         }
+    }
+
+    /// One path for real changes and the `dynanotch://sensor` test hook.
+    private func report(_ kind: SensorKind, _ active: Bool, app: String) {
+        if active { inUse.insert(kind) } else { inUse.remove(kind) }
+        if active { log.begin(kind, app: app, at: Date()) } else { log.end(kind, at: Date()) }
+        AppDataStore.saveFile(log, file: PrivacyMonitor.logFile)
+        changes.send((kind, active, app))
+    }
+
+    /// Sensors a test turned on (`dynanotch://sensor`); they override the hardware until turned off again.
+    private var simulated: [SensorKind: Bool] = [:]
+
+    /// Test hook: as if the sensor turned on / off for `app`.
+    func simulate(_ kind: SensorKind, active: Bool, app: String) {
+        simulated[kind] = active ? true : nil
+        lastState?[kind] = active
+        report(kind, active, app: app)
+    }
+
+    func forget(app: String) {
+        log.forget(app: app)
+        AppDataStore.saveFile(log, file: PrivacyMonitor.logFile)
+    }
+
+    func clearLog() {
+        log.clear()
+        AppDataStore.saveFile(log, file: PrivacyMonitor.logFile)
+    }
+
+    /// Apps recording from any microphone right now (CoreAudio process objects, macOS 14.2+; [] before).
+    static func microphoneApps() -> [String] {
+        guard #available(macOS 14.2, *) else { return [] }
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var listAddress = AudioObjectPropertyAddress(
+            mSelector: AudioObjectPropertySelector(kAudioHardwarePropertyProcessObjectList),
+            mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+            mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(system, &listAddress, 0, nil, &size) == 0, size > 0 else { return [] }
+        var objects = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &listAddress, 0, nil, &size, &objects) == 0 else { return [] }
+        var names: [String] = []
+        for object in objects {
+            var runningAddress = AudioObjectPropertyAddress(
+                mSelector: AudioObjectPropertySelector(kAudioProcessPropertyIsRunningInput),
+                mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+                mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+            var running: UInt32 = 0
+            var runningSize = UInt32(MemoryLayout<UInt32>.size)
+            guard AudioObjectGetPropertyData(object, &runningAddress, 0, nil, &runningSize, &running) == 0,
+                  running != 0 else { continue }
+            var pidAddress = AudioObjectPropertyAddress(
+                mSelector: AudioObjectPropertySelector(kAudioProcessPropertyPID),
+                mScope: AudioObjectPropertyScope(kAudioObjectPropertyScopeGlobal),
+                mElement: AudioObjectPropertyElement(kAudioObjectPropertyElementMain))
+            var pid: pid_t = 0
+            var pidSize = UInt32(MemoryLayout<pid_t>.size)
+            guard AudioObjectGetPropertyData(object, &pidAddress, 0, nil, &pidSize, &pid) == 0,
+                  pid != ProcessInfo.processInfo.processIdentifier else { continue }   // not our own talk meter
+            if let app = NSRunningApplication(processIdentifier: pid), let name = app.localizedName {
+                names.append(name)
+            }
+        }
+        return names
     }
 
     private static func isCameraInUse() -> Bool {

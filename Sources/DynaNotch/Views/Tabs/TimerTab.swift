@@ -20,6 +20,7 @@ struct TimerTab: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .topTrailing) { SoundscapeMenu() }
         .animation(.easeInOut(duration: 0.2), value: timer.isAlarmRinging)
     }
 }
@@ -428,5 +429,31 @@ struct PomodoroStatsRow: View {
                 .foregroundStyle(PanelStyle.secondary)
         }
         .lineLimit(1)
+    }
+}
+
+/// Focus Soundscapes (CONTRACTS §6.17): pick or stop the focus sound from the Timer tab.
+struct SoundscapeMenu: View {
+    @ObservedObject private var sounds = SoundscapeService.shared
+
+    var body: some View {
+        Menu {
+            ForEach(Soundscape.allCases, id: \.self) { sound in
+                Button {
+                    if sound == .none { sounds.stop() } else { sounds.play(sound) }
+                } label: {
+                    Label(sound.title, systemImage: sound.symbol)
+                }
+            }
+        } label: {
+            Image(systemName: sounds.isPlaying ? sounds.playing.symbol : "headphones")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(sounds.isPlaying ? PanelStyle.timer : PanelStyle.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(sounds.isPlaying ? "Focus sound: \(sounds.playing.title)" : "Focus sound")
+        .uiTestID("timer.soundscape")
     }
 }

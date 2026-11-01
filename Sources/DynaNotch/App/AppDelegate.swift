@@ -178,7 +178,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         point = NSPoint(x: frame.midX, y: frame.midY)
                     }
                     if let window = window, let point = point {
-                        UITestDriver.shared.click(in: window, at: point, modifiers: query["alt"] == "1" ? .option : [])
+                        UITestDriver.shared.click(in: window, at: point, modifiers: query["alt"] == "1" ? .option : [],
+                                                  direct: window === islandController?.testWindow)
                     }
                 case "menu":
                     if let item = query["item"] {
@@ -268,6 +269,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "displayMode": AppSettings.shared.displayMode.rawValue,
                     "islands": screensCoordinator?.extraStates ?? [],
                     "lockScreen": LockScreenController.shared.state,
+                    "copy": FileCopyMonitor.shared.state,
+                    "smartCopy": SmartCopyService.shared.state,
+                    "agent": AgentIslandService.shared.state,
+                    "alchemy": AlchemyService.shared.state,
+                    "vitals": MacVitalsService.shared.state,
+                    "wrap": DailyWrapService.shared.state,
+                    "voice": VoiceNoteService.shared.state,
+                    "focus": FocusGuardService.shared.state.merging([
+                        "soundscape": AppSettings.shared.soundscape,
+                        "playing": SoundscapeService.shared.playing.rawValue,
+                        "shakes": vm.shakeCount,
+                    ]) { a, _ in a },
+                    "privacy": [
+                        "inUse": PrivacyMonitor.shared.inUse.map(\.rawValue).sorted(),
+                        "micApps": PrivacyMonitor.microphoneApps(),
+                        "log": PrivacyMonitor.shared.log.sessions.prefix(3).map { "\($0.sensor) \($0.app) \($0.end == nil ? "open" : "closed")" },
+                        "call": MeetingMeter.shared.state,
+                    ] as [String: Any],
+                    "lastTap": vm.lastTap,
+                    "lastClick": UITestDriver.shared.lastClick,
                     "showsTimerControls": vm.showsTimerControls,
                     "sharingType": islandController?.sharingTypeName ?? "none",
                     "suppression": islandController?.suppressionReason ?? "none",
@@ -320,6 +341,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                     _ = self?.screensCoordinator?.firstExtraController?.snapshot(to: file)
                 }
+            case "copy":
+                // dynanotch://copy?name=Photos&fraction=0.42&left=90 · copy?done=1 → the copy progress pill
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                func value(_ key: String) -> String? { items.first { $0.name == key }?.value }
+                let name = value("name") ?? "Test.mov"
+                if value("done") != nil {
+                    FileCopyMonitor.shared.simulate(name: name, fraction: 1, secondsLeft: nil)
+                } else {
+                    FileCopyMonitor.shared.simulate(name: name, fraction: Double(value("fraction") ?? "") ?? 0.5,
+                                                    secondsLeft: value("left").flatMap { Int($0) })
+                }
+            case "agent":
+                // dynanotch://agent/answer?id=…&decision=allow|deny|terminal
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if argument == "install-test", let path = items.first(where: { $0.name == "settings" })?.value {
+                    // Installer test against a copy (never the real ~/.claude/settings.json): install, check, remove.
+                    ShellHookInstaller.claudeSettingsOverride = URL(fileURLWithPath: path)
+                    let ok = ShellHookInstaller.installAgentHooks(timeout: Int(AppSettings.shared.agentTimeout))
+                    let installed = ShellHookInstaller.agentHooksInstalled
+                    try? FileManager.default.copyItem(atPath: path, toPath: path + ".installed")
+                    ShellHookInstaller.removeAgentHooks()
+                    let removed = !ShellHookInstaller.agentHooksInstalled
+                    ShellHookInstaller.claudeSettingsOverride = nil
+                    AgentIslandService.shared.installTest = "ok=\(ok) installed=\(installed) removed=\(removed)"
+                }
+                if argument == "answer", let id = items.first(where: { $0.name == "id" })?.value,
+                   let decision = items.first(where: { $0.name == "decision" })?.value.flatMap(AgentDecision.init(rawValue:)) {
+                    let project = AgentIslandService.shared.requests.first { $0.id == id }?.project ?? "Claude"
+                    viewModel?.answerAgent(id: id, project: project, decision)
+                }
+            case "voice":
+                // dynanotch://voice?text=remind%20me%20to%20… → what that sentence would do (no listening)
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if let text = items.first(where: { $0.name == "text" })?.value { VoiceNoteService.shared.handle(text) }
+            case "wrap":
+                // dynanotch://wrap → today's Daily Wrap now
+                DailyWrapService.shared.showNow()
+            case "vitals":
+                // dynanotch://vitals/thermal|memory|disk|runaway → that alert now
+                MacVitalsService.shared.simulate(argument)
+            case "focusguard":
+                // dynanotch://focusguard?app=com.tinyspeck.slackmacgap → as if that app came to the front
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if let app = items.first(where: { $0.name == "app" })?.value {
+                    FocusGuardService.shared.activated(bundleID: app, name: items.first(where: { $0.name == "name" })?.value ?? "")
+                }
+            case "soundscape":
+                // dynanotch://soundscape/rain · soundscape/stop
+                if let sound = Soundscape(rawValue: argument), sound != .none {
+                    SoundscapeService.shared.play(sound)
+                } else {
+                    SoundscapeService.shared.stop()
+                }
+            case "sensor":
+                // dynanotch://sensor?kind=microphone&active=1&app=Zoom → as if that sensor turned on / off
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                func value(_ key: String) -> String? { items.first { $0.name == key }?.value }
+                if argument == "forget", let app = value("app") {
+                    PrivacyMonitor.shared.forget(app: app)   // test cleanup: drop one app's log entries
+                } else if let kind = value("kind").flatMap(SensorKind.init(rawValue:)) {
+                    PrivacyMonitor.shared.simulate(kind, active: value("active") == "1", app: value("app") ?? "")
+                }
+            case "shelf":
+                // dynanotch://shelf/remove?path=… — takes a file off the shelf (test cleanup; the file stays)
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if argument == "remove", let path = items.first(where: { $0.name == "path" })?.value {
+                    ShelfService.shared.items.filter { $0.path == path }.forEach { ShelfService.shared.remove($0) }
+                }
+            case "alchemy":
+                // dynanotch://alchemy?action=cutout&path=/path/to/file — same as dropping it on that zone
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if let raw = items.first(where: { $0.name == "action" })?.value, let action = AlchemyAction(rawValue: raw),
+                   let path = items.first(where: { $0.name == "path" })?.value {
+                    AlchemyService.shared.run(action, on: URL(fileURLWithPath: path))
+                }
+            case "convert":
+                // dynanotch://convert?text=%E2%82%AC42 → Smart Copy as if that text was copied (clipboard untouched)
+                let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if let text = items.first(where: { $0.name == "text" })?.value { SmartCopyService.shared.handle(text) }
             case "lockscreen":
                 // dynanotch://lockscreen/lock|unlock → as if the screen locked / unlocked (never locks the Mac)
                 if argument == "lock" || argument == "unlock" { UserPresence.shared.simulateLock(argument == "lock") }

@@ -61,7 +61,7 @@ public enum BluetoothDeviceKind: String, Equatable, Hashable, CaseIterable {
 }
 
 public enum ActivityCategory: String, Equatable, Hashable {
-    case hud, power, bluetooth, focus, calendar, timer, notification, download, privacy, toggle
+    case hud, power, bluetooth, focus, calendar, timer, notification, download, privacy, toggle, fileCopy, conversion, agent, call, vitals, wrap, voice
 }
 
 public enum SensorKind: String, Equatable, Hashable, CaseIterable {
@@ -85,8 +85,25 @@ public enum ActivityKind: Equatable {
     case timerFinished(label: String)
     case notification(title: String, body: String, symbol: String)
     case download(name: String, finished: Bool)
-    case sensor(SensorKind, active: Bool)
+    /// Camera / microphone on or off; `app` records ("" when unknown — the camera never says).
+    case sensor(SensorKind, active: Bool, app: String)
     case toggle(symbol: String, label: String, on: Bool)
+    /// A Finder copy in progress (CONTRACTS §6.12); fraction 1 = finished.
+    case fileCopy(name: String, fraction: Double, secondsLeft: Int?)
+    /// Smart Copy conversion of the copied text (CONTRACTS §6.13); click copies `result`.
+    case conversion(source: String, result: String, symbol: String)
+    /// Claude Code asks for permission (CONTRACTS §6.14): Allow / Deny / Terminal in the notch.
+    case agentRequest(id: String, project: String, tool: String, detail: String)
+    /// What a Claude Code session is doing; `done` after its reply.
+    case agentStatus(project: String, detail: String, done: Bool)
+    /// Meeting Meter (CONTRACTS §6.16): a call in progress, its start and your talk share.
+    case call(app: String, startedAt: Date, talkShare: Int?)
+    /// Mac Vitals (CONTRACTS §6.18): heat, memory pressure, low disk, a runaway app; a click opens Activity Monitor.
+    case vitals(title: String, detail: String, symbol: String)
+    /// Daily Wrap (CONTRACTS §6.19): today's highlights; a click closes it.
+    case wrap(lines: [WrapLine])
+    /// Voice Notes (CONTRACTS §6.20): live words while listening (`result` nil), then what happened.
+    case voice(text: String, result: String?)
 
     /// charging & lowBattery → .power
     public var category: ActivityCategory {
@@ -101,6 +118,13 @@ public enum ActivityKind: Equatable {
         case .download: return .download
         case .sensor: return .privacy
         case .toggle: return .toggle
+        case .fileCopy: return .fileCopy
+        case .conversion: return .conversion
+        case .agentRequest, .agentStatus: return .agent
+        case .call: return .call
+        case .vitals: return .vitals
+        case .wrap: return .wrap
+        case .voice: return .voice
         }
     }
 
@@ -117,6 +141,14 @@ public enum ActivityKind: Equatable {
         case .download: return 3.5
         case .sensor: return 3.0
         case .toggle: return 1.5
+        case .fileCopy(_, let fraction, _): return fraction >= 1 ? 1.5 : 8.0
+        case .conversion: return 4.0
+        case .agentRequest: return 60
+        case .agentStatus(_, _, let done): return done ? 2.5 : 6.0
+        case .call: return 20
+        case .vitals: return 8
+        case .wrap: return 20
+        case .voice(_, let result): return result == nil ? 35 : 2.5
         }
     }
 
@@ -133,6 +165,14 @@ public enum ActivityKind: Equatable {
         case .download: return 65
         case .sensor: return 88
         case .toggle: return 98
+        case .fileCopy: return 40
+        case .conversion: return 45
+        case .agentRequest: return 97
+        case .agentStatus: return 35
+        case .call: return 30
+        case .vitals: return 92
+        case .wrap: return 60
+        case .voice: return 96
         }
     }
 }

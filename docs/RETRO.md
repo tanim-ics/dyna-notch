@@ -28,3 +28,13 @@
   visibility; compare private-API setups with a known working reference before shipping, and keep a diagnostic
   (`lockScreen.lastLock`) that survives the real event.
 - macOS 27 SkyLight calls return 3 on success; check effects (window on-screen list), not return codes.
+
+## 2026-11-01 Agent Island buttons (owner: "just to make a button work you making kinds of issues")
+- Per-button gestures in the never-key island panel were unreliable under synthetic clicks; layered fixes (pointer
+  regions, arm delay, scale mapping) each added a new failure and cost an hour. The fix that held was the simplest:
+  the island's own tap reports where the click landed and the card's equal thirds decide the button.
+- Most "bugs" were the test harness: frames read mid-animation, a stale state.json, a test pointer stored in screen
+  coordinates, leftover background hooks. Lesson: when a UI test fails twice, check the harness first, and prefer
+  the simplest geometry-based handling over cleverness. Stop and tell the owner before going past ~3 attempts.
+- Known flaky (2026-11-01): "smart copy: click copies result" fails only inside the full `ui-regression.sh` run
+  (171/174), passes alone 8/8 — island state left by an earlier section. Open item.

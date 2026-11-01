@@ -266,3 +266,19 @@ lives ("Stays on this Mac").
 | About | Clear caches with sizes · Uninstall (remove data, login item, hooks) · What's New | P2 | ✅ (Uninstall never run in tests) | App Support sizes; `SMAppService.unregister` |
 | About | Updates, crash reports, iCloud sync, Insights / Wrapped | — | ❌ | personal unsigned build |
 | Calls & Messages, Stocks, Cuely, Terminal, Face Unlock, Pointer, Typing Sounds, Desktop Pet | | — | ❌ | private APIs / paid data / non-goals (unchanged) |
+
+### 2f. Owner's next ten (2026-11-01) — DynaNotch originals beyond Notchy
+
+| Feature | What | Status | How |
+|---|---|---|---|
+| Smart Copy · copy progress | Pill becomes a green progress bar during Finder copies; text flips colour at the fill edge | ✅ | `Progress.addSubscriber` per destination folder + FSEvents (CONTRACTS §6.12) |
+| Smart Copy · conversions | Copied amounts / units / times / numbers → instant conversion peek; click copies | ✅ | Core `SmartConvert`, Frankfurter (keyless ECB rates) (CONTRACTS §6.13) |
+| Agent Island | Allow / Deny / Terminal for Claude Code permission requests; live session status in the pill | ✅ (fake requests via the hook script; hooks install from Settings → AI Usage) | `PermissionRequest` hook ↔ file handshake (CONTRACTS §6.14) |
+| Drop Alchemy | Drop zones on the shelf + context menu: cutout, copy text, shrink, PNG / JPEG | ✅ | Vision, ImageIO, PDFKit (CONTRACTS §6.15) |
+| Meeting Meter | Call timer in the pill, recap when it ends; opt-in talk share | ✅ (talk share needs Microphone access — not exercised in tests); "still unmuted?" dropped: no reliable signal for a call's end | mic on ≥ 15 s = call; AVAudioEngine level only (CONTRACTS §6.16) |
+| Camera Guard+ | Mic popup names the app, dot while on, usage log in Settings | ✅ (quit button and unexpected-use alert not built) | CoreAudio process objects (macOS 14.2+) |
+| Focus Guard | Distraction apps during a Pomodoro focus phase shake the island + nudge; minutes lost at the end | ✅ | `NSWorkspace` activation (CONTRACTS §6.17) |
+| Focus Soundscapes | Rain, brown / pink noise, fireplace — generated; Timer tab menu; starts with focus, fades on breaks | ✅ (café dropped: needs recorded audio) | `AVAudioSourceNode` (CONTRACTS §6.17) |
+| Mac Vitals | Heat, memory pressure, disk almost full, an app at a full core for 2 min; click opens Activity Monitor | ✅ (no Quit button: too easy to hit by accident) | `ProcessInfo` thermal, memory-pressure source, `proc_pid_rusage` every 60 s (CONTRACTS §6.18) |
+| Daily Wrap | One end-of-day card: time at the Mac + top apps, Pomodoros, commits, most-played, Claude cost | ✅ (one card, not a swipeable set; no weekly version yet) | existing local data + `git rev-list` (CONTRACTS §6.19) |
+| Voice Notes | Shortcut or knock → speak → note / reminder / timer, live words in the island | ✅ (command path tested via hook; live recognition needs the owner's voice + permission) — press-to-toggle, not hold | `SFSpeechRecognizer` on-device only (CONTRACTS §6.20) |
