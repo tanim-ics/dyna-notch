@@ -39,7 +39,9 @@ if entry.get("headline"):
     print("## " + entry["headline"] + "\n")
 for feature in entry["features"]:
     print("- **%s**: %s" % (feature["title"], feature.get("text", "")))
-print("\nInstall: `brew install --cask tanim-ics/dyna-notch/dynanotch` — or click Update in DynaNotch.")
+print("\nInstall: download `DynaNotch-%s.dmg` below and drag DynaNotch to Applications (first open: System Settings → "
+      "Privacy & Security → Open Anyway), or `brew install --cask tanim-ics/dyna-notch/dynanotch`, or click Update in "
+      "DynaNotch." % sys.argv[2])
 PY
 
 # Ad hoc unless a Developer ID is available (docs/SECURITY.md). With RELEASE_IDENTITY (or a "Developer ID Application"
@@ -73,6 +75,30 @@ security find-generic-password -s com.tanim.dynanotch.release-signing -a ed25519
     | swift scripts/release-tools/release-key.swift sign "$ZIP" >"$SIG"
 echo "==> $SIG"
 
+# A DMG of the same app for people who download by hand (drag to Applications), signed like the zip.
+DMG="build/DynaNotch-$VERSION.dmg"
+STAGE="build/dmg-staging"
+rm -rf "${STAGE:?}" "$DMG"
+mkdir -p "$STAGE"
+ditto build/DynaNotch.app "$STAGE/DynaNotch.app"
+ln -s /Applications "$STAGE/Applications"
+cat >"$STAGE/First Open.txt" <<EOF
+DynaNotch $VERSION
+
+1. Drag DynaNotch onto the Applications folder.
+2. Open DynaNotch from Applications.
+
+macOS will say it can't check the app (it isn't signed with a paid Apple developer ID).
+To open it anyway:
+  System Settings → Privacy & Security → scroll down → "Open Anyway" next to DynaNotch.
+You only do this once. After that, DynaNotch updates itself from the notch.
+EOF
+hdiutil create -volname "DynaNotch $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null 2>&1
+rm -rf "${STAGE:?}"
+security find-generic-password -s com.tanim.dynanotch.release-signing -a ed25519 -w \
+    | swift scripts/release-tools/release-key.swift sign "$DMG" >"$DMG.sig"
+echo "==> $DMG"
+
 sed -i '' -E \
     -e "s/^(  version )\".*\"/\1\"$VERSION\"/" \
     -e "s/^(  sha256 )\".*\"/\1\"$SHA\"/" \
@@ -81,6 +107,6 @@ echo "==> $ZIP"
 echo "    version $VERSION  sha256 $SHA  ($CASK updated)"
 
 if [ "$PUBLISH" -eq 1 ]; then
-    gh release create "v$VERSION" "$ZIP" "$SIG" "$NOTES_JSON" --title "DynaNotch $VERSION" --notes-file "$NOTES_MD"
+    gh release create "v$VERSION" "$ZIP" "$SIG" "$DMG" "$DMG.sig" "$NOTES_JSON" --title "DynaNotch $VERSION" --notes-file "$NOTES_MD"
     echo "==> published v$VERSION — commit and push $CASK so brew sees the new version"
 fi

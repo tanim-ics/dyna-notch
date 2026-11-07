@@ -5,7 +5,15 @@ Hover over the notch to open a panel with your music, timers, clipboard, files, 
 
 ## Install
 
-You need macOS 14 or later on an Apple-silicon Mac (Xcode 16 or later only to build from source). Pick one of the two ways below.
+You need macOS 14 or later on an Apple-silicon Mac (Xcode 16 or later only to build from source). Pick one of the three ways below.
+
+### Download the DMG
+
+1. Download `DynaNotch-<version>.dmg` from the [latest release](https://github.com/tanim-ics/dyna-notch/releases/latest).
+2. Open it and drag DynaNotch onto Applications.
+3. Open DynaNotch. macOS says it can't check the app, because it isn't signed with a paid Apple developer ID: go to
+   **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once; after that
+   DynaNotch updates itself from the notch.
 
 ### With Homebrew
 
