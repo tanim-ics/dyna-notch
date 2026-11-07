@@ -1,0 +1,365 @@
+<title>DynaNotch Security Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a "border crossing" — every row runs left to right: where it comes from → the guard → what passes / what is stopped. */
+:root {
+  --bg: #eef1f4;
+  --paper: #ffffff;
+  --ink: #15202b;
+  --muted: #56626e;
+  --line: #d3dae1;
+  --notch: #0d1117;
+  --guard: #0f6e63;
+  --guard-soft: #dff1ee;
+  --ok: #2d7a3a;
+  --ok-soft: #e3f3e5;
+  --stop: #b23a24;
+  --stop-soft: #fbe7e2;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1419; --paper: #171e25; --ink: #e8edf2; --muted: #9aa7b3; --line: #2a343e; --notch: #000000;
+    --guard: #4cc3b2; --guard-soft: #12302c; --ok: #6fcf7f; --ok-soft: #15301b; --stop: #f08a72; --stop-soft: #3a1d17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1419; --paper: #171e25; --ink: #e8edf2; --muted: #9aa7b3; --line: #2a343e; --notch: #000000;
+  --guard: #4cc3b2; --guard-soft: #12302c; --ok: #6fcf7f; --ok-soft: #15301b; --stop: #f08a72; --stop-soft: #3a1d17;
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font: 17px/1.55 var(--font-body); }
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+  display: grid; gap: 48px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font: 500 0.78rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--guard); }
+.lede { font-size: 1.15rem; color: var(--muted); }
+
+/* Hero */
+header { display: grid; gap: 16px; }
+.map { background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: 24px; overflow-x: auto; }
+.map svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.map text { font-family: var(--font-body); }
+
+/* Legend */
+.legend { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 0.95rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.dot { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+/* Flows */
+.flows { display: grid; gap: 20px; }
+.flow {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 22px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1.25fr) 28px minmax(0, 1.4fr); align-items: stretch; gap: 10px;
+}
+.flow > * { min-width: 0; }
+.src, .guardbox, .outcomes { display: grid; gap: 8px; align-content: start; }
+.src .tag, .guardbox .tag { font: 500 0.72rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.src h3 { display: flex; gap: 10px; align-items: center; }
+.src p, .guardbox p { font-size: 0.97rem; color: var(--muted); }
+.guardbox { background: var(--guard-soft); border: 2px solid var(--guard); border-radius: 14px; padding: 14px 16px; }
+.guardbox h3 { color: var(--guard); display: flex; gap: 8px; align-items: center; }
+.guardbox p { color: var(--ink); }
+.arrow { display: grid; place-items: center; color: var(--line); }
+.arrow svg { width: 28px; height: 28px; }
+.pass, .block { border-radius: 12px; padding: 10px 14px; font-size: 0.95rem; }
+.pass { background: var(--ok-soft); }
+.block { background: var(--stop-soft); }
+.pass b { color: var(--ok); }
+.block b { color: var(--stop); }
+.proof { font: 500 0.78rem/1.4 var(--font-mono); color: var(--muted); }
+.ico { width: 22px; height: 22px; flex: none; }
+
+/* Checks + limits */
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: 24px; display: grid; gap: 14px; align-content: start; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stat b { display: block; font: 800 1.9rem/1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--guard); }
+.stat span { font-size: 0.92rem; color: var(--muted); }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+footer { color: var(--muted); font-size: 0.9rem; }
+
+@media (max-width: 860px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .arrow { transform: rotate(90deg); height: 24px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .flow { transition: border-color .2s; }
+  .flow:hover { border-color: var(--guard); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">DynaNotch · version 3.3 · November 2026</div>
+    <h1>How every part of DynaNotch is kept safe</h1>
+    <p class="lede">DynaNotch lives in your Mac's notch and is trusted with a lot: your clipboard, your notes, your camera,
+      and permission to control other apps. This map shows every way something from outside can reach it, the guard
+      that stands in the way, and what that guard lets through or stops.</p>
+  </header>
+
+  <!-- Big picture -->
+  <section class="map" aria-label="Big picture: the outside world, DynaNotch's guards, your private things">
+    <svg viewBox="0 0 1000 330" role="img" aria-labelledby="mapTitle">
+      <title id="mapTitle">Things from outside on the left pass a ring of guards around DynaNotch before they can reach your private things on the right.</title>
+      <!-- outside -->
+      <g font-size="15" fill="var(--ink)">
+        <text x="20" y="30" font-weight="700" fill="var(--muted)" font-size="13" letter-spacing="1.5">OUTSIDE WORLD</text>
+        <g>
+          <rect x="20" y="48" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="70">Websites and email links</text>
+          <rect x="20" y="92" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="114">Other programs</text>
+          <rect x="20" y="136" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="158">Files you drop in</text>
+          <rect x="20" y="180" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="202">Claude Code requests</text>
+          <rect x="20" y="224" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="246">App updates</text>
+          <rect x="20" y="268" width="200" height="34" rx="17" fill="var(--paper)" stroke="var(--line)"/>
+          <text x="36" y="290">Things you copy</text>
+        </g>
+      </g>
+      <!-- arrows in -->
+      <g stroke="var(--muted)" stroke-width="2" fill="none" marker-end="url(#head)">
+        <path d="M222 65 C 300 65, 320 140, 368 150"/>
+        <path d="M222 109 C 300 109, 320 150, 368 158"/>
+        <path d="M222 153 L 368 165"/>
+        <path d="M222 197 L 368 172"/>
+        <path d="M222 241 C 300 241, 320 185, 368 180"/>
+        <path d="M222 285 C 300 285, 320 195, 368 188"/>
+      </g>
+      <defs>
+        <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+        </marker>
+      </defs>
+      <!-- guard ring + notch -->
+      <rect x="370" y="60" width="260" height="220" rx="36" fill="var(--guard-soft)" stroke="var(--guard)" stroke-width="3" stroke-dasharray="10 7"/>
+      <text x="500" y="92" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1.5" fill="var(--guard)">9 GUARDS</text>
+      <rect x="420" y="140" width="160" height="50" rx="25" fill="var(--notch)"/>
+      <text x="500" y="171" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">DynaNotch</text>
+      <text x="500" y="228" text-anchor="middle" font-size="14" fill="var(--ink)">Each path is checked</text>
+      <text x="500" y="248" text-anchor="middle" font-size="14" fill="var(--ink)">before anything happens</text>
+      <!-- arrows out -->
+      <g stroke="var(--ok)" stroke-width="2.5" fill="none" marker-end="url(#headOk)">
+        <path d="M632 140 C 700 120, 720 90, 768 86"/>
+        <path d="M632 170 L 768 170"/>
+        <path d="M632 200 C 700 220, 720 250, 768 254"/>
+      </g>
+      <defs>
+        <marker id="headOk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--ok)"/>
+        </marker>
+      </defs>
+      <!-- private side -->
+      <g font-size="15" fill="var(--ink)">
+        <text x="770" y="30" font-weight="700" fill="var(--muted)" font-size="13" letter-spacing="1.5">YOUR PRIVATE THINGS</text>
+        <rect x="770" y="66" width="210" height="44" rx="12" fill="var(--paper)" stroke="var(--line)"/>
+        <text x="786" y="93">Camera, mic, other apps</text>
+        <rect x="770" y="148" width="210" height="44" rx="12" fill="var(--paper)" stroke="var(--line)"/>
+        <text x="786" y="175">Clipboard, notes, history</text>
+        <rect x="770" y="232" width="210" height="44" rx="12" fill="var(--paper)" stroke="var(--line)"/>
+        <text x="786" y="259">The app itself</text>
+        <text x="770" y="310" font-size="13" fill="var(--muted)">Only reachable after a guard says yes</text>
+      </g>
+    </svg>
+  </section>
+
+  <section style="display:grid; gap:20px">
+    <h2>The nine paths in, one by one</h2>
+    <div class="legend" aria-label="Legend">
+      <span><i class="dot" style="background:var(--guard)"></i>The guard (what checks it)</span>
+      <span><i class="dot" style="background:var(--ok)"></i>Allowed through</span>
+      <span><i class="dot" style="background:var(--stop)"></i>Stopped</span>
+    </div>
+
+    <div class="flows">
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Links in websites and emails</h3>
+          <p>Any web page or email can contain a special <code>dynanotch://</code> link that talks to the app.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>Only harmless buttons work from outside</h3>
+          <p>Like a shop window: outsiders can ring the bell, but they can't walk into the back room. Links may only do
+            things that can't hurt you, and only a few at a time.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> show a short message, open the panel, open a harmless tab, start a timer.</div>
+          <div class="block"><b>Stopped:</b> changing settings, clicking buttons for you, approving Claude Code,
+            turning on the camera, showing your clipboard or notes, crashing the app, flooding you with pop-ups
+            (more than 8 in 10 seconds).</div>
+          <div class="proof">Tested: 10 attack links in every test run, all refused.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Your own scripts and tests</h3>
+          <p>You (or the test suite) sometimes need full control, for example to check every screen automatically.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>A private door with your name on it</h3>
+          <p>Full control goes through a private door inside your user folder. The Mac itself checks who is knocking:
+            only programs running as you get in. There is no password that could leak.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> your own scripts and the automatic tests.</div>
+          <div class="block"><b>Stopped:</b> other user accounts on the Mac, websites, anything that isn't you.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Other programs</h3>
+          <p>A sneaky program could try to slip its own code inside DynaNotch to borrow DynaNotch's permissions
+            (camera, microphone, controlling your Mac).</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>A sealed app ("hardened runtime")</h3>
+          <p>DynaNotch is sealed by macOS: no outside code can be loaded into it, and it only holds the five
+            permissions its features need.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> DynaNotch's own code and Apple's system parts.</div>
+          <div class="block"><b>Stopped:</b> injected code, unsigned add-ons, debuggers attaching to it.</div>
+          <div class="proof">Tested: a planted add-on got into an unsealed copy and was blocked by the real app.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>App updates</h3>
+          <p>DynaNotch can update itself from the internet. A fake update would be the easiest way to take over.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>Four checks, like a passport control</h3>
+          <p>1. It comes from DynaNotch's own release page, over a secure connection.<br>
+             2. Its fingerprint matches the one GitHub published.<br>
+             3. It carries the owner's personal seal. The seal's key lives only in the owner's Keychain.<br>
+             4. The app inside is really DynaNotch.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> genuine releases that pass all four checks.</div>
+          <div class="block"><b>Stopped:</b> downloads from anywhere else, damaged or changed files, and even
+            a release uploaded by someone who broke into the GitHub account (they don't have the seal).</div>
+          <div class="proof">Tested: changing one bit of an update makes the seal fail.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Files you drop on the notch</h3>
+          <p>Drop Alchemy turns pictures and PDFs into cutouts, text or smaller copies. A booby-trapped file could
+            attack the program that opens it.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>Opened in a sealed room</h3>
+          <p>Files are opened by a separate helper locked in a sandbox: no internet, no reading your files, no saving
+            anywhere except its own scratch space, no access to your permissions.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> the finished picture, text or PDF, which DynaNotch then puts next to your file.</div>
+          <div class="block"><b>Stopped:</b> a hijacked helper reading your files or clipboard, writing to your
+            Desktop, or going online.</div>
+          <div class="proof">Tested from inside the sealed room: all four escape attempts failed.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Claude Code asking for permission</h3>
+          <p>An AI coding assistant asks "may I run this command?" in the notch. A trick could hide the dangerous part.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>What you see is what runs</h3>
+          <p>Invisible and back-to-front characters are removed, long gaps are squeezed out, and the end of a long
+            command is always shown. The buttons ignore clicks for the first second, so a request that pops up
+            under your mouse can't be approved by accident.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> your deliberate Allow, Deny or Terminal click.</div>
+          <div class="block"><b>Stopped:</b> hidden commands, disguised text, accidental approvals, websites answering for you.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Things you copy</h3>
+          <p>DynaNotch keeps a clipboard history. People copy passwords, keys and card numbers all the time.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>A secret spotter</h3>
+          <p>Every copy is checked. Passwords, private keys, access tokens, card numbers and bank numbers are never
+            written down. One-time codes disappear after 2 minutes. Everything else clears after a day, or when you
+            lock the Mac if you choose.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> ordinary text, links, images and files.</div>
+          <div class="block"><b>Stopped:</b> secrets ending up in your history; password managers are ignored completely.</div>
+          <div class="proof">Tested with fake keys and card numbers: none were saved.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Someone with a copy of your files</h3>
+          <p>A backup disk, a cloud folder or a stolen hard drive could contain DynaNotch's saved data.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>Locked with a key inside your Mac's chip</h3>
+          <p>Clipboard history, notes, to-dos and other history are encrypted. The key lives in the Mac's security
+            chip (the Secure Enclave) and can never be copied out. The folder is also closed to other users.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> DynaNotch on this Mac, with no password prompts. Notes can be exported to move them.</div>
+          <div class="block"><b>Stopped:</b> reading the data on any other computer or from any backup.</div>
+          <div class="proof">Checked: every data file on the owner's Mac is encrypted; all 50 clipboard items still opened.</div>
+        </div>
+      </article>
+
+      <article class="flow">
+        <div class="src"><span class="tag">Comes from</span><h3>Screen sharing and system logs</h3>
+          <p>Video calls, screen recordings and the Mac's diagnostic logs can show what's on screen or in the app.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="guardbox"><span class="tag">Guard</span><h3>Invisible to cameras, quiet in logs</h3>
+          <p>The notch panel is hidden from screen shares and recordings (you still see it). Names, titles and file
+            paths are blanked out in the Mac's logs and bug reports.</p></div>
+        <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12h15m-5-6 6 6-6 6"/></svg></div>
+        <div class="outcomes">
+          <div class="pass"><b>Allowed:</b> you seeing everything on your own screen.</div>
+          <div class="block"><b>Stopped:</b> people on a call seeing your clipboard or notes; personal details in shared logs.</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="two">
+    <div class="panel">
+      <span class="eyebrow">How it stays this way</span>
+      <h2>Checked automatically</h2>
+      <div class="stats">
+        <div class="stat"><b>344</b><span>small tests of the app's logic</span></div>
+        <div class="stat"><b>400,000</b><span>random, nasty inputs thrown at it without a single crash</span></div>
+        <div class="stat"><b>200+</b><span>clicks and checks on the real, running app</span></div>
+        <div class="stat"><b>2</b><span>memory and timing checkers ("sanitizers"), both clean</span></div>
+      </div>
+      <p>Every attack found during testing became a permanent check, so it can't quietly come back.</p>
+    </div>
+    <div class="panel">
+      <span class="eyebrow">Honest limits</span>
+      <h2>What no app can stop</h2>
+      <ul class="plain">
+        <li>A harmful program you already installed and run as yourself can do what you can do.</li>
+        <li>Someone who knows your Mac password and has your Mac in hand.</li>
+        <li>Bugs inside macOS itself.</li>
+        <li>On a new Mac, old encrypted history can't be read. That is by design, so export your notes first.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Technical details for developers: <code>docs/SECURITY.md</code> in the DynaNotch repository.</footer>
+</div>

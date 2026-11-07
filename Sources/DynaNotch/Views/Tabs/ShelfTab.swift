@@ -205,17 +205,27 @@ private struct AlchemyZone: View {
                 .strokeBorder(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         )
         .animation(.easeOut(duration: 0.12), value: targeted)
-        .onDrop(of: [UTType.fileURL], isTargeted: $targeted) { providers in
-            let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
-            for provider in files {
-                FileURLLoader.load(from: provider) { url in
-                    if let url = url { AlchemyService.shared.run(action, on: url) }
-                }
-            }
-            return !files.isEmpty
+        .onDrop(of: [UTType.fileURL], isTargeted: $targeted) { (providers: [NSItemProvider]) -> Bool in
+            AlchemyZoneDrop.handle(providers, action: action)
         }
         .help("Drop a file here: \(action.detail.lowercased())")
         .accessibilityLabel("\(action.title) drop zone: \(action.detail)")
         .uiTestID("alchemy-\(action.rawValue)")
+    }
+}
+
+/// Drop on a Drop Alchemy zone (kept out of the view body: older compilers time out type-checking it inline).
+enum AlchemyZoneDrop {
+    static func handle(_ providers: [NSItemProvider], action: AlchemyAction) -> Bool {
+        let typeID: String = UTType.fileURL.identifier
+        let files: [NSItemProvider] = providers.filter { (provider: NSItemProvider) -> Bool in
+            provider.hasItemConformingToTypeIdentifier(typeID)
+        }
+        for provider in files {
+            FileURLLoader.load(from: provider) { (url: URL?) in
+                if let url = url { AlchemyService.shared.run(action, on: url) }
+            }
+        }
+        return !files.isEmpty
     }
 }
