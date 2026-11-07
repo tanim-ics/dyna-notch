@@ -151,7 +151,8 @@ final class UpdateService: ObservableObject {
                                 text: "A new version is ready with fixes and improvements."),
                 ])]
         }
-        guard let url = found.notesURL else {
+        // Notes only from this repository's releases; a test feed falls back to the release body.
+        guard let url = found.notesURL, UpdateTrust.isTrustedAsset(url) else {
             completion(fallback())
             return
         }
@@ -204,10 +205,16 @@ final class UpdateService: ObservableObject {
         case .downloading, .installing: return
         default: break
         }
+        // Only this repository's GitHub release over HTTPS, with the SHA-256 GitHub published for it
+        // (docs/SECURITY.md). The ad-hoc signature alone proves nothing: anyone can sign with our identifier.
+        guard UpdateTrust.canInstall(found) else {
+            fail("This update can't be verified, so it wasn't installed.")
+            return
+        }
         let appURL = Bundle.main.bundleURL
         guard FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) else {
             logger.error("app folder not writable, opening release page")
-            NSWorkspace.shared.open(found.pageURL)
+            if UpdateTrust.isTrustedPage(found.pageURL) { NSWorkspace.shared.open(found.pageURL) }
             return
         }
         status = .downloading(0)
@@ -261,10 +268,11 @@ final class UpdateService: ObservableObject {
 
     /// Off the main queue: digest, unzip, bundle id, version, signature and its requirement.
     private static func prepare(zip: URL, update found: AvailableUpdate) -> Prepared {
-        if let expected = found.sha256 {
-            guard let data = try? Data(contentsOf: zip, options: .mappedIfSafe) else { return .failure("Can't read the download.") }
-            let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-            guard actual == expected else { return .failure("The download is damaged (checksum mismatch).") }
+        guard let expected = found.sha256 else { return .failure("The download has no checksum to verify.") }
+        guard let data = try? Data(contentsOf: zip, options: .mappedIfSafe) else { return .failure("Can't read the download.") }
+        let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard URLHookPolicy.constantTimeEqual(actual, expected) else {
+            return .failure("The download is damaged (checksum mismatch).")
         }
         let unpack = workDirectory().appendingPathComponent("unpacked")
         try? FileManager.default.removeItem(at: unpack)

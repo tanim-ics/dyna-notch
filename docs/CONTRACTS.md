@@ -490,7 +490,7 @@ public struct DownloadTracker { public init()
 // Notify.swift
 public struct NotchNotification: Equatable { public var title: String; public var body: String; public var symbol: String; public var duration: TimeInterval?; public var openURL: URL? }
 public enum NotifyURL {
-    /// dynanotch://notify?title=&body=&symbol=&duration=&open= (title or body required; symbol default "bell.fill"; duration 1...30; open = http/https/file URL, §6.10a)
+    /// dynanotch://notify?title=&body=&symbol=&duration=&open= (title or body required; symbol default "bell.fill"; duration 1...30; open = http/https URL, §6.10a)
     public static func parse(_ url: URL) -> NotchNotification?
 }
 
@@ -784,7 +784,7 @@ serialised with the scratchpad `applock.sh` lock.
   hasTarget:)`). Leaving releases it after 1.5 s. A click elsewhere on it opens the target.
 - Core `PopupTarget` (`.tab(PanelTab)` / `.url(URL)`, `buttonTitle`, `forCategory(AlertCategory)`, `openURL(String?)`
   http/https/file only) and `ActivityKind.defaultPopupTarget`. `postNotification(…, target:)`; drives open their volume.
-- `NotchNotification.openURL`; `dynanotch://notify?…&open=<http|https|file URL>` sets what Open does.
+- `NotchNotification.openURL`; `dynanotch://notify?…&open=<http|https URL>` sets what Open does (no `file:`, SECURITY.md).
 - Bluetooth: Core `BluetoothAlertFilter` (in `BluetoothService`) skips `.generic` / nameless devices (phones, Continuity
   links — they showed a "radio waves" icon and "Connected") and repeats for the same device within 20 s.
 - state.json `holdsPopup`, `canvasWidth`.
@@ -1010,3 +1010,10 @@ serialised with the scratchpad `applock.sh` lock.
 - Hooks: `dynanotch://whatsnew` (story of the current version), `update/check`, `update/show`, `update/install`,
   `update/feed?url=` (test feed instead of GitHub, in memory), `snapshot-whatsnew/<name>`, `ui/click?window=whatsnew`.
   state.json `update` = {status, latest, lastChecked, lastSeen, story: {shown, mode, index, count, paused}}.
+
+### 6.22 URL-hook token and update trust (2026-11-07, security pass — docs/SECURITY.md)
+- Core `URLHookPolicy` (`publicActions`, `isAllowed(action:token:expected:)`, `constantTimeEqual`, `hexToken`),
+  `SafeFileName` (`sanitize`, `isInside`), `UpdateTrust` (`isTrustedAsset`, `isTrustedPage`, `canInstall`),
+  `AgentRequest.isValidID`. App `URLHookGate` (`token`, `publishToken()`, `allows(_:)`).
+- Every non-public `dynanotch://` hook needs `token=` (per-launch, `test-token`, 0600). Updates install only from this
+  repository's GitHub releases with a published SHA-256. `PopupTarget.openURL` is http/https only.

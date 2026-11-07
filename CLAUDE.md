@@ -12,6 +12,7 @@ This file holds what every change must respect. Reference material lives in `doc
 | `docs/ROADMAP.md` | Feature-parity boards, gap list with priorities and ✅/⏳/❌ status | A feature lands or is dropped |
 | `docs/UX.md` | Visual / motion spec | A screen's behaviour changes |
 | `docs/DECISIONS.md` | Owner decisions and process log, dated | The owner decides something |
+| `docs/SECURITY.md` | Threat model: URL-hook token, update trust, Agent Island | A hook, download or file input changes |
 | `SCORECARD.md` | Performance, sanitizer and test results | After each quality pass |
 | `README.md` | Short user guide (install = `./build.sh`) | User-visible behaviour changes |
 
@@ -36,8 +37,8 @@ keyed network services, App Store / notarised distribution, licensing. Network u
 | Task | Command |
 |---|---|
 | Test, build, sign, install, launch | `./build.sh` (`--skip-tests`, `--no-install`, `--dmg`, `--debug`) |
-| Unit tests (Core, 310) | `swift test` |
-| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 199 UI checks against the running app |
+| Unit tests (Core, 319) | `swift test` |
+| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 206 UI checks against the running app |
 | Health (crashes, hangs, log errors, idle energy) | `scripts/health.sh [days]` |
 | Live log | `log stream --predicate 'subsystem == "com.tanim.dynanotch"'` |
 
@@ -108,7 +109,9 @@ A change is done when **all** of these hold:
 4. `docs/ROADMAP.md` row flipped, `docs/CONTRACTS.md` updated if an API changed.
 5. No energy regression: `scripts/health.sh 0` idle numbers within budget.
 
-**Test hooks** (no Accessibility needed; implemented in `AppDelegate` / `App/UITestDriver.swift`):
+**Test hooks** (no Accessibility needed; implemented in `AppDelegate` / `App/UITestDriver.swift`). Only the public hooks
+(`notify`, `tab`, `expand`, `collapse`, `settings`, `timer`, `simulate`, `pin` …) work without `token=<secret>` from
+`~/Library/Application Support/DynaNotch/test-token`; `scripts/ui-regression.sh` → `u()` adds it. See `docs/SECURITY.md`:
 
 | Hook | Does |
 |---|---|

@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = AppLaunch.uptime   // pin the launch time for SettingsSceneRedirect
+        URLHookGate.publishToken()   // test hooks need it (docs/SECURITY.md)
         NSApp.setActivationPolicy(.accessory)
 
         let vm = IslandViewModel()
@@ -91,7 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// dynanotch://tab/<tab>, dynanotch://notify?title=…&body=…&symbol=…&duration=…
     /// Used by scripts/build_agent.sh and shell hooks (e.g. Claude Code) to drive the island.
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.scheme == "dynanotch" {
+        // Public hooks (notify, tab, timer …) are open to everyone; the rest need the per-launch token
+        // (URLHookGate), because any web page, mail or document can open a dynanotch:// link.
+        for url in urls where url.scheme?.lowercased() == "dynanotch" && URLHookGate.allows(url) {
             let action = url.host ?? ""
             let argument = url.pathComponents.dropFirst().first ?? ""
             switch action {
@@ -145,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 WhatsNewController.shared.snapshot(
-                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(argument.isEmpty ? "whatsnew" : argument).png"))
+                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(SafeFileName.sanitize(argument, fallback: "whatsnew")).png"))
             case "tab":
                 if let tab = PanelTab(rawValue: argument) { viewModel?.open(tab: tab) }
             case "notify":
@@ -159,12 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 _ = CommandPaletteController.shared.snapshot(
-                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(argument.isEmpty ? "palette" : argument).png"))
+                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(SafeFileName.sanitize(argument, fallback: "palette")).png"))
             case "snapshot-welcome":
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 WelcomeController.shared.snapshot(
-                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(argument.isEmpty ? "welcome" : argument).png"))
+                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(SafeFileName.sanitize(argument, fallback: "welcome")).png"))
             case "set":
                 // dynanotch://set?dn.notchDisplayStyle=pill → changes settings like the Settings UI does (testing)
                 var dict: [String: Any] = [:]
@@ -366,7 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             case "snapshot":
                 // dynanotch://snapshot/<name> → ~/Library/Application Support/DynaNotch/Snapshots/<name>.png
-                let name = argument.isEmpty ? "panel" : argument
+                let name = SafeFileName.sanitize(argument, fallback: "panel")
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")
@@ -376,7 +379,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             case "snapshot-extra":
                 // dynanotch://snapshot-extra/<name> → the first extra island (Show On → Every display)
-                let name = argument.isEmpty ? "extra" : argument
+                let name = SafeFileName.sanitize(argument, fallback: "extra")
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")
@@ -397,7 +400,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "agent":
                 // dynanotch://agent/answer?id=…&decision=allow|deny|terminal
                 let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-                if argument == "install-test", let path = items.first(where: { $0.name == "settings" })?.value {
+                if argument == "install-test", let path = items.first(where: { $0.name == "settings" })?.value,
+                   SafeFileName.isInside(path, directory: NSTemporaryDirectory())
+                    || SafeFileName.isInside(path, directory: "/private/tmp") {
                     // Installer test against a copy (never the real ~/.claude/settings.json): install, check, remove.
                     ShellHookInstaller.claudeSettingsOverride = URL(fileURLWithPath: path)
                     let ok = ShellHookInstaller.installAgentHooks(timeout: Int(AppSettings.shared.agentTimeout))
@@ -467,7 +472,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if argument == "lock" || argument == "unlock" { UserPresence.shared.simulateLock(argument == "lock") }
             case "snapshot-lockscreen":
                 // dynanotch://snapshot-lockscreen/<name> → the lock-screen strip as it would look now
-                let name = argument.isEmpty ? "lockscreen" : argument
+                let name = SafeFileName.sanitize(argument, fallback: "lockscreen")
                 let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                     ?? URL(fileURLWithPath: NSTemporaryDirectory())
                 let file = base.appendingPathComponent("DynaNotch/Snapshots/\(name).png")

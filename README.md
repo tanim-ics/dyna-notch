@@ -129,7 +129,8 @@ Send yourself a notch notification from any script, e.g. a Claude Code hook:
 open -g "dynanotch://notify?title=Build&body=Done&symbol=hammer.fill"
 ```
 
-Add `&open=https://…` (or a `file://` path) to give the popup an **Open** button.
+Add `&open=https://…` to give the popup an **Open** button. Only `notify`, `tab`, `timer` and a few other harmless
+links work from outside; see `docs/SECURITY.md`.
 
 Other URLs: `dynanotch://tab/<name>`, `dynanotch://timer/<minutes>`, `dynanotch://timer/stop`.
 

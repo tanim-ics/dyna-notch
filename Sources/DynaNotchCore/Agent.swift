@@ -26,7 +26,7 @@ public struct AgentRequest: Equatable, Identifiable {
     /// The JSON the hook script writes to `requests/<id>.json`.
     public static func parse(_ data: Data) -> AgentRequest? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let id = obj["id"] as? String, !id.isEmpty else { return nil }
+              let id = obj["id"] as? String, AgentRequest.isValidID(id) else { return nil }
         let tool = obj["tool"] as? String ?? ""
         let input = obj["input"] as? [String: Any] ?? [:]
         let created = (obj["createdAt"] as? NSNumber)?.doubleValue ?? 0

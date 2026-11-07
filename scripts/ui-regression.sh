@@ -16,7 +16,13 @@ FAIL=0
 
 pgrep -x DynaNotch >/dev/null || { echo "DynaNotch is not running (run ./build.sh first)"; exit 1; }
 
-u() { open -g "dynanotch://$1"; sleep "${2:-0.7}"; }
+# Test hooks need the per-launch secret the app writes for this user (docs/SECURITY.md).
+TOKEN=$(cat "$HOME/Library/Application Support/DynaNotch/test-token" 2>/dev/null)
+[ -n "$TOKEN" ] || { echo "No test token (is this build running?)"; exit 1; }
+u() {   # u <hook>[?query] [sleep] — appends the token
+    local sep="?"; case "$1" in *\?*) sep="&" ;; esac
+    open -g "dynanotch://$1${sep}token=$TOKEN"; sleep "${2:-0.7}"
+}
 state() { rm -f "$STATE"; u state 0.5; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
 check() {   # check <name> <actual> <expected-prefix>
     case "$2" in
@@ -207,7 +213,9 @@ rendered "smart copy: renders" "$SNAP/reg-convert.png" 3000
 u "convert?text=0x40" 0.5
 u "ui/pointer?x=360&y=12" 0.5
 check "smart copy: hover keeps it closed" "$(state presentation | grep -c conversion)" "1"
-u "ui/click?window=island&id=activity-conversion" 0.5
+# The closed island may sit below the notch (Floating pill): click where it is drawn, not where it is laid out.
+TOP=$(python3 -c "print(round(float('$(state topInset)' or 0)))")
+u "ui/click?window=island&x=360&y=$((12 + TOP))" 0.5
 check "smart copy: click copies result" "$(pbpaste)" "64"
 check "smart copy: shows Copied" "$(state presentation | grep -o 'Copied' | head -1)" "Copied"
 u "ui/pointer?x=360&y=300" 1.5
@@ -226,7 +234,8 @@ AGTMP=$(mktemp -d); cp ~/.claude/settings.json "$AGTMP/settings.json" 2>/dev/nul
 u "set?dn.agentIsland=true&dn.agentStatus=true" 0.6
 u "agent/install-test?settings=$AGTMP/settings.json" 1.0
 check "agent: installer on a copy" "$(agk installTest)" "ok=true installed=true removed=true"
-check "agent: copy restored" "$(cmp -s "$AGTMP/settings.json" ~/.claude/settings.json 2>/dev/null && echo same || ([ -f ~/.claude/settings.json ] && echo differs || echo same))" "same"
+# Same content (the installer rewrites the copy with sorted keys, so bytes may differ).
+check "agent: copy restored" "$(python3 -c "import json,sys,os; r=os.path.expanduser('~/.claude/settings.json'); print('same' if not os.path.exists(r) or json.load(open(sys.argv[1])) == json.load(open(r)) else 'differs')" "$AGTMP/settings.json" 2>/dev/null)" "same"
 HOOK="$HOME/Library/Application Support/DynaNotch/hooks/agent-hook.pl"
 check "agent: hook script runs" "$("$HOOK" check < /dev/null)" "ok"   # also warms up a freshly written script
 REQ='{"session_id":"reg","cwd":"/tmp/regression","tool_name":"Bash","tool_input":{"command":"echo regression"}}'
@@ -400,6 +409,23 @@ check "update: broken feed reports" "$(upd status)" "failed"
 u "update/feed" 0.3; u "update/check" 3.0
 u unpin 0.8
 rm -rf "$FEED"
+
+echo "==> Security: hooks without the token are refused"
+OLD_HUD=$(b dn.hudEnabled true)
+open -g "dynanotch://set?dn.hudEnabled=false"; sleep 0.8
+check "security: set without token refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
+open -g "dynanotch://set?dn.hudEnabled=false&token=wrong"; sleep 0.8
+check "security: set with wrong token refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
+rm -f "$STATE"; open -g "dynanotch://state"; sleep 0.8
+check "security: state without token refused" "$([ -f "$STATE" ] && echo written || echo refused)" "refused"
+u "ui/pointer?x=10&y=400" 0.6
+open -g "dynanotch://notify?title=Public&body=hook&duration=3"; sleep 0.8
+check "security: notify stays public" "$(state presentation | grep -o 'Public' | head -1)" "Public"
+rm -f "$SNAP/evil.png" "$SNAP/../evil.png"; u "snapshot/..%2Fevil" 1.5
+check "security: snapshot name can't leave Snapshots" "$([ -f "$SNAP/../evil.png" ] && echo escaped || echo kept)" "kept"
+rm -f "$SNAP/evil.png" "$SNAP/.evil.png" "$SNAP/..evil.png"
+check "security: token file private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch/test-token")" "600"
+check "security: data folder private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch")" "700"
 
 echo "==> Settings pages"
 PAGES="general appearance behavior popups allTools tabs home lockScreen knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"

@@ -110,7 +110,7 @@ final class DisplaysAndPopupsTests: XCTestCase {
 
     func testOpenURLAllowsOnlyWebAndFileLinks() {
         XCTAssertEqual(PopupTarget.openURL("https://example.com/a")?.host, "example.com")
-        XCTAssertNotNil(PopupTarget.openURL("file:///tmp/x.txt"))
+        XCTAssertNil(PopupTarget.openURL("file:///tmp/x.txt"), "a notification must never open a local file")
         XCTAssertNil(PopupTarget.openURL("dynanotch://notify?title=x"))
         XCTAssertNil(PopupTarget.openURL("javascript:alert(1)"))
         XCTAssertNil(PopupTarget.openURL(nil))

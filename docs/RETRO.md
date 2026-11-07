@@ -59,3 +59,11 @@
 - Test gap: settings rows far down a page can't be clicked by `ui/click` (off screen, `hit=nil`); test their effect
   through `set?` and assert on state. The "agent: copy restored" check compares bytes and fails when the installer
   rewrites the JSON copy with another key order — a flaky check, not a data change.
+
+## 2026-11-07 Security pass
+- Every test hook (settings, synthetic clicks, Claude Code answers, update feed) was reachable from any web page via
+  `dynanotch://`. Lesson: a custom URL scheme is a public API; test hooks need a secret from the start. Fixed with a
+  per-launch token file (docs/SECURITY.md); all test traffic goes through `u()`, so one line changed for the suite.
+- The updater trusted an ad-hoc signature with our identifier, which anyone can produce. Trust the source (this repo's
+  GitHub release over HTTPS) plus GitHub's published SHA-256 instead.
+- Smart Copy's click check missed when the pill floats below the notch (`topInset`); UI test frames ignore `.offset`.

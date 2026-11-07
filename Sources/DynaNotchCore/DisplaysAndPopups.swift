@@ -137,10 +137,11 @@ public enum PopupTarget: Equatable {
         }
     }
 
-    /// `dynanotch://notify?open=` — web links and local files only.
+    /// `dynanotch://notify?open=` — web links only. Anyone can post a notification, so it must never open a local
+    /// file or app (a `file://` link to a script or .app would run it on click).
     public static func openURL(_ string: String?) -> URL? {
-        guard let string = string, let url = URL(string: string),
-              let scheme = url.scheme?.lowercased(), ["http", "https", "file"].contains(scheme) else { return nil }
+        guard let string = string, let url = URL(string: string), let host = url.host, !host.isEmpty,
+              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return nil }
         return url
     }
 }

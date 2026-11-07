@@ -8,7 +8,7 @@ public struct NotchNotification: Equatable {
     public var body: String
     public var symbol: String
     public var duration: TimeInterval?
-    /// What a click on the popup opens (`open=`, http / https / file only).
+    /// What a click on the popup opens (`open=`, http / https only).
     public var openURL: URL?
 
     public init(title: String, body: String, symbol: String = "bell.fill", duration: TimeInterval? = nil,
@@ -23,7 +23,7 @@ public struct NotchNotification: Equatable {
 
 public enum NotifyURL {
     /// dynanotch://notify?title=&body=&symbol=&duration=&open= (title or body required; duration clamped 1...30;
-    /// open = http / https / file URL a click on the popup opens).
+    /// open = http / https URL a click on the popup opens).
     public static func parse(_ url: URL) -> NotchNotification? {
         guard url.scheme?.lowercased() == "dynanotch", url.host?.lowercased() == "notify",
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
