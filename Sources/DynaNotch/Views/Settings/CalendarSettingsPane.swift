@@ -23,17 +23,17 @@ struct CalendarSettingsPane: View {
     private var calendarSection: some View {
         Section("Events") {
             SettingToggle(symbol: "calendar", color: .red, title: "Calendar",
-                          detail: "Read events from the calendars in the Calendar app.",
+                          detail: "Use the calendars from the Calendar app.",
                           isOn: $settings.calendarEnabled)
             Group {
                 SettingToggle(symbol: "list.bullet.rectangle.fill", color: .orange, title: "Events in the Panel",
-                              detail: "Show the month and Up Next on the Home tab.",
+                              detail: "Show your month and next events on Home.",
                               isOn: $settings.expandedShowsCalendar)
                 SettingToggle(symbol: "bell.badge.fill", color: .red, title: "Alert Before Events",
-                              detail: "A popup under the notch shortly before an event starts.",
+                              detail: "A heads-up before an event starts.",
                               isOn: $settings.calendarActivity)
                 StepperRow(symbol: "clock.fill", color: .orange, title: "Alert Lead Time",
-                           detail: "How many minutes before the start to show the alert.",
+                           detail: "How early you get the heads-up.",
                            value: $settings.calendarLeadMinutes, range: 1...30, format: SettingsFormat.minutes)
                     .disabled(!settings.calendarActivity)
             }
@@ -44,10 +44,10 @@ struct CalendarSettingsPane: View {
     private var meetingSection: some View {
         Section {
             SettingToggle(symbol: "video.fill", color: .green, title: "Full-Screen Meeting Alert",
-                          detail: "For events with a Zoom, Meet, Teams, Webex, Whereby, Slack or Discord link: a big alert with a Join button.",
+                          detail: "A big alert with a Join button for video calls.",
                           isOn: $settings.meetingAlert, testID: "setting-meetingAlert")
             SettingToggle(symbol: "link.badge.plus", color: .blue, title: "Only Meetings With a Join Link",
-                          detail: "Skip the alert for events without a video-call link, like lunch or focus blocks.",
+                          detail: "Only for events with a call link.",
                           isOn: $settings.meetingOnlyWithLink, testID: "setting-meetingOnlyWithLink")
                 .disabled(!settings.meetingAlert)
             SettingRow(symbol: "clock.badge.exclamationmark.fill", color: .orange, title: "Show the Alert",
@@ -59,14 +59,14 @@ struct CalendarSettingsPane: View {
             }
             .disabled(!settings.meetingAlert)
             SettingRow(symbol: "eye.fill", color: .blue, title: "Preview",
-                       detail: "Shows a sample meeting alert right now.") {
+                       detail: "See what a meeting alert looks like.") {
                 Button("Preview") { MeetingAlertController.shared.preview() }
             }
             SettingToggle(symbol: "menubar.arrow.up.rectangle", color: .red, title: "Next Meeting in the Menu Bar",
-                          detail: "Shows your next meeting and its start time in the menu bar; click it to join.",
+                          detail: "Your next meeting in the menu bar. Click to join.",
                           isOn: $settings.nextMeetingInMenuBar, testID: "setting-nextMeetingInMenuBar")
             SettingToggle(symbol: "keyboard.fill", color: .gray, title: "Shortcuts",
-                          detail: "⌃⌥J joins your next meeting · ⌃⌥C opens Calendar.",
+                          detail: "⌃⌥J joins your next meeting, ⌃⌥C opens Calendar.",
                           isOn: $settings.calendarHotkeys, testID: "setting-calendarHotkeys")
         } header: {
             Text("Meetings")
@@ -120,7 +120,7 @@ struct CalendarSettingsPane: View {
         } header: {
             Text("Calendars")
         } footer: {
-            SettingsFooter("Turned-off calendars are left out of Up Next, event alerts and meeting alerts.")
+            SettingsFooter("Turned-off calendars won't show up or alert you.")
         }
         .disabled(!settings.calendarEnabled)
     }
@@ -143,8 +143,8 @@ struct CalendarSettingsPane: View {
             } else {
                 SettingRow(symbol: "exclamationmark.triangle.fill", color: .orange, title: "Calendar Access",
                            detail: calendar.access == .notDetermined
-                               ? "Allow access so DynaNotch can show your events."
-                               : "Access was denied. Turn DynaNotch on in System Settings → Calendars.") {
+                               ? "Allow access to see your events."
+                               : "Access is off. Turn it on in System Settings → Calendars.") {
                     if calendar.access == .notDetermined {
                         Button("Allow…") { calendar.requestAccess() }
                     } else {
@@ -155,7 +155,7 @@ struct CalendarSettingsPane: View {
         } header: {
             Text("Access")
         } footer: {
-            PrivacyFooter(text: "Events are read on this Mac and never uploaded.")
+            PrivacyFooter(text: "Your events never leave this Mac.")
         }
     }
 }

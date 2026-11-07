@@ -19,14 +19,14 @@ struct HUDSettingsPane: View {
     private var hudSection: some View {
         Section("Volume & Brightness") {
             SettingToggle(symbol: "speaker.wave.2.fill", color: .gray, title: "Show HUD in the Island",
-                          detail: "Volume and brightness levels appear in the notch when they change.",
+                          detail: "Show volume and brightness in the notch.",
                           isOn: $settings.hudEnabled)
             Group {
                 SettingToggle(symbol: "rectangle.badge.xmark", color: .blue, title: "Replace the System HUD",
-                              detail: "Hide macOS's own volume / brightness overlay. Needs Accessibility.",
+                              detail: "Hide the macOS overlay. Needs Accessibility.",
                               isOn: $settings.replaceSystemHUD)
                 SettingRow(symbol: "rectangle.split.3x1.fill", color: .indigo, title: "Style",
-                           detail: "Compact sits beside the notch; Expanded shows a bar below it.") {
+                           detail: "Next to the notch, or a bar below it.") {
                     Picker("Style", selection: $settings.hudStyle) {
                         ForEach(HUDStyle.allCases, id: \.self) { style in
                             Text(style.title).tag(style)
@@ -37,10 +37,10 @@ struct HUDSettingsPane: View {
                     .fixedSize()
                 }
                 SettingToggle(symbol: "speaker.wave.3.fill", color: .gray, title: "Volume",
-                              detail: "Show the HUD for volume and mute.",
+                              detail: "Show it for volume.",
                               isOn: $settings.volumeHUD)
                 SettingToggle(symbol: "sun.max.fill", color: .yellow, title: "Brightness",
-                              detail: "Show the HUD for display brightness.",
+                              detail: "Show it for brightness.",
                               isOn: $settings.brightnessHUD)
             }
             .disabled(!settings.hudEnabled)
@@ -51,11 +51,11 @@ struct HUDSettingsPane: View {
         Section("Status") {
             if mediaKeyTap.isActive {
                 SettingValueRow(symbol: "checkmark.circle.fill", color: .green, title: "Media Keys",
-                                detail: "Volume and brightness keys are handled by DynaNotch.",
+                                detail: "DynaNotch is handling your volume and brightness keys.",
                                 value: "Working", valueColor: .green)
             } else {
                 SettingRow(symbol: "exclamationmark.triangle.fill", color: .orange, title: "Media Keys",
-                           detail: "Without Accessibility DynaNotch only observes changes and the system HUD still shows.") {
+                           detail: "Without Accessibility, the macOS overlay still shows too.") {
                     Button("Allow…") {
                         Permissions.requestAccessibility()
                         Permissions.openAccessibilitySettings()

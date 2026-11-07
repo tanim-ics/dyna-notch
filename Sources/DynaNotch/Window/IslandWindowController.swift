@@ -183,6 +183,11 @@ final class IslandWindowController: NSObject {
 
     // MARK: Positioning
 
+    /// Show On → Every display changed which displays are on: move now (the coordinator rebuilds the extras after).
+    func repositionNow() {
+        reposition()
+    }
+
     private func reposition() {
         if let pinned = pinnedDisplay, ScreenLocator.screen(displayID: pinned) == nil {
             panel.orderOut(nil)   // the coordinator removes this island in a moment

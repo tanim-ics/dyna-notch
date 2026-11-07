@@ -488,9 +488,9 @@ public struct DownloadTracker { public init()
     public mutating func update(_ names: Set<String>) -> (started: [String], finished: [String]) }
 
 // Notify.swift
-public struct NotchNotification: Equatable { public var title: String; public var body: String; public var symbol: String; public var duration: TimeInterval? }
+public struct NotchNotification: Equatable { public var title: String; public var body: String; public var symbol: String; public var duration: TimeInterval?; public var openURL: URL? }
 public enum NotifyURL {
-    /// dynanotch://notify?title=&body=&symbol=&duration= (title or body required; symbol default "bell.fill"; duration 1...30)
+    /// dynanotch://notify?title=&body=&symbol=&duration=&open= (title or body required; symbol default "bell.fill"; duration 1...30; open = http/https/file URL, §6.10a)
     public static func parse(_ url: URL) -> NotchNotification?
 }
 
@@ -765,6 +765,29 @@ serialised with the scratchpad `applock.sh` lock.
 - `.followMouse` (existing): the single island moves to the display under the pointer.
 - state.json: `islands` = [{screen, presentation, isPill, visible}] for the extra islands; hook
   `dynanotch://snapshot-extra/<name>` renders the first extra island.
+- **Per-display choice (2026-11-07, owner request):** setting `hiddenDisplays: String` (`dn.hiddenDisplays`, default "")
+  = comma-separated `DisplaySelection` keys ("vendor-model-serial", stable across reconnects) of displays without an
+  island; `displayMode` default is now `.allDisplays`. Core `DisplaySelection.key/parse/serialize/toggled/allowed`
+  (`toggled` refuses to switch off the last display that still shows one; `allowed` falls back to every display when all
+  are hidden) and `DisplayMode.extraDisplays(all:[(id,key)], primary:, hidden:)`. In `.allDisplays` the primary island
+  goes to the notch display, else the menu-bar display, else the first allowed one. Behavior → Show On lists each
+  connected display as a switch (`setting-display-<name>`, dimmed unless Every Display). state.json `displayKeys`.
+- **Full screen (2026-11-07):** Core `FullscreenHeuristic.fullscreenDisplays(windows:displays:)`: a window filling a
+  display only counts when no other app has a window on that display (a window zoomed to fill a display whose menu bar
+  auto-hides is not full screen).
+
+### 6.10a Popups under the pointer (2026-11-07, owner request)
+- `ActivityKind.holdsOnHover` (notification, vitals, bluetooth, calendar, timerFinished, download, lowBattery): hovering
+  such a popup no longer opens the panel. `IslandViewModel.holdsPopup` keeps it (re-posted with a long life), the island
+  grows to `IslandLayout.popupDetailSize` and `PopupDetailView` shows `ActivityKind.popupText` in full with **Dismiss**
+  and **Open** buttons (`popup-dismiss` / `popup-open`; clicks routed by `PopupButton.button(at:cardWidth:cardHeight:
+  hasTarget:)`). Leaving releases it after 1.5 s. A click elsewhere on it opens the target.
+- Core `PopupTarget` (`.tab(PanelTab)` / `.url(URL)`, `buttonTitle`, `forCategory(AlertCategory)`, `openURL(String?)`
+  http/https/file only) and `ActivityKind.defaultPopupTarget`. `postNotification(…, target:)`; drives open their volume.
+- `NotchNotification.openURL`; `dynanotch://notify?…&open=<http|https|file URL>` sets what Open does.
+- Bluetooth: Core `BluetoothAlertFilter` (in `BluetoothService`) skips `.generic` / nameless devices (phones, Continuity
+  links — they showed a "radio waves" icon and "Connected") and repeats for the same device within 20 s.
+- state.json `holdsPopup`, `canvasWidth`.
 
 ### 6.11 Lock screen: sounds, unlock island, widgets (2026-10-27, owner request — DECISIONS §14)
 - Core `AlertCategory` += `.screenLock` ("Lock", default sound "Pop") and `.screenUnlock` ("Unlock", default "Purr");
@@ -951,3 +974,39 @@ serialised with the scratchpad `applock.sh` lock.
   to the Timer. `NSSpeechRecognitionUsageDescription` in Info.plist.
 - Hooks: `dynanotch://voice?text=` (runs the command path on that transcript, no listening). state.json `voice` =
   {listening, last}.
+
+### 6.21 Updates and What's New stories (2026-11-02, owner request — DECISIONS §16)
+- Release notes live in `Packaging/WhatsNew.json` (copied into `Contents/Resources` by build.sh, uploaded as a release
+  asset by `scripts/release.sh`): `[{version, date?, headline?, features: [{symbol, color, title, text}]}]`, newest
+  first. `color` is a name: blue, purple, pink, red, orange, yellow, green, teal, indigo, gray. The newest entry's
+  version must equal `CFBundleShortVersionString` (a Core test checks it).
+- Core `AppVersion` (`init?("v3.2.0")`, `Comparable`, missing parts are 0, a `-suffix` is ignored).
+- Core `FeatureNote`, `ReleaseNote` (Codable), `ReleaseNotes.decode(_:) -> [ReleaseNote]` (newest first, bad
+  entries dropped), `ReleaseNotes.between(_:after:upTo:)` (versions in (after, upTo], newest first; `after` nil = only
+  `upTo`), `ReleaseNotes.fromMarkdown(_:version:)` (fallback: one feature per `-`/`*` bullet of a release body).
+- Core `GitHubRelease` (Decodable: tag_name, html_url, body, draft, prerelease, assets [name,
+  browser_download_url, digest?]), `AvailableUpdate` {version, zipURL, sha256?, notesURL?, pageURL},
+  `UpdateCheck.evaluate(_:current:) -> AvailableUpdate?` (newer, not draft / prerelease, has
+  `DynaNotch-<version>.zip`), `UpdateCheck.shouldShowWhatsNew(lastSeen:current:hasSeenWelcome:) -> Bool`
+  (fresh install: no; same version: no; older lastSeen or nil after the welcome: yes),
+  `UpdateCheck.isDue(lastCheck:now:interval:)`.
+- Setting `checkForUpdates: Bool = true` (`dn.checkForUpdates`, Settings → About). App data
+  `dn.data.lastSeenVersion`, `dn.data.lastUpdateCheck`, `dn.data.notifiedUpdateVersion`.
+- App `UpdateService.shared` (ObservableObject): `@Published status` (idle, checking, upToDate, available(update,
+  notes), downloading(fraction), installing, failed(message)); `checkNow()`, `install()`. Asks
+  `api.github.com/repos/tanim-ics/dyna-notch/releases/latest` 20 s after launch and then when a day has passed
+  (timer with 1 h tolerance, off while the setting is off); no cookies, no data about the user. A newly found version
+  posts one notification island. `install()`: download the zip, check the release's sha256 digest when GitHub gives
+  one, `ditto -x -k`, check bundle id, version and `codesign --verify --strict` + requirement
+  `identifier "com.tanim.dynanotch"`, then a detached shell helper waits for the app to quit, swaps the bundle (old one
+  restored if the move fails), clears quarantine and relaunches. Not writable → opens the release page.
+- App `WhatsNewController.shared`: a pop-up that grows out of the notch (like the welcome) and plays the features as
+  Stories: segmented progress bars, 5 s per slide, click right → next / left third → back, hold to pause, ← → Esc.
+  Modes: `.whatsNew` (after an update; ends with "Got it") and `.update` (before; ends with "Update to x.y.z" /
+  "Later" and shows download progress). Shown once per new version at launch (after the hello, if any).
+- UI: panel header "Update" pill (`header.update`) while an update is available; menu bar "Update to x.y.z…" /
+  "Check for Updates…" and "What's New…"; Settings → About: Software Update section (auto-check toggle, status, Check
+  Now / Update) and What's New (Watch the Story + list from the bundled notes).
+- Hooks: `dynanotch://whatsnew` (story of the current version), `update/check`, `update/show`, `update/install`,
+  `update/feed?url=` (test feed instead of GitHub, in memory), `snapshot-whatsnew/<name>`, `ui/click?window=whatsnew`.
+  state.json `update` = {status, latest, lastChecked, lastSeen, story: {shown, mode, index, count, paused}}.

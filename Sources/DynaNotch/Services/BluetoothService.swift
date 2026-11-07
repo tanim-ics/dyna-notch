@@ -15,6 +15,8 @@ final class BluetoothService: NSObject {
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [String: IOBluetoothUserNotification] = [:]
     private var startedAt = Date.distantPast
+    /// Skips unclassified devices (phones, Continuity links) and connect / drop flapping.
+    private var alertFilter = BluetoothAlertFilter(cooldown: 20)
     private static let startupGrace: TimeInterval = 3.0
     private static let batteryKeys = ["batteryPercentSingle", "batteryPercentCombined", "batteryPercentCase"]
 
@@ -56,6 +58,7 @@ final class BluetoothService: NSObject {
         guard !alreadyKnown else { return }
 
         let initial = BluetoothService.makeEvent(device: device, connected: true)
+        guard showAlert(for: initial) else { return }
         events.send(initial)
 
         if initial.battery == nil {
@@ -73,7 +76,18 @@ final class BluetoothService: NSObject {
         note.unregister()
         let address = BluetoothService.address(of: device)
         disconnectNotifications.removeValue(forKey: address)
-        events.send(BluetoothService.makeEvent(device: device, connected: false))
+        let event = BluetoothService.makeEvent(device: device, connected: false)
+        guard showAlert(for: event) else { return }
+        events.send(event)
+    }
+
+    private func showAlert(for event: BluetoothEvent) -> Bool {
+        let rawName = event.name == "Bluetooth device" ? "" : event.name
+        let show = alertFilter.shouldShow(address: event.address, kind: event.kind, name: rawName, now: Date())
+        if !show {
+            logger.info("skipped popup: \(event.kind.rawValue, privacy: .public) connected=\(event.connected, privacy: .public)")
+        }
+        return show
     }
 
     // MARK: Helpers

@@ -33,6 +33,12 @@
   · **Every Display** (2026-10-27): the primary island where Built-in puts it plus one island per other display, each
   in that display's shape (Notch / Floating pill), hovering and opening on its own. Activities and notifications show on
   all of them; sounds and edge glow happen once; shortcuts act on the island under the pointer; Hide hides all.
+  Every Display is the default (2026-11-07); below the picker each connected display has a switch (the last one can't
+  be switched off).
+- **Popups under the pointer** (2026-11-07): hovering a notification, device, calendar, timer, download, low-battery or
+  Mac Vitals popup keeps it on screen instead of opening the panel; it grows (130 pt sides, +128 pt) to show the title
+  (2 lines), the message (3 lines) and a row of two capsule buttons: grey **Dismiss**, blue **Open …** (Open Calendar,
+  Show in Finder, Open Link …; only Dismiss when there's nothing to open). It goes 1.5 s after the pointer leaves.
 
 ### Lock screen (2026-10-27, CONTRACTS §6.11)
 - **Widgets while locked** (owner feedback 2026-10-27: on the main display, centred under the clock, in the clock's

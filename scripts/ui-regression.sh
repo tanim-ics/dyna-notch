@@ -109,6 +109,17 @@ check "every display: notify reaches all" "$(islands notification)" "$EXTRA $EXT
 u "ui/action?name=hide" 2.0; check "every display: hide hides all" "$(islands x | cut -d' ' -f4)" "$EXTRA"
 u "ui/action?name=hide" 1.5; check "every display: show again" "$(islands x | cut -d' ' -f4)" "0"
 if [ "$EXTRA" -gt 0 ]; then
+    OLD_HD=$(pref dn.hiddenDisplays '')
+    KEYS=$(state displayKeys | python3 -c "import ast,sys; print(','.join(ast.literal_eval(sys.stdin.read())))")
+    LAST=${KEYS##*,}
+    u "set?dn.hiddenDisplays=$LAST" 2.0
+    check "every display: display switched off" "$(islands x | cut -d' ' -f1)" "$((EXTRA - 1))"
+    u "set?dn.hiddenDisplays=$KEYS" 2.0
+    check "every display: all off falls back to all" "$(islands x | cut -d' ' -f1)" "$EXTRA"
+    u "set?dn.hiddenDisplays=$OLD_HD" 2.0
+    check "every display: display choice restored" "$(islands x | cut -d' ' -f1)" "$EXTRA"
+fi
+if [ "$EXTRA" -gt 0 ]; then
     rm -f "$SNAP/reg-extra.png"; u "snapshot-extra/reg-extra" 1.2
     rendered "every display: extra renders" "$SNAP/reg-extra.png" 2000
 fi
@@ -116,6 +127,28 @@ u "set?dn.displayMode=followMouse" 1.5
 check "follow mouse: single island" "$(islands x)" "0 0"
 u "set?dn.displayMode=$OLD_DM&dn.showOnNonNotchDisplays=$OLD_NN" 1.5
 check "show on: restored" "$(state displayMode)" "$OLD_DM"
+
+echo "==> Popups stay under the pointer: whole message, Dismiss / Open, no panel"
+CX=$(python3 -c "print($(state canvasWidth) / 2)")
+u "ui/pointer?x=10&y=400" 0.8
+u "notify?title=Regression&body=held%20under%20the%20pointer&duration=3" 0.6
+u "ui/pointer?x=$CX&y=16" 1.0
+check "popup: held on hover" "$(state holdsPopup)" "True"
+check "popup: panel stays closed" "$(state presentation | cut -c1-8)" "activity"
+sleep 3
+check "popup: outlives its duration while hovered" "$(state presentation | grep -o 'held under' | head -1)" "held under"
+u "ui/click?window=island&id=popup-dismiss" 1.0
+check "popup: Dismiss" "$(state presentation | grep -c 'held under')" "0"
+u "ui/pointer?x=10&y=400" 0.8
+u "simulate/calendar" 0.6
+u "ui/pointer?x=$CX&y=16" 1.0
+u "ui/click?window=island&id=popup-open" 1.2
+check "popup: Open goes to its tab" "$(state presentation) $(state selectedTab)" "expanded calendar"
+u collapse 0.6; u "ui/pointer?x=10&y=400" 0.8
+u "notify?title=Regression&body=released&duration=10" 0.6
+u "ui/pointer?x=$CX&y=16" 0.8; u "ui/pointer?x=10&y=400" 2.2
+check "popup: released after the pointer leaves" "$(state presentation | grep -c released)" "0"
+u "ui/pointer" 0.3
 
 echo "==> Lock screen (simulated lock / unlock; never locks the Mac; sounds silenced, settings restored)"
 lsk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); l=d.get('lockScreen',{}); print(l.get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
@@ -324,6 +357,49 @@ check "voice: timer runs" "$(rm -f "$STATE"; u state 0.4; python3 -c "import jso
 u "timer/stop" 3.0
 u "voice?text=" 0.6
 check "voice: nothing heard" "$(state presentation | grep -o "Didn" | head -1)" "Didn"
+
+echo "==> Updates + What's New story (local file feed; never downloads or installs; GitHub feed restored)"
+upd() { rm -f "$STATE"; u state 0.4; python3 -c "
+import json,sys; u=json.load(open(sys.argv[1])).get('update',{}); v=u.get(sys.argv[2], u.get('story',{}).get(sys.argv[2], ''))
+print(v)" "$STATE" "$1" 2>/dev/null; }
+u "story/close" 0.6
+u "whatsnew" 1.2
+check "story: shown" "$(upd shown)" "True"
+check "story: mode whatsNew" "$(upd mode)" "whatsNew"
+check "story: first slide" "$(upd index)" "0"
+u "story/next" 0.5;     check "story: next" "$(upd index)" "1"
+u "story/previous" 0.5; check "story: previous" "$(upd index)" "0"
+u "story/pause" 0.3; sleep 6.5
+check "story: hold pauses" "$(upd index) $(upd paused)" "0 True"
+u "story/resume" 0.3
+rm -f "$SNAP/reg-story.png"; u "snapshot-whatsnew/reg-story" 1.0
+rendered "story: renders" "$SNAP/reg-story.png" 20000
+u "ui/click?window=whatsnew&id=whatsnew.skip" 0.8
+check "story: skip → closing card" "$(upd title)" "final"
+u "ui/click?window=whatsnew&id=whatsnew.done" 1.0
+check "story: Got it closes" "$(upd shown)" "False"
+check "story: version marked seen" "$(upd lastSeen)" "$(upd current)"
+FEED=$(mktemp -d)
+cat >"$FEED/newer.json" <<JSON
+{"tag_name":"v99.0.0","html_url":"https://github.com/tanim-ics/dyna-notch/releases","draft":false,"prerelease":false,
+ "body":"- **Regression**: a fake release","assets":[{"name":"DynaNotch-99.0.0.zip","browser_download_url":"file://$FEED/none.zip"}]}
+JSON
+sed 's/v99.0.0/v0.1.0/; s/99.0.0.zip/0.1.0.zip/' "$FEED/newer.json" >"$FEED/older.json"
+u "update/feed?url=file://$FEED/newer.json" 0.3; u "update/check" 1.5
+check "update: newer release found" "$(upd status) $(upd latest)" "available 99.0.0"
+u "pin/home" 1.0
+check "update: header pill" "$(state frames | grep -o 'header.update' | head -1)" "header.update"
+u "ui/click?window=island&id=header.update" 1.2
+check "update: story in update mode" "$(upd mode) $(upd title)" "update Regression"
+u "story/close" 0.8
+u "update/feed?url=file://$FEED/older.json" 0.3; u "update/check" 1.5
+check "update: older release = up to date" "$(upd status)" "upToDate"
+check "update: pill gone" "$(state frames | grep -c 'header.update')" "0"
+u "update/feed?url=file://$FEED/missing.json" 0.3; u "update/check" 1.5
+check "update: broken feed reports" "$(upd status)" "failed"
+u "update/feed" 0.3; u "update/check" 3.0
+u unpin 0.8
+rm -rf "$FEED"
 
 echo "==> Settings pages"
 PAGES="general appearance behavior popups allTools tabs home lockScreen knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"

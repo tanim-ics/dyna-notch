@@ -4,7 +4,7 @@ import ServiceManagement
 import os
 import DynaNotchCore
 
-/// Caches, uninstall, what's new (Settings → About).
+/// Caches and uninstall (Settings → About).
 enum AppMaintenance {
     struct CacheInfo: Identifiable { let id: String; let name: String; let bytes: Int64 }
 
@@ -53,47 +53,6 @@ enum AppMaintenance {
             exit(0)   // terminate(nil) may be cancelled by a window; data is already gone
         }
     }
-
-    static let whatsNew: [(version: String, items: [String])] = [
-        ("3.4", [
-            "Calendar and Quick Settings tabs, Home card grid with world clocks, network, sunrise & sunset",
-            "Keyboard shortcut recorder, Command Palette (⌃⌥K) and modifier-key knocks",
-            "Repeat timers, ringing alarms and alert sounds per category",
-            "Battery, AI usage and next meeting in the menu bar; AI limit and battery drain warnings",
-            "Listening history with bookmarks, network traffic history",
-            "Install offer when a disk image with an app mounts",
-            "Long-command islands for zsh and a Claude Code cost hook",
-            "Clear caches, uninstall and this What's New list",
-        ]),
-        ("3.3", [
-            "Closed pill size and height, Screen Sharing Privacy, hide while mirroring",
-            "Quiet popups during Focus, peek on hover, media keys always drive the current player",
-            "Join Meeting / Open Calendar shortcuts and per-calendar toggles",
-            "Timer controls on hover, clipboard capture sound, shelf retention",
-            "Screen recording, screenshot folder, unplug island with time left",
-            "Keep Awake for 15 min to 4 h, grouped Permissions page with diagnostics",
-        ]),
-        ("3.2", [
-            "New Settings window with a searchable, grouped sidebar",
-            "Calculator, Emoji, Quick Search, Launcher, Shortcuts, Reminders and Mirror tabs",
-            "Material presets, translucency, animation styles",
-            "Break reminders, Pomodoro stats, battery history and Screen Time",
-            "Full-screen meeting alert with a Join button, accessory battery alerts",
-            "Export / import settings",
-        ]),
-        ("3.1", [
-            "Glass panel with a tab pill and ⌘1–⌘9 tab menu",
-            "Battery pill with Mac and Bluetooth device batteries",
-            "Actions menu: stopwatch, Pomodoro, screenshot, colour picker, mic mute",
-            "Handwritten hello on first launch",
-        ]),
-        ("3.0", [
-            "Tabbed notch panel: Home, Now Playing with synced lyrics, Timer, Clipboard, Shelf, Notes, System, AI Usage",
-            "Keep Awake, mic mute, pin and lock-screen buttons",
-            "Weather, downloads, camera / mic in use and Caps Lock islands",
-            "⌃⌥N / ⌃⌥V hotkeys and the dynanotch://notify URL",
-        ]),
-    ]
 
     // MARK: Private
 

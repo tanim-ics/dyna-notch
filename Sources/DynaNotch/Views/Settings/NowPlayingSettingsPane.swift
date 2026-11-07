@@ -28,17 +28,17 @@ struct NowPlayingSettingsPane: View {
     private var generalSection: some View {
         Section("Island") {
             SettingToggle(symbol: "music.note", color: .pink, title: "Now Playing",
-                          detail: "Follow music from Spotify, Apple Music, browsers and any app that reports to macOS.",
+                          detail: "Show music from Spotify, Apple Music, browsers and more.",
                           isOn: $settings.nowPlayingEnabled)
             Group {
                 SettingToggle(symbol: "rectangle.split.3x1.fill", color: .purple, title: "Compact Player",
-                              detail: "Artwork and a visualiser beside the notch while music plays.",
+                              detail: "Artwork and a visualiser next to the notch.",
                               isOn: $settings.showCompactNowPlaying)
                 SettingToggle(symbol: "text.below.photo.fill", color: .orange, title: "Track Peek",
-                              detail: "Briefly shows the title and artist under the notch when the song changes.",
+                              detail: "Show the song name for a moment when it changes.",
                               isOn: $settings.showTrackPeek)
                 SettingStackedRow(symbol: "textformat", color: .orange, title: "Track Info Under the Notch",
-                                  detail: "When to show the title and artist below the compact player.") {
+                                  detail: "When to show the song name under the player.") {
                     Picker("Track info", selection: $settings.trackInfoMode) {
                         ForEach(TrackInfoMode.allCases, id: \.self) { mode in
                             Text(mode.title).tag(mode)
@@ -49,10 +49,10 @@ struct NowPlayingSettingsPane: View {
                     .uiTestID("setting-trackInfoMode")
                 }
                 SettingToggle(symbol: "cursorarrow.motionlines", color: .orange, title: "Peek on Hover",
-                              detail: "Hovering the compact player shows the title and artist under the notch.",
+                              detail: "Hover the player to see the song name.",
                               isOn: $settings.peekOnHover, testID: "setting-peekOnHover")
                 SliderRow(symbol: "pause.circle.fill", color: .gray, title: "Keep Showing After Pause",
-                          detail: "How long the compact player stays after you pause.",
+                          detail: "How long the player stays after you pause.",
                           value: $settings.pausedLingerSeconds, range: 0...60, step: 5,
                           format: SettingsFormat.wholeSeconds)
             }
@@ -63,7 +63,7 @@ struct NowPlayingSettingsPane: View {
     private var appearanceSection: some View {
         Section("Look") {
             SettingRow(symbol: "photo.fill", color: .blue, title: "Artwork Style",
-                       detail: "Rounded square, or a vinyl disc that spins while playing.") {
+                       detail: "A rounded square, or a spinning record.") {
                 Picker("Artwork style", selection: $settings.artworkStyle) {
                     ForEach(ArtworkStyle.allCases, id: \.self) { style in
                         Text(style.title).tag(style)
@@ -74,7 +74,7 @@ struct NowPlayingSettingsPane: View {
                 .fixedSize()
             }
             SettingRow(symbol: "waveform", color: .green, title: "Visualizer",
-                       detail: "Animated bars tinted with the artwork's colour.") {
+                       detail: "Little bars in the artwork's colour.") {
                 Picker("Visualizer", selection: $settings.visualizerStyle) {
                     ForEach(VisualizerStyle.allCases, id: \.self) { style in
                         Text(style.title).tag(style)
@@ -85,7 +85,7 @@ struct NowPlayingSettingsPane: View {
                 .fixedSize()
             }
             SettingToggle(symbol: "sun.max.fill", color: .yellow, title: "Artwork Glow",
-                          detail: "A soft glow in the artwork's colour behind the player.",
+                          detail: "A soft glow behind the player.",
                           isOn: $settings.artworkGlow)
         }
         .disabled(!settings.nowPlayingEnabled)
@@ -94,17 +94,17 @@ struct NowPlayingSettingsPane: View {
     private var lyricsSection: some View {
         Section {
             SettingToggle(symbol: "quote.bubble.fill", color: .indigo, title: "Synced Lyrics",
-                          detail: "Time-synced lyrics in the Now Playing tab. Uses the network (LRCLIB).",
+                          detail: "Synced lyrics from LRCLIB.",
                           isOn: $settings.lyricsEnabled)
             Group {
                 SettingToggle(symbol: "text.aligncenter", color: .purple, title: "Current Line Under the Notch",
-                              detail: "Shows the line being sung below the compact player.",
+                              detail: "Show the current line under the player.",
                               isOn: $settings.lyricsInCompact)
                 SettingToggle(symbol: "macwindow", color: .indigo, title: "Desktop Lyrics",
-                              detail: "The current line floats above your desktop and lets clicks pass through.",
+                              detail: "Float the current line on your desktop.",
                               isOn: $settings.desktopLyrics, testID: "setting-desktopLyrics")
                 SliderRow(symbol: "metronome.fill", color: .orange, title: "Timing Offset",
-                          detail: "Shift the lyrics if they run ahead of (−) or behind (+) the music.",
+                          detail: "Nudge the lyrics if they're early or late.",
                           value: $settings.lyricsOffset, range: -5...5, step: 0.1,
                           format: SettingsFormat.signedSeconds)
             }
@@ -112,7 +112,7 @@ struct NowPlayingSettingsPane: View {
         } header: {
             Text("Lyrics")
         } footer: {
-            SettingsFooter("Only the song title, artist and album are sent to LRCLIB. Lyrics are cached on this Mac.")
+            SettingsFooter("Only the song, artist and album go to LRCLIB. Lyrics are kept on this Mac.")
         }
         .disabled(!settings.nowPlayingEnabled)
     }
@@ -120,7 +120,7 @@ struct NowPlayingSettingsPane: View {
     private var historySection: some View {
         Section {
             SettingToggle(symbol: "clock.arrow.circlepath", color: .pink, title: "Listening History",
-                          detail: "Keep a list of the songs you play, with bookmarks, in the Now Playing tab.",
+                          detail: "Remember the songs you play.",
                           isOn: $settings.listeningHistory, testID: "setting-listeningHistory")
             SettingRow(symbol: "trash.fill", color: .red, title: "Clear History",
                        detail: historyDetail) {
@@ -131,7 +131,7 @@ struct NowPlayingSettingsPane: View {
         } header: {
             Text("History")
         } footer: {
-            PrivacyFooter(text: "Stays on this Mac. Bookmarked songs are kept when you clear the history.")
+            PrivacyFooter(text: "Stays on this Mac. Bookmarks survive a clear.")
         }
         .disabled(!settings.nowPlayingEnabled)
     }
@@ -144,14 +144,14 @@ struct NowPlayingSettingsPane: View {
     private var mediaKeysSection: some View {
         Section {
             SettingToggle(symbol: "playpause.fill", color: .blue, title: "Media Keys Control the Player",
-                          detail: "Play/pause and skip go to the app that's playing instead of opening Music. Needs Accessibility.",
+                          detail: "Play and skip go to whatever's playing. Needs Accessibility.",
                           isOn: $settings.mediaKeysControlPlayer, testID: "setting-mediaKeysControlPlayer")
                 .disabled(!settings.nowPlayingEnabled)
             SettingToggle(symbol: "xmark.app.fill", color: .red, title: "Stop Music From Opening on Its Own",
-                          detail: "Closes the Music app when it opens by itself, e.g. after pressing Play with nothing playing.",
+                          detail: "Stop Music from opening by itself.",
                           isOn: $settings.preventMusicAutoLaunch, testID: "setting-preventMusicAutoLaunch")
             SettingRow(symbol: "music.note.house.fill", color: .pink, title: "Default Music App",
-                       detail: "What the Play key opens when nothing is playing. Needs Media Keys Control the Player.") {
+                       detail: "What Play opens when nothing's playing.") {
                 Picker("Default music app", selection: $settings.defaultMusicApp) {
                     Text("Automatic").tag("")
                     Divider()

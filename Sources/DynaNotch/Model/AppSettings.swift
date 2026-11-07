@@ -14,8 +14,12 @@ final class AppSettings: ObservableObject {
     @Published var showMenuBarIcon: Bool = true {
         didSet { defaults.set(showMenuBarIcon, forKey: SettingsKey.showMenuBarIcon) }
     }
-    @Published var displayMode: DisplayMode = .notchOrMain {
+    @Published var displayMode: DisplayMode = .allDisplays {
         didSet { defaults.set(displayMode.rawValue, forKey: SettingsKey.displayMode) }
+    }
+    /// Show On → Every display: displays without an island (`DisplaySelection` keys, comma-separated).
+    @Published var hiddenDisplays: String = "" {
+        didSet { defaults.set(hiddenDisplays, forKey: SettingsKey.hiddenDisplays) }
     }
     @Published var hideInFullscreen: Bool = true {
         didSet { defaults.set(hideInFullscreen, forKey: SettingsKey.hideInFullscreen) }
@@ -499,6 +503,9 @@ final class AppSettings: ObservableObject {
     @Published var dailyWrapWeekdays: Bool = true {
         didSet { defaults.set(dailyWrapWeekdays, forKey: SettingsKey.dailyWrapWeekdays) }
     }
+    @Published var checkForUpdates: Bool = true {
+        didSet { defaults.set(checkForUpdates, forKey: SettingsKey.checkForUpdates) }
+    }
     @Published var macVitals: Bool = true {
         didSet { defaults.set(macVitals, forKey: SettingsKey.macVitals) }
     }
@@ -763,7 +770,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.calendarEnabled,
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
         SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
-        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays,
+        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays, SettingsKey.checkForUpdates, SettingsKey.hiddenDisplays,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -771,7 +778,8 @@ final class AppSettings: ObservableObject {
 
         // Observers do not fire during init, so nothing is written back here.
         showMenuBarIcon = defaults.object(forKey: SettingsKey.showMenuBarIcon) as? Bool ?? true
-        displayMode = defaults.string(forKey: SettingsKey.displayMode).flatMap { DisplayMode(rawValue: $0) } ?? .notchOrMain
+        displayMode = defaults.string(forKey: SettingsKey.displayMode).flatMap { DisplayMode(rawValue: $0) } ?? .allDisplays
+        hiddenDisplays = defaults.string(forKey: SettingsKey.hiddenDisplays) ?? ""
         hideInFullscreen = defaults.object(forKey: SettingsKey.hideInFullscreen) as? Bool ?? true
         showOnNonNotchDisplays = defaults.object(forKey: SettingsKey.showOnNonNotchDisplays) as? Bool ?? true
         hapticFeedback = defaults.object(forKey: SettingsKey.hapticFeedback) as? Bool ?? true
@@ -903,6 +911,7 @@ final class AppSettings: ObservableObject {
         dailyWrap = defaults.object(forKey: SettingsKey.dailyWrap) as? Bool ?? true
         dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
         dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
+        checkForUpdates = defaults.object(forKey: SettingsKey.checkForUpdates) as? Bool ?? true
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -970,7 +979,8 @@ final class AppSettings: ObservableObject {
     /// Re-reads every property from UserDefaults (missing keys → contract defaults).
     private func reloadFromDefaults() {
         showMenuBarIcon = defaults.object(forKey: SettingsKey.showMenuBarIcon) as? Bool ?? true
-        displayMode = defaults.string(forKey: SettingsKey.displayMode).flatMap { DisplayMode(rawValue: $0) } ?? .notchOrMain
+        displayMode = defaults.string(forKey: SettingsKey.displayMode).flatMap { DisplayMode(rawValue: $0) } ?? .allDisplays
+        hiddenDisplays = defaults.string(forKey: SettingsKey.hiddenDisplays) ?? ""
         hideInFullscreen = defaults.object(forKey: SettingsKey.hideInFullscreen) as? Bool ?? true
         showOnNonNotchDisplays = defaults.object(forKey: SettingsKey.showOnNonNotchDisplays) as? Bool ?? true
         hapticFeedback = defaults.object(forKey: SettingsKey.hapticFeedback) as? Bool ?? true
@@ -1102,6 +1112,7 @@ final class AppSettings: ObservableObject {
         dailyWrap = defaults.object(forKey: SettingsKey.dailyWrap) as? Bool ?? true
         dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
         dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
+        checkForUpdates = defaults.object(forKey: SettingsKey.checkForUpdates) as? Bool ?? true
         screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
@@ -1190,7 +1201,8 @@ final class AppSettings: ObservableObject {
             defaults.removeObject(forKey: key)
         }
         showMenuBarIcon = true
-        displayMode = .notchOrMain
+        displayMode = .allDisplays
+        hiddenDisplays = ""
         hideInFullscreen = true
         showOnNonNotchDisplays = true
         hapticFeedback = true
@@ -1322,6 +1334,7 @@ final class AppSettings: ObservableObject {
         dailyWrap = true
         dailyWrapMinutes = 1080
         dailyWrapWeekdays = true
+        checkForUpdates = true
         screenSharingPrivacy = false
         hideWhileMirroring = false
         fullscreenScope = .allApps

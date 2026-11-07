@@ -42,29 +42,29 @@ struct TabsSettingsPane: View {
         } header: {
             Text("Tabs")
         } footer: {
-            SettingsFooter("Tabs appear in the panel's tab menu in this order (⌘1–⌘9 for the first nine). Use the arrows to reorder. At least one tab stays on.")
+            SettingsFooter("Use the arrows to change the order. ⌘1–⌘9 open the first nine.")
         }
     }
 
     private func tabDetail(_ tab: PanelTab) -> String {
         switch tab {
-        case .home: return "Music, weather, timer, calendar and Up Next at a glance."
-        case .nowPlaying: return "Full player with synced lyrics and the sound output menu."
+        case .home: return "Music, weather, timer and calendar at a glance."
+        case .nowPlaying: return "The player, with synced lyrics."
         case .timer: return "Countdowns, Pomodoro and a stopwatch."
-        case .clipboard: return "Search and paste anything you copied recently."
-        case .shelf: return "Files you dropped on the notch, ready to drag out or AirDrop."
-        case .notes: return "A scratch pad and a to-do list. Stored only on this Mac."
-        case .calculator: return "Type a sum, get the answer, copy it."
-        case .emoji: return "Search emoji by name and copy them."
-        case .quickSearch: return "Search the web with Google, DuckDuckGo, GitHub and more."
-        case .launcher: return "Your pinned and running apps, plus app search."
-        case .shortcuts: return "Run your Shortcuts from the notch."
-        case .reminders: return "Your reminders: add and tick them off."
-        case .mirror: return "A camera preview to check how you look."
-        case .system: return "CPU, memory, network, disk, battery and screen time."
-        case .aiUsage: return "Claude Code and Codex usage from local logs."
-        case .calendar: return "This month, your events and due reminders; add and edit events."
-        case .quickSettings: return "Your favourite switches, one click away in the notch."
+        case .clipboard: return "Everything you copied lately."
+        case .shelf: return "Files you dropped on the notch."
+        case .notes: return "Quick notes and to-dos. Stays on this Mac."
+        case .calculator: return "Type a sum, get the answer."
+        case .emoji: return "Find an emoji and copy it."
+        case .quickSearch: return "Search the web from the notch."
+        case .launcher: return "Your apps, one click away."
+        case .shortcuts: return "Run your Shortcuts."
+        case .reminders: return "Add and tick off reminders."
+        case .mirror: return "Check how you look before a call."
+        case .system: return "CPU, memory, network, disk and battery."
+        case .aiUsage: return "Claude Code and Codex usage."
+        case .calendar: return "Your month, events and reminders."
+        case .quickSettings: return "Your favourite switches."
         }
     }
 
@@ -109,22 +109,22 @@ struct TabsSettingsPane: View {
 
     private func headerDetail(_ id: HeaderButtonID) -> String {
         switch id {
-        case .battery: return "Battery level; click for Mac health and accessory batteries."
-        case .timer: return "Start or show the running timer."
-        case .output: return "Pick the speakers or headphones for sound."
-        case .keepAwake: return "Stop your Mac from sleeping while it's on."
-        case .mic: return "Mute or unmute the microphone for every app."
-        case .screenshot: return "Capture an area of the screen to the clipboard."
+        case .battery: return "Battery level. Click for more."
+        case .timer: return "Start or show a timer."
+        case .output: return "Choose where sound plays."
+        case .keepAwake: return "Keep your Mac awake."
+        case .mic: return "Mute or unmute your mic."
+        case .screenshot: return "Grab part of the screen."
         case .colorPicker: return "Copy the colour under the pointer."
-        case .actions: return "Stopwatch, Pomodoro, screenshot, colour picker and more."
-        case .pin: return "Keep the panel open when the pointer leaves."
+        case .actions: return "Stopwatch, Pomodoro, screenshot and more."
+        case .pin: return "Keep the panel open."
         case .lock: return "Lock your Mac right away."
         case .stopwatch: return "Start or reset a stopwatch."
         case .pomodoro: return "Start a Pomodoro focus session."
-        case .volume: return "A volume slider for the current output."
-        case .scanQR: return "Select a QR code on screen and copy what it says."
-        case .ports: return "Apps listening on network ports; stop one with a click."
-        case .systemStats: return "CPU and memory at a glance; click for details."
+        case .volume: return "Change the volume."
+        case .scanQR: return "Read a QR code on screen."
+        case .ports: return "Apps using network ports. Click to stop one."
+        case .systemStats: return "CPU and memory. Click for more."
         }
     }
 
@@ -137,14 +137,14 @@ struct TabsSettingsPane: View {
         } header: {
             Text("Header Buttons")
         } footer: {
-            SettingsFooter("Buttons on the right of the panel header, in this order.")
+            SettingsFooter("The buttons at the top right of the panel.")
         }
     }
 
     private var hotkeysSection: some View {
         Section {
             SettingNavigationRow(page: .behavior,
-                                 detail: "Shortcuts for the panel, actions and each tab live under Behavior → Keyboard Shortcuts.")
+                                 detail: "Shortcuts live under Behavior → Keyboard Shortcuts.")
         } header: {
             Text("Keyboard Shortcuts")
         }
@@ -225,7 +225,7 @@ struct HomeSettingsPane: View {
     private var gridSection: some View {
         Section {
             SettingRow(symbol: "square.grid.3x2.fill", color: .orange, title: "Columns",
-                       detail: "How many cards sit side by side. More columns make each card smaller.") {
+                       detail: "More columns means smaller cards.") {
                 Picker("Columns", selection: $settings.homeColumns) {
                     ForEach(2...4, id: \.self) { n in
                         Text("\(n)").tag(n)
@@ -240,7 +240,7 @@ struct HomeSettingsPane: View {
         } header: {
             Text("Card Grid")
         } footer: {
-            SettingsFooter("Cards fill the grid in this order, row by row (\(slotsUsed) slots in use, \(settings.homeColumns) per row). Wide cards take two slots.")
+            SettingsFooter("Cards fill in this order (\(slotsUsed) slots used, \(settings.homeColumns) per row). Wide cards take two.")
         }
     }
 
@@ -252,7 +252,7 @@ struct HomeSettingsPane: View {
         } footer: {
             SettingsFooter(HomeCard.parseList(settings.homeCards).contains(.worldClock)
                            ? "Shown on the World Clock card."
-                           : "Turn on the World Clock card above to see these cities on the Home tab.")
+                           : "Turn on the World Clock card to see these.")
         }
     }
 
@@ -263,18 +263,18 @@ struct HomeSettingsPane: View {
             Text("Saved Links")
         } footer: {
             SettingsFooter(HomeCard.parseList(settings.homeCards).contains(.links)
-                           ? "Open in your default browser from the Saved Links card."
-                           : "Turn on the Saved Links card above to use these on the Home tab.")
+                           ? "Open them from the Saved Links card."
+                           : "Turn on the Saved Links card to use these.")
         }
     }
 
     private var cardsSection: some View {
         Section("Card Details") {
             SettingToggle(symbol: "calendar", color: .red, title: "Calendar & Up Next",
-                          detail: "A month view and your next events. Needs Calendar access.",
+                          detail: "Your month and next events. Needs Calendar access.",
                           isOn: $settings.expandedShowsCalendar)
             SettingToggle(symbol: "battery.75percent", color: .green, title: "Battery",
-                          detail: "Your Mac's battery level and charging state.",
+                          detail: "Your Mac's battery and charging.",
                           isOn: $settings.expandedShowsBattery)
         }
     }
@@ -282,18 +282,18 @@ struct HomeSettingsPane: View {
     private var weatherSection: some View {
         Section {
             SettingToggle(symbol: "cloud.sun.fill", color: .blue, title: "Weather",
-                          detail: "Current conditions and today's high / low. Uses the network (Open-Meteo, no account).",
+                          detail: "Today's weather from Open-Meteo. No account needed.",
                           isOn: $settings.weatherEnabled)
             Group {
                 SettingRow(symbol: "mappin.and.ellipse", color: .red, title: "City",
-                           detail: "Leave empty to use your location (asks for Location Services once).") {
+                           detail: "Leave empty to use your location.") {
                     TextField("City", text: $settings.weatherCity, prompt: Text("Current location"))
                         .labelsHidden()
                         .frame(width: 180)
                         .onSubmit { weather.refresh() }
                 }
                 SettingRow(symbol: "thermometer.medium", color: .orange, title: "Unit",
-                           detail: "Temperature unit for the weather card.") {
+                           detail: "Celsius or Fahrenheit.") {
                     Picker("Unit", selection: $settings.temperatureUnit) {
                         ForEach(TemperatureUnit.allCases, id: \.self) { unit in
                             Text(unit.symbol).tag(unit)
@@ -312,7 +312,7 @@ struct HomeSettingsPane: View {
         } header: {
             Text("Weather")
         } footer: {
-            SettingsFooter("Refreshed every 30 minutes. Only the city name or rough coordinates are sent to Open-Meteo.")
+            SettingsFooter("Updates every 30 minutes. Only the city goes to Open-Meteo.")
         }
     }
 
@@ -327,7 +327,7 @@ struct HomeSettingsPane: View {
     private var colorSection: some View {
         Section {
             SettingRow(symbol: "eyedropper", color: .purple, title: "Copy Picked Colours As",
-                       detail: "Pick a Color (⋯ actions menu) copies the colour under the pointer in this format.") {
+                       detail: "The format used when you pick a colour.") {
                 Picker("Copy picked colours as", selection: $settings.colorFormat) {
                     Text("HEX").tag("hex")
                     Text("RGB").tag("rgb")
@@ -346,7 +346,7 @@ struct HomeSettingsPane: View {
         } header: {
             Text("Colour Tools")
         } footer: {
-            SettingsFooter("Examples: HEX #1E90FF · RGB rgb(30, 144, 255) · HSL hsl(210, 100%, 56%)")
+            SettingsFooter("Like #1E90FF, rgb(30, 144, 255) or hsl(210, 100%, 56%)")
         }
     }
 }

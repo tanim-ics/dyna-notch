@@ -12,13 +12,13 @@ struct ActivitySettingsPane: View {
         SettingsPageView(page: .activity) {
             Section {
                 SettingToggle(symbol: "hourglass", color: .green, title: "Track Screen Time",
-                              detail: "Records which app is in front, shown in the System tab. Pauses while idle or locked.",
+                              detail: "Track which apps you use, shown in the System tab. Pauses when you're away.",
                               isOn: $settings.screenTimeEnabled)
                 SettingValueRow(symbol: "chart.bar.fill", color: .blue, title: "Today",
-                                detail: "Total time in front of apps since midnight.",
+                                detail: "Time in apps since midnight.",
                                 value: Format.countdown(screenTime.totalToday()))
                 SettingRow(symbol: "trash.fill", color: .red, title: "Clear Screen Time Data",
-                           detail: "Deletes every recorded day. This can't be undone.") {
+                           detail: "Deletes every day you've tracked. Can't be undone.") {
                     InlineConfirmButton(title: "Clear…", confirmTitle: "Clear") { screenTime.clear() }
                 }
             } header: {
@@ -28,10 +28,10 @@ struct ActivitySettingsPane: View {
             }
             Section {
                 SettingToggle(symbol: "sparkles", color: .yellow, title: "Daily Wrap",
-                              detail: "At the end of your day, one card in the notch: time at the Mac, Pomodoros, commits, your most-played song and Claude Code cost. Built from what DynaNotch already keeps here.",
+                              detail: "A short recap of your day in the notch.",
                               isOn: $settings.dailyWrap, testID: "setting-dailyWrap")
                 SettingRow(symbol: "clock.fill", color: .orange, title: "Show At",
-                           detail: "If you're away then, it waits until you're back.") {
+                           detail: "If you're away, it waits for you.") {
                     DatePicker("Show at", selection: wrapTime, displayedComponents: .hourAndMinute)
                         .labelsHidden()
                         .uiTestID("setting-dailyWrapTime")
@@ -49,7 +49,7 @@ struct ActivitySettingsPane: View {
             } header: {
                 Text("Daily Wrap")
             } footer: {
-                PrivacyFooter(text: "Commits are counted with git in your code folders on this Mac; nothing is uploaded.")
+                PrivacyFooter(text: "Commits are counted on this Mac. Nothing is uploaded.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.screenTimeEnabled, SettingsKey.dailyWrap,
                                           SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays])
@@ -101,7 +101,7 @@ struct AIUsageSettingsPane: View {
     private var aiSection: some View {
         Section {
             SettingToggle(symbol: "sparkles", color: .purple, title: "AI Usage Tab",
-                          detail: "Token usage, 5-hour blocks and estimated cost in the panel.",
+                          detail: "Claude Code and Codex usage in the panel.",
                           isOn: $settings.aiUsageEnabled)
             Group {
                 SettingValueRow(symbol: "c.circle.fill", color: .orange, title: "Claude Code",
@@ -113,7 +113,7 @@ struct AIUsageSettingsPane: View {
                                 value: usage.hasCodexData ? "Found" : "No logs found",
                                 valueColor: usage.hasCodexData ? .green : .secondary)
                 SettingRow(symbol: "arrow.clockwise", color: .blue, title: "Refresh",
-                           detail: "Logs are re-read every minute; refresh to update right now.") {
+                           detail: "Updates every minute. Refresh to update now.") {
                     Button("Refresh Now") { usage.refresh() }
                 }
             }
@@ -121,25 +121,25 @@ struct AIUsageSettingsPane: View {
         } header: {
             Text("AI Usage")
         } footer: {
-            PrivacyFooter(text: "Read locally from the log files; nothing is uploaded.")
+            PrivacyFooter(text: "Read from local logs. Nothing is uploaded.")
         }
     }
 
     private var warningsSection: some View {
         Section {
             SettingToggle(symbol: "exclamationmark.triangle.fill", color: .orange, title: "Limit Warnings",
-                          detail: "A popup when a Claude 5-hour block or a Codex limit passes the threshold, and before it runs out.",
+                          detail: "A heads-up when you're close to a limit.",
                           isOn: $settings.aiLimitWarnings, testID: "setting-aiLimitWarnings")
             IntSliderRow(symbol: "gauge.with.dots.needle.67percent", color: .orange, title: "Warn At",
-                         detail: "How much of a limit may be used before the warning appears.",
+                         detail: "Warn at this much use.",
                          value: $settings.aiLimitWarnPercent, range: 50...95, step: 5, format: { "\($0)%" },
                          testID: "setting-aiLimitWarnPercent")
                 .disabled(!settings.aiLimitWarnings)
             SettingToggle(symbol: "menubar.rectangle", color: .purple, title: "Menu Bar Readout",
-                          detail: "Shows the current block's usage next to the DynaNotch menu bar icon.",
+                          detail: "Show your current usage in the menu bar.",
                           isOn: $settings.aiMenuBarReadout, testID: "setting-aiMenuBarReadout")
             SettingToggle(symbol: "eye.slash.fill", color: .gray, title: "Hide Personal Info",
-                          detail: "Hide project names and paths in the AI Usage tab, e.g. while sharing your screen.",
+                          detail: "Hide project names, handy when sharing your screen.",
                           isOn: $settings.aiHidePersonalInfo, testID: "setting-aiHidePersonalInfo")
         } header: {
             Text("Warnings & Display")
@@ -150,21 +150,21 @@ struct AIUsageSettingsPane: View {
     private var agentSection: some View {
         Section {
             SettingToggle(symbol: "sparkle", color: .orange, title: "Agent Island",
-                          detail: "When Claude Code asks for permission, the notch shows what it wants to run with Allow, Deny and Terminal. Off: Claude asks in the terminal as usual.",
+                          detail: "Answer Claude Code's permission requests from the notch. Off: answer in the terminal.",
                           isOn: $settings.agentIsland, testID: "setting-agentIsland")
             SettingToggle(symbol: "text.bubble.fill", color: .blue, title: "Session Status in the Pill",
-                          detail: "What Claude is doing right now (\u{201C}Running npm test\u{201D}) and \u{201C}Done\u{201D} when it finishes. Covers the music while Claude works.",
+                          detail: "See what Claude is working on and when it's done.",
                           isOn: $settings.agentStatus, testID: "setting-agentStatus")
                 .disabled(!settings.agentIsland)
             SliderRow(symbol: "hourglass", color: .gray, title: "Answer Within",
-                      detail: "After this, Claude asks in the terminal instead. Claude waits while the notch is asking.",
+                      detail: "After this, Claude asks in the terminal instead.",
                       value: $settings.agentTimeout, range: 15...300, step: 15,
                       format: { "\(Int($0)) s" }, testID: "setting-agentTimeout")
                 .disabled(!settings.agentIsland)
             SettingRow(symbol: "link", color: .purple, title: "Claude Code Hooks",
                        detail: agentHooksInstalled
-                           ? "Installed in ~/.claude/settings.json: permission requests and status reach the notch."
-                           : "Adds hooks to ~/.claude/settings.json (a backup is kept). Needed once for Agent Island.") {
+                           ? "Installed. Claude Code now talks to the notch."
+                           : "Adds hooks to Claude Code's settings (with a backup). Needed once.") {
                 if agentHooksInstalled {
                     Button("Remove") {
                         ShellHookInstaller.removeAgentHooks()
@@ -176,8 +176,8 @@ struct AIUsageSettingsPane: View {
                     Button("Install") {
                         let ok = ShellHookInstaller.installAgentHooks(timeout: Int(settings.agentTimeout))
                         agentHooksInstalled = ShellHookInstaller.agentHooksInstalled
-                        agentMessage = ok ? "Hooks installed. They work from the next Claude Code session."
-                                          : "Could not install the hooks — is ~/.claude/settings.json valid JSON?"
+                        agentMessage = ok ? "Done. Works from your next Claude Code session."
+                                          : "Couldn't install. Is ~/.claude/settings.json valid JSON?"
                     }
                     .uiTestID("setting-agentHooks-install")
                 }
@@ -190,7 +190,7 @@ struct AIUsageSettingsPane: View {
         } header: {
             Text("Agent Island")
         } footer: {
-            PrivacyFooter(text: "Requests travel through files in DynaNotch's folder on this Mac; nothing leaves it.")
+            PrivacyFooter(text: "Everything stays on this Mac.")
         }
         .onAppear { agentHooksInstalled = ShellHookInstaller.agentHooksInstalled }
     }
@@ -199,8 +199,8 @@ struct AIUsageSettingsPane: View {
         Section {
             SettingRow(symbol: "dollarsign.circle.fill", color: .green, title: "Session Cost After Each Reply",
                        detail: costHookInstalled
-                           ? "Installed: Claude Code shows what each session has cost in the notch when it finishes replying."
-                           : "Adds a Stop hook to ~/.claude/settings.json that shows the session's cost in the notch.") {
+                           ? "Installed. You'll see each session's cost when Claude finishes."
+                           : "Show each Claude Code session's cost in the notch.") {
                 if costHookInstalled {
                     Button("Remove") {
                         ShellHookInstaller.removeClaudeCostHook()
@@ -212,8 +212,8 @@ struct AIUsageSettingsPane: View {
                     Button("Install") {
                         let ok = ShellHookInstaller.installClaudeCostHook()
                         costHookInstalled = ShellHookInstaller.claudeCostHookInstalled
-                        hookMessage = ok ? "Hook installed. It runs from the next Claude Code reply."
-                                         : "Could not install the hook — is ~/.claude/settings.json valid JSON?"
+                        hookMessage = ok ? "Done. Works from Claude's next reply."
+                                         : "Couldn't install. Is ~/.claude/settings.json valid JSON?"
                     }
                     .uiTestID("setting-claudeCostHook-install")
                 }
@@ -226,7 +226,7 @@ struct AIUsageSettingsPane: View {
         } header: {
             Text("Claude Code Hook")
         } footer: {
-            SettingsFooter("Your other hooks are left untouched. The cost is estimated locally from the session log.")
+            SettingsFooter("Your other hooks are left alone.")
         }
         .onAppear { costHookInstalled = ShellHookInstaller.claudeCostHookInstalled }
     }
@@ -234,7 +234,7 @@ struct AIUsageSettingsPane: View {
     private var hookSection: some View {
         Section {
             SettingStackedRow(symbol: "terminal.fill", color: .gray, title: "Notify Command",
-                              detail: "Use as a Claude Code hook (Notification or Stop in ~/.claude/settings.json) or from any script to show a message in the notch.") {
+                              detail: "Use it in a Claude Code hook or any script to post a message.") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(AIUsageSettingsPane.hookExample)
                         .font(.system(.caption, design: .monospaced))
@@ -254,7 +254,7 @@ struct AIUsageSettingsPane: View {
         } header: {
             Text("Notifications from Scripts")
         } footer: {
-            SettingsFooter("Parameters: title, body, symbol (SF Symbol name), duration (1–30 s).")
+            SettingsFooter("You can set title, body, symbol and duration (1–30 s).")
         }
     }
 }

@@ -2,64 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>DynaNotch</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.tanim.dynanotch</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>DynaNotch</string>
-    <key>CFBundleDisplayName</key>
-    <string>DynaNotch</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleShortVersionString</key>
-    <string>3.2.0</string>
-    <key>CFBundleVersion</key>
-    <string>320</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSSupportsAutomaticGraphicsSwitching</key>
-    <true/>
-    <key>NSHumanReadableCopyright</key>
-    <string>© 2026 Tanim Rayhan</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>DynaNotch uses AppleScript to read track info from your media player when the system Now Playing source is unavailable.</string>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>DynaNotch shows a live activity when your AirPods and other Bluetooth devices connect.</string>
-    <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>DynaNotch shows your upcoming events in the island.</string>
-    <key>NSCalendarsUsageDescription</key>
-    <string>DynaNotch shows your upcoming events in the island.</string>
-    <key>NSLocationUsageDescription</key>
-    <string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>The Mirror tab shows your camera so you can check yourself before a call. Nothing is recorded.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Voice Notes listens while you speak a note, and Meeting Meter's Talk Share measures your microphone's level. Nothing is recorded or kept.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Voice Notes turns what you say into a note, a reminder or a timer. Recognition runs on this Mac only.</string>
-    <key>NSRemindersFullAccessUsageDescription</key>
-    <string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
-    <key>NSRemindersUsageDescription</key>
-    <string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>DynaNotch</string>
+	<key>CFBundleExecutable</key>
+	<string>DynaNotch</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.tanim.dynanotch</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>DynaNotch</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>3.3.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -71,5 +33,43 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>330</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>DynaNotch uses AppleScript to read track info from your media player when the system Now Playing source is unavailable.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>DynaNotch shows a live activity when your AirPods and other Bluetooth devices connect.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>DynaNotch shows your upcoming events in the island.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>DynaNotch shows your upcoming events in the island.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The Mirror tab shows your camera so you can check yourself before a call. Nothing is recorded.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Tanim Rayhan</string>
+	<key>NSLocationUsageDescription</key>
+	<string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DynaNotch shows the weather for your location in the island. You can type a city in Settings instead.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voice Notes listens while you speak a note, and Meeting Meter's Talk Share measures your microphone's level. Nothing is recorded or kept.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>The Reminders tab shows, adds and completes your Apple Reminders.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Voice Notes turns what you say into a note, a reminder or a timer. Recognition runs on this Mac only.</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
 </dict>
 </plist>

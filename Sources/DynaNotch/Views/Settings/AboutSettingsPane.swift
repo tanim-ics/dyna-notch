@@ -6,6 +6,8 @@ import DynaNotchCore
 
 struct AboutSettingsPane: View {
     @EnvironmentObject var settings: AppSettings
+    @ObservedObject private var updates = UpdateService.shared
+    private let notes = WhatsNewController.bundledNotes
 
     @State private var message: String?
     @State private var caches: [AppMaintenance.CacheInfo] = AppMaintenance.caches()
@@ -37,21 +39,22 @@ struct AboutSettingsPane: View {
                 }
                 .padding(.vertical, 4)
                 SettingRow(symbol: "sparkles", color: .purple, title: "Feature Tour",
-                           detail: "Replay the welcome and the tips that introduce the panel.") {
+                           detail: "See the welcome and tips again.") {
                     Button("Replay") {
                         NotificationCenter.default.post(name: .dynaNotchShowWelcome, object: nil)
                     }
                 }
             }
+            updateSection
             whatsNewSection
             cachesSection
             Section {
                 SettingRow(symbol: "square.and.arrow.up.fill", color: .blue, title: "Export Settings",
-                           detail: "Save every setting to a JSON file, e.g. before a reset or to move to another Mac.") {
+                           detail: "Save your settings to a file.") {
                     Button("Export…", action: exportSettings)
                 }
                 SettingRow(symbol: "square.and.arrow.down.fill", color: .green, title: "Import Settings",
-                           detail: "Load settings from a file exported earlier. Replaces your current settings.") {
+                           detail: "Load settings from a file. Replaces what you have now.") {
                     Button("Import…", action: importSettings)
                 }
                 if let message = message {
@@ -62,11 +65,11 @@ struct AboutSettingsPane: View {
             } header: {
                 Text("Backup")
             } footer: {
-                SettingsFooter("Clipboard history, notes and the shelf are not included in the file.")
+                SettingsFooter("Clipboard, notes and the shelf aren't included.")
             }
             Section {
                 SettingRow(symbol: "arrow.counterclockwise", color: .red, title: "Reset All Settings",
-                           detail: "Every page goes back to its defaults. Export a backup first if you might want them back.") {
+                           detail: "Puts every page back to how it started. Export first if you want a backup.") {
                     InlineConfirmButton(title: "Reset All…", confirmTitle: "Reset") {
                         settings.resetToDefaults()
                         message = "All settings were reset."
@@ -83,29 +86,70 @@ struct AboutSettingsPane: View {
         }
     }
 
+    // MARK: Software Update
+
+    private var updateDetail: String {
+        switch updates.status {
+        case .checking: return "Checking GitHub…"
+        case .upToDate: return "You have the latest version\(checkedText)."
+        case .available(let update, _): return "DynaNotch \(update.version) is available."
+        case .downloading(let fraction): return "Downloading… \(Int(fraction * 100)) %"
+        case .installing: return "Installing… DynaNotch will restart in a moment."
+        case .failed(let message): return message
+        case .idle: return "Version \(version)\(checkedText)."
+        }
+    }
+
+    private var checkedText: String {
+        guard let date = updates.lastChecked else { return "" }
+        return " · checked " + date.formatted(.relative(presentation: .named))
+    }
+
+    private var updateSection: some View {
+        Section {
+            SettingToggle(symbol: "arrow.triangle.2.circlepath", color: .blue, title: "Check for Updates Automatically",
+                          detail: "Checks GitHub once a day. Nothing about you is sent.",
+                          isOn: $settings.checkForUpdates, testID: "setting-checkForUpdates")
+            SettingRow(symbol: "arrow.down.circle.fill", color: .green, title: "Software Update", detail: updateDetail) {
+                if updates.update != nil {
+                    Button("Update…") { WhatsNewController.shared.showUpdate() }
+                        .uiTestID("setting-updateNow")
+                } else {
+                    Button("Check Now") { updates.checkNow() }
+                        .disabled(updates.status == .checking || updates.status == .installing)
+                        .uiTestID("setting-checkUpdates")
+                }
+            }
+        } header: {
+            Text("Updates")
+        }
+    }
+
     // MARK: What's New
 
     @ViewBuilder
     private var whatsNewSection: some View {
         Section {
-            if AppMaintenance.whatsNew.isEmpty {
-                SettingRow(symbol: "sparkles", color: .purple, title: "What's New",
-                           detail: "Release notes appear here after an update.")
-            } else {
-                ForEach(Array(AppMaintenance.whatsNew.prefix(3).enumerated()), id: \.offset) { _, release in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Version \(release.version)").font(.headline)
-                        ForEach(Array(release.items.enumerated()), id: \.offset) { _, item in
-                            Label {
-                                Text(item).fixedSize(horizontal: false, vertical: true)
-                            } icon: {
-                                Image(systemName: "sparkle").foregroundStyle(Color.purple)
-                            }
-                            .font(.callout)
+            SettingRow(symbol: "play.rectangle.fill", color: .pink, title: "What's New",
+                       detail: "See what's new in this version.") {
+                Button("Watch") { WhatsNewController.shared.showCurrent() }
+                    .disabled(notes.isEmpty)
+                    .uiTestID("setting-watchWhatsNew")
+            }
+            ForEach(Array(notes.prefix(3).enumerated()), id: \.offset) { _, release in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Version \(release.version)").font(.headline)
+                    ForEach(Array(release.features.enumerated()), id: \.offset) { _, feature in
+                        Label {
+                            Text(feature.title).fontWeight(.medium) + Text(" — \(feature.text)").foregroundColor(.secondary)
+                        } icon: {
+                            Image(systemName: feature.symbol).foregroundStyle(StoryColor.named(feature.color))
                         }
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.vertical, 2)
                 }
+                .padding(.vertical, 2)
             }
         } header: {
             Text("What's New")
@@ -124,12 +168,12 @@ struct AboutSettingsPane: View {
             } else {
                 ForEach(caches) { cache in
                     SettingValueRow(symbol: "internaldrive.fill", color: .gray, title: cache.name,
-                                    detail: "Downloaded again or rebuilt when needed.",
+                                    detail: "Downloaded again when needed.",
                                     value: Format.bytes(Double(cache.bytes)))
                 }
             }
             SettingRow(symbol: "trash.fill", color: .red, title: "Clear Caches",
-                       detail: cacheMessage ?? "Frees \(Format.bytes(Double(cacheTotal))). Settings, notes, clipboard history and the shelf are kept.") {
+                       detail: cacheMessage ?? "Frees \(Format.bytes(Double(cacheTotal))). Your settings and notes are kept.") {
                 InlineConfirmButton(title: "Clear…", confirmTitle: "Clear") {
                     let before = cacheTotal
                     AppMaintenance.clearCaches()
@@ -142,7 +186,7 @@ struct AboutSettingsPane: View {
         } header: {
             Text("Storage")
         } footer: {
-            PrivacyFooter(text: "Everything lives in ~/Library/Application Support/DynaNotch on this Mac.")
+            PrivacyFooter(text: "Everything is kept in ~/Library/Application Support/DynaNotch.")
         }
         .onAppear { caches = AppMaintenance.caches() }
     }
@@ -152,7 +196,7 @@ struct AboutSettingsPane: View {
     @ViewBuilder
     private var uninstallRow: some View {
         SettingRow(symbol: "xmark.bin.fill", color: .red, title: "Uninstall DynaNotch",
-                   detail: "Removes all settings and data, the login item and the hooks DynaNotch installed, then quits. Drag DynaNotch.app to the Trash afterwards.") {
+                   detail: "Deletes all settings and data, then quits. Drag the app to the Trash after.") {
             if uninstallStage == 0 {
                 DestructiveButton(title: "Uninstall…") { uninstallStage = 1 }
                     .uiTestID("setting-uninstall")

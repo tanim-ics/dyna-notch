@@ -22,6 +22,14 @@ loads casks from taps you have trusted, and naming it in full trusts it.
 DynaNotch is not notarised by Apple, so the cask removes the download quarantine after installing; otherwise macOS
 refuses to open it.
 
+### Updates
+
+DynaNotch checks GitHub for a new version once a day. When there is one, an **Update** button appears in the panel
+header (and "Update to …" in the menu-bar menu). It plays a short story of the new features; **Update Now** downloads
+the new version, checks it, swaps the app and restarts it — settings and permissions stay. After an update the new
+version shows its What's New story once; replay it from the menu bar or Settings → About, where you can also turn the
+daily check off.
+
 ### From the source folder
 
 ```bash
@@ -103,9 +111,12 @@ Optional: **Calendar** (events), **Location** (weather; or type a city in Settin
   (or run `tccutil reset Calendar com.tanim.dynanotch`) and allow it once more.
 - **Build fails with odd cache errors.** Run `rm -rf .build build && ./build.sh`. Logs are in `build/logs/`.
 - **No music showing.** Play something, then check `log stream --predicate 'subsystem == "com.tanim.dynanotch"'`.
-- **Island missing on an external display.** Settings → Behavior → Show On → **Every Display** (an island on each
-  display) or **Follow Mouse** (one island that moves to the display you're using). Also turn on Appearance → "Show on
-  Displays Without a Notch", or the resting pill stays hidden there.
+- **Island missing on an external display.** Settings → Behavior → Show On → **Every Display** (the default: an island
+  on each display; switch single displays off in the list below it) or **Follow Mouse** (one island that moves to the
+  display you're using). Also turn on Appearance → "Show on Displays Without a Notch", or the resting pill stays hidden
+  there. An app in real full screen hides that display's island (Behavior → Hide in Full Screen).
+- **Acting on a popup.** Rest the pointer on a notification to read all of it; it stays until you move away. Click
+  **Open** to go where it points (Calendar tab, Downloads, a link from `notify?open=`) or **Dismiss** to close it.
 - **Accessibility is on but General still asks for it.** An older build is listed: select DynaNotch in System Settings →
   Privacy & Security → Accessibility, remove it with −, then click Allow… in DynaNotch again.
   It also hides in full-screen apps by default.
@@ -117,6 +128,8 @@ Send yourself a notch notification from any script, e.g. a Claude Code hook:
 ```bash
 open -g "dynanotch://notify?title=Build&body=Done&symbol=hammer.fill"
 ```
+
+Add `&open=https://…` (or a `file://` path) to give the popup an **Open** button.
 
 Other URLs: `dynanotch://tab/<name>`, `dynanotch://timer/<minutes>`, `dynanotch://timer/stop`.
 

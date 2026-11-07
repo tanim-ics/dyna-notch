@@ -15,6 +15,8 @@ cask "dynanotch" do
   desc "Dynamic Island for the notch"
   homepage "https://github.com/tanim-ics/dyna-notch"
 
+  # DynaNotch updates itself (Settings → About → Updates); brew upgrade --greedy also works.
+  auto_updates true
   depends_on arch: :arm64
   depends_on macos: :sonoma
 

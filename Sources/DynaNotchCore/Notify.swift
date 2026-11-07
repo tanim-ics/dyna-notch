@@ -8,17 +8,22 @@ public struct NotchNotification: Equatable {
     public var body: String
     public var symbol: String
     public var duration: TimeInterval?
+    /// What a click on the popup opens (`open=`, http / https / file only).
+    public var openURL: URL?
 
-    public init(title: String, body: String, symbol: String = "bell.fill", duration: TimeInterval? = nil) {
+    public init(title: String, body: String, symbol: String = "bell.fill", duration: TimeInterval? = nil,
+                openURL: URL? = nil) {
         self.title = title
         self.body = body
         self.symbol = symbol
         self.duration = duration
+        self.openURL = openURL
     }
 }
 
 public enum NotifyURL {
-    /// dynanotch://notify?title=&body=&symbol=&duration= (title or body required; duration clamped 1...30).
+    /// dynanotch://notify?title=&body=&symbol=&duration=&open= (title or body required; duration clamped 1...30;
+    /// open = http / https / file URL a click on the popup opens).
     public static func parse(_ url: URL) -> NotchNotification? {
         guard url.scheme?.lowercased() == "dynanotch", url.host?.lowercased() == "notify",
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
@@ -33,6 +38,6 @@ public enum NotifyURL {
         if symbol.isEmpty { symbol = "bell.fill" }
         let duration = values["duration"].flatMap(Double.init).map { min(30, max(1, $0)) }
         return NotchNotification(title: title.isEmpty ? body : title, body: title.isEmpty ? "" : body,
-                                 symbol: symbol, duration: duration)
+                                 symbol: symbol, duration: duration, openURL: PopupTarget.openURL(values["open"]))
     }
 }

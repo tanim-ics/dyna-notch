@@ -17,10 +17,10 @@ struct KnockSettingsPane: View {
         SettingsPageView(page: .knock) {
             Section {
                 SettingToggle(symbol: "hand.tap.fill", color: .pink, title: "Knock",
-                              detail: "Tap a modifier key on its own 1, 2 or 3 times to run an action. Needs Accessibility.",
+                              detail: "Tap a modifier key 1, 2 or 3 times to do something. Needs Accessibility.",
                               isOn: $settings.knockEnabled, testID: "setting-knockEnabled")
                 SettingRow(symbol: "keyboard.fill", color: .gray, title: "Knock Key",
-                           detail: "The key you tap. Holding it or using it in a shortcut never counts.") {
+                           detail: "The key to tap. Holding it doesn't count.") {
                     Picker("Knock key", selection: $settings.knockKey) {
                         ForEach(KnockKey.allCases, id: \.self) { key in
                             Text(key.title).tag(key)
@@ -37,7 +37,7 @@ struct KnockSettingsPane: View {
             Section {
                 ForEach(1...3, id: \.self) { taps in
                     SettingRow(symbol: "\(taps).circle.fill", color: .pink, title: tapTitle(taps),
-                               detail: "What happens when you tap \(settings.knockKey.title) \(tapWord(taps)).") {
+                               detail: "What tapping \(settings.knockKey.title) \(tapWord(taps)) does.") {
                         Picker(tapTitle(taps), selection: actionBinding(taps)) {
                             ForEach(KnockAction.allCases, id: \.self) { action in
                                 Text(action.title).tag(action)
@@ -49,12 +49,12 @@ struct KnockSettingsPane: View {
                     }
                 }
                 SettingValueRow(symbol: "waveform.path.ecg", color: knock.isRunning ? .green : .gray, title: "Last Knock",
-                                detail: knock.isRunning ? "Tap the knock key now — what DynaNotch noticed shows here."
-                                    : (settings.knockEnabled ? "Not listening yet. Check the Accessibility permission below."
+                                detail: knock.isRunning ? "Tap the key now to test it."
+                                    : (settings.knockEnabled ? "Not listening yet. Check Accessibility below."
                                                              : "Turn on Knock to start listening."),
                                 value: lastKnockText)
                 SettingRow(symbol: "play.fill", color: .blue, title: "Try It",
-                           detail: "Runs the action for 1, 2 or 3 knocks as if you had tapped the key.") {
+                           detail: "Try each action without tapping.") {
                     HStack(spacing: 4) {
                         ForEach(1...3, id: \.self) { n in
                             Button("\(n)×") { knock.simulate(count: n) }
@@ -68,13 +68,13 @@ struct KnockSettingsPane: View {
             .disabled(!settings.knockEnabled)
             Section {
                 PermissionRow(symbol: "accessibility", color: .blue, title: "Accessibility",
-                              detail: "Lets DynaNotch notice modifier-key taps while other apps are in front.",
+                              detail: "Lets DynaNotch notice taps in other apps.",
                               status: axGranted ? .granted : .denied, anchor: "Privacy_Accessibility",
                               request: nil)
             } header: {
                 Text("Permission")
             } footer: {
-                PrivacyFooter(text: "Only modifier taps are counted; no keystrokes are recorded or stored.")
+                PrivacyFooter(text: "Only modifier taps are counted. Nothing you type is recorded.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions])
         }
@@ -132,17 +132,17 @@ struct AllToolsSettingsPane: View {
     @State private var query = ""
 
     static let tools: [ToolCard] = [
-        ToolCard(id: "nowPlaying", title: "Now Playing", detail: "Music beside the notch with controls.",
+        ToolCard(id: "nowPlaying", title: "Now Playing", detail: "Music next to the notch.",
                  symbol: "music.note", color: .pink, page: .nowPlaying, keyPath: \.nowPlayingEnabled),
-        ToolCard(id: "lyrics", title: "Synced Lyrics", detail: "Lyrics in time with the song. Uses the network.",
+        ToolCard(id: "lyrics", title: "Synced Lyrics", detail: "Lyrics that follow the song.",
                  symbol: "quote.bubble.fill", color: .indigo, page: .nowPlaying, keyPath: \.lyricsEnabled),
-        ToolCard(id: "desktopLyrics", title: "Desktop Lyrics", detail: "The current line floating on your desktop.",
+        ToolCard(id: "desktopLyrics", title: "Desktop Lyrics", detail: "Lyrics on your desktop.",
                  symbol: "text.aligncenter", color: .purple, page: .nowPlaying, keyPath: \.desktopLyrics),
-        ToolCard(id: "listeningHistory", title: "Listening History", detail: "Songs you played, kept on this Mac.",
+        ToolCard(id: "listeningHistory", title: "Listening History", detail: "Songs you've played.",
                  symbol: "clock.arrow.circlepath", color: .pink, page: .nowPlaying, keyPath: \.listeningHistory),
-        ToolCard(id: "hud", title: "Volume & Brightness", detail: "Notch popups instead of the system HUD.",
+        ToolCard(id: "hud", title: "Volume & Brightness", detail: "Volume and brightness in the notch.",
                  symbol: "speaker.wave.2.fill", color: .gray, page: .hud, keyPath: \.hudEnabled),
-        ToolCard(id: "timer", title: "Timer in the Notch", detail: "A ring and time left while a timer runs.",
+        ToolCard(id: "timer", title: "Timer in the Notch", detail: "Time left on your timer.",
                  symbol: "timer", color: .orange, page: .timer, keyPath: \.showCompactTimer),
         ToolCard(id: "lookAway", title: "Look Away", detail: "20-20-20 eye break reminders.",
                  symbol: BreakKind.lookAway.symbol, color: .blue, page: .timer, keyPath: \.breakLookAway),
@@ -152,43 +152,43 @@ struct AllToolsSettingsPane: View {
                  symbol: BreakKind.drinkWater.symbol, color: .cyan, page: .timer, keyPath: \.breakDrinkWater),
         ToolCard(id: "clipboard", title: "Clipboard History", detail: "Paste anything you copied recently.",
                  symbol: "doc.on.clipboard.fill", color: .teal, page: .clipboard, keyPath: \.clipboardEnabled),
-        ToolCard(id: "copyTwice", title: "Copy Twice to Open", detail: "⌘C ⌘C opens the clipboard history.",
+        ToolCard(id: "copyTwice", title: "Copy Twice to Open", detail: "⌘C twice opens your clipboard.",
                  symbol: "doc.on.doc.fill", color: .teal, page: .clipboard, keyPath: \.copyTwiceToOpen),
-        ToolCard(id: "shelf", title: "File Shelf", detail: "Park files on the notch, drag them out later.",
+        ToolCard(id: "shelf", title: "File Shelf", detail: "Park files on the notch.",
                  symbol: "tray.full.fill", color: .cyan, page: .files, keyPath: \.shelfEnabled),
         ToolCard(id: "downloads", title: "Download Popups", detail: "When downloads start and finish.",
                  symbol: "arrow.down.circle.fill", color: .blue, page: .files, keyPath: \.downloadActivity),
-        ToolCard(id: "dmg", title: "Install from Disk Images", detail: "Offers to copy the app when a .dmg opens.",
+        ToolCard(id: "dmg", title: "Install from Disk Images", detail: "Install apps from .dmg files.",
                  symbol: "externaldrive.fill.badge.plus", color: .gray, page: .files, keyPath: \.dmgInstallOffer),
-        ToolCard(id: "weather", title: "Weather", detail: "Conditions on the Home tab. Uses the network.",
+        ToolCard(id: "weather", title: "Weather", detail: "Today's weather on Home.",
                  symbol: "cloud.sun.fill", color: .blue, page: .home, keyPath: \.weatherEnabled),
-        ToolCard(id: "calendar", title: "Calendar", detail: "Up Next and alerts before events.",
+        ToolCard(id: "calendar", title: "Calendar", detail: "Your next events and heads-ups.",
                  symbol: "calendar", color: .red, page: .calendar, keyPath: \.calendarEnabled),
         ToolCard(id: "meetingAlert", title: "Meeting Alerts", detail: "A big alert with a Join button.",
                  symbol: "video.fill", color: .green, page: .calendar, keyPath: \.meetingAlert),
-        ToolCard(id: "nextMeeting", title: "Next Meeting in Menu Bar", detail: "Your next meeting's time in the menu bar.",
+        ToolCard(id: "nextMeeting", title: "Next Meeting in Menu Bar", detail: "Your next meeting in the menu bar.",
                  symbol: "menubar.arrow.up.rectangle", color: .red, page: .calendar, keyPath: \.nextMeetingInMenuBar),
-        ToolCard(id: "aiUsage", title: "AI Usage", detail: "Claude Code and Codex usage from local logs.",
+        ToolCard(id: "aiUsage", title: "AI Usage", detail: "Claude Code and Codex usage.",
                  symbol: "sparkles", color: .purple, page: .aiUsage, keyPath: \.aiUsageEnabled),
         ToolCard(id: "aiMenuBar", title: "AI Usage in Menu Bar", detail: "Your 5-hour block at a glance.",
                  symbol: "gauge.with.dots.needle.50percent", color: .purple, page: .aiUsage, keyPath: \.aiMenuBarReadout),
-        ToolCard(id: "screenTime", title: "Screen Time", detail: "Time per app today, kept on this Mac.",
+        ToolCard(id: "screenTime", title: "Screen Time", detail: "Time spent in each app today.",
                  symbol: "hourglass", color: .green, page: .activity, keyPath: \.screenTimeEnabled),
-        ToolCard(id: "knock", title: "Knock", detail: "Tap a modifier key to run an action.",
+        ToolCard(id: "knock", title: "Knock", detail: "Tap a key to do something.",
                  symbol: "hand.tap.fill", color: .pink, page: .knock, keyPath: \.knockEnabled),
-        ToolCard(id: "hotkeys", title: "Keyboard Shortcuts", detail: "Global shortcuts for the panel and actions.",
+        ToolCard(id: "hotkeys", title: "Keyboard Shortcuts", detail: "Shortcuts for the panel and actions.",
                  symbol: "keyboard.fill", color: .gray, page: .behavior, keyPath: \.hotkeysEnabled),
-        ToolCard(id: "edgeGlow", title: "Edge Glow", detail: "The screen edge glows when an alert appears.",
+        ToolCard(id: "edgeGlow", title: "Edge Glow", detail: "The screen edge glows on alerts.",
                  symbol: "rectangle.dashed", color: .orange, page: .popups, keyPath: \.edgeGlow),
-        ToolCard(id: "capsLock", title: "Caps Lock Popup", detail: "Shows when Caps Lock turns on or off.",
+        ToolCard(id: "capsLock", title: "Caps Lock Popup", detail: "Show Caps Lock on and off.",
                  symbol: "capslock.fill", color: .green, page: .popups, keyPath: \.capsLockActivity),
-        ToolCard(id: "privacy", title: "Camera & Mic Guard", detail: "A popup when an app uses them.",
+        ToolCard(id: "privacy", title: "Camera & Mic Guard", detail: "Show when an app uses them.",
                  symbol: "video.fill", color: .green, page: .popups, keyPath: \.privacyActivity),
-        ToolCard(id: "quietFocus", title: "Quiet During Focus", detail: "Hold back popups while Focus is on.",
+        ToolCard(id: "quietFocus", title: "Quiet During Focus", detail: "Hold popups during Focus.",
                  symbol: "moon.zzz.fill", color: .indigo, page: .popups, keyPath: \.quietDuringFocus),
-        ToolCard(id: "charging", title: "Charging Popups", detail: "Level when you plug in or unplug.",
+        ToolCard(id: "charging", title: "Charging Popups", detail: "Battery level when you plug in or out.",
                  symbol: "bolt.fill", color: .green, page: .battery, keyPath: \.chargingActivity),
-        ToolCard(id: "batteryMenuBar", title: "Battery in Menu Bar", detail: "Your battery level in the menu bar.",
+        ToolCard(id: "batteryMenuBar", title: "Battery in Menu Bar", detail: "Battery level in the menu bar.",
                  symbol: "battery.75percent", color: .green, page: .battery, keyPath: \.batteryInMenuBar),
         ToolCard(id: "drain", title: "Battery Drain Warnings", detail: "Flags apps draining the battery.",
                  symbol: "exclamationmark.triangle.fill", color: .orange, page: .battery, keyPath: \.drainWarnings),
@@ -246,7 +246,7 @@ struct AllToolsSettingsPane: View {
                     .padding(.vertical, 4)
                 }
             } footer: {
-                SettingsFooter("Click a tool's name to open its page with all its settings.")
+                SettingsFooter("Click a tool to see all its settings.")
             }
         }
     }
@@ -300,33 +300,33 @@ struct LockScreenSettingsPane: View {
         SettingsPageView(page: .lockScreen) {
             Section {
                 SettingToggle(symbol: "lock.rectangle.stack.fill", color: .indigo, title: "Lock Screen Widgets",
-                              detail: "Weather and battery widgets under the clock on your main display while the Mac is locked. Uses a private macOS feature; if a macOS update breaks it, nothing is shown.",
+                              detail: "Weather and battery under the clock when your Mac is locked. Might stop working after a macOS update.",
                               isOn: $settings.lockScreenWidgets, testID: "setting-lockScreenWidgets")
                 SettingToggle(symbol: "cloud.sun.fill", color: .blue, title: "Weather",
                               detail: settings.weatherEnabled
-                                  ? "Temperature, sky and today's high and low from the last update (no extra network use)."
-                                  : "Turn on Weather in Home settings first; the widget shows the last update.",
+                                  ? "Temperature and today's high and low."
+                                  : "Turn on Weather in Home settings first.",
                               isOn: $settings.lockScreenWeather, testID: "setting-lockScreenWeather")
                     .disabled(!settings.lockScreenWidgets)
                 SettingToggle(symbol: "airpods.pro", color: .green, title: "Device Batteries",
-                              detail: "Rings for up to three accessories, then the Mac. Read once when you lock.",
+                              detail: "Up to three accessories, then your Mac.",
                               isOn: $settings.lockScreenBatteries, testID: "setting-lockScreenBatteries")
                     .disabled(!settings.lockScreenWidgets)
             } header: {
                 Text("While Locked")
             } footer: {
-                PrivacyFooter(text: "Everything shown comes from this Mac's last readings and stays on this Mac.")
+                PrivacyFooter(text: "Everything here stays on this Mac.")
             }
             Section {
                 soundRow(.screenLock, symbol: "lock.fill", detail: "Plays when the screen locks.")
-                soundRow(.screenUnlock, symbol: "lock.open.fill", detail: "Plays when you unlock and come back.")
+                soundRow(.screenUnlock, symbol: "lock.open.fill", detail: "Plays when you unlock.")
                 SettingToggle(symbol: "lock.open.fill", color: .green, title: "Unlocked Popup",
-                              detail: "A short \u{201C}Unlocked\u{201D} popup under the notch when you come back.",
+                              detail: "A quick \u{201C}Unlocked\u{201D} when you come back.",
                               isOn: $settings.unlockActivity, testID: "setting-unlockActivity")
             } header: {
                 Text("Lock & Unlock")
             } footer: {
-                SettingsFooter("The same sounds are listed in Popups → Alert Sounds. Choose None to keep one silent.")
+                SettingsFooter("Also under Popups → Alert Sounds. Pick None to keep one quiet.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather,
                                           SettingsKey.lockScreenBatteries, SettingsKey.unlockActivity])

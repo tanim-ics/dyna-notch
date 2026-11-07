@@ -1,7 +1,7 @@
 # CLAUDE.md — DynaNotch
 
 A native Dynamic Island for macOS (SwiftUI in a borderless `NSPanel`), modelled on Alcove and Notchy. Personal build,
-installed from source on the owner's Mac. **Version 3.2.0 · status: feature-complete through §2e P2, quality pass done
+installed from source on the owner's Mac. **Version 3.3.0 · status: feature-complete through §2e P2, quality pass done
 (see `SCORECARD.md`).**
 
 This file holds what every change must respect. Reference material lives in `docs/`:
@@ -29,15 +29,15 @@ allow. **Never get in the way:** click-through outside the island, hidden in ful
 
 **Non-goals:** private SkyLight APIs (Face Unlock …; the lock-screen strip is the one owner-approved exception, `docs/DECISIONS.md` §14), mirroring other apps' notifications, paid or
 keyed network services, App Store / notarised distribution, licensing. Network use is limited to keyless public APIs
-(iTunes Search, LRCLIB, Open-Meteo); everything else stays on the Mac.
+(iTunes Search, LRCLIB, Open-Meteo, Frankfurter, GitHub releases for updates — `docs/DECISIONS.md` §16); everything else stays on the Mac.
 
 ## 2. Quick start
 
 | Task | Command |
 |---|---|
 | Test, build, sign, install, launch | `./build.sh` (`--skip-tests`, `--no-install`, `--dmg`, `--debug`) |
-| Unit tests (Core, 285) | `swift test` |
-| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 174 UI checks against the running app |
+| Unit tests (Core, 310) | `swift test` |
+| All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 199 UI checks against the running app |
 | Health (crashes, hangs, log errors, idle energy) | `scripts/health.sh [days]` |
 | Live log | `log stream --predicate 'subsystem == "com.tanim.dynanotch"'` |
 
@@ -90,8 +90,8 @@ when its feature is off or the user is away. Budget: idle ≤ 0.2 % CPU and ≤ 
 (`scripts/check_plist.py` enforces the list); never trigger a permission prompt at launch for a feature the user
 hasn't used; say where data lives in the UI ("Stays on this Mac").
 
-**Settings UX** — page = title + one-line subtitle; row = coloured icon + title + one grey sentence stating the effect
-*and its cost*; dependants dimmed, never hidden; sliders show the value with −/+; segmented control for 2–4 options;
+**Settings UX** — page = title + short subtitle; row = coloured icon + title + one short, plain grey line in everyday
+words (what it does; a requirement like "Needs Accessibility" only when there is one — no jargon, no cost essays); dependants dimmed, never hidden; sliders show the value with −/+; segmented control for 2–4 options;
 destructive actions red with inline confirm; every page ends with "Restore Defaults"; changes apply live.
 
 **Signing** — `build.sh` signs ad hoc with a stable designated requirement (`identifier "com.tanim.dynanotch"`) so

@@ -66,3 +66,16 @@ iPhone-style "hello" on first launch. Keep §2c as the living done/due board —
    (ad hoc, stable identifier requirement, arm64 — every notched Mac is Apple silicon).
 3. Not notarised, so the cask's `postflight_steps` strip `com.apple.quarantine` from the installed app; without it
    Gatekeeper blocks the first launch.
+
+## 16. Owner decisions (2026-11-02, in-app updates)
+1. The app checks for new versions itself and shows an Update button; after updating, a Stories-style "What's New"
+   slideshow lists the new features.
+2. Network policy widened by one keyless public API: `api.github.com` (latest release of this repo) plus the release
+   download from github.com. No cookies, tokens or user data; Settings → About can turn checking off.
+3. The app replaces its own bundle (download → verify digest, bundle id, signature requirement → swap → relaunch), so
+   the cask declares `auto_updates true`. Release notes come from `Packaging/WhatsNew.json`.
+
+## 17. Owner decision (2026-11-07, settings wording)
+1. Settings descriptions read as machine-written. Every row, footer and page subtitle is rewritten as one short,
+   plain line in everyday words. Requirements ("Needs Accessibility") and privacy notes ("Stays on this Mac") stay;
+   implementation details, costs and long explanations go. Supersedes the "effect and its cost" rule in CLAUDE.md §4.

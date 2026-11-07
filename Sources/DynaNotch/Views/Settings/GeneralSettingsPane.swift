@@ -47,7 +47,7 @@ struct GeneralSettingsPane: View {
         } header: {
             Text("Suggestions")
         } footer: {
-            SettingsFooter("Each suggestion disappears as soon as it's done. All permissions are listed under Permissions.")
+            SettingsFooter("Things left to set up. Each one goes away once it's done.")
         }
     }
 
@@ -61,10 +61,10 @@ struct GeneralSettingsPane: View {
     private var startupSection: some View {
         Section("Startup") {
             SettingToggle(symbol: "power", color: .green, title: "Open at Login",
-                          detail: "Start DynaNotch automatically when you log in to your Mac.",
+                          detail: "Open DynaNotch when you log in.",
                           isOn: launchBinding)
             SettingToggle(symbol: "menubar.rectangle", color: .gray, title: "Menu Bar Icon",
-                          detail: "Show the DynaNotch icon in the menu bar. When hidden, open Settings from the panel's gear.",
+                          detail: "Hide it and you can still reach Settings from the panel's gear.",
                           isOn: $settings.showMenuBarIcon)
         }
     }
@@ -72,7 +72,7 @@ struct GeneralSettingsPane: View {
     private var clockSection: some View {
         Section("Clock") {
             SettingRow(symbol: "clock.fill", color: .orange, title: "Time Format",
-                       detail: "Used by the clocks in the panel and on the closed pill.") {
+                       detail: "For the clocks in the panel and the pill.") {
                 Picker("Time format", selection: $settings.timeFormat) {
                     ForEach(TimeFormat.allCases, id: \.self) { format in
                         Text(format.title).tag(format)
@@ -88,7 +88,7 @@ struct GeneralSettingsPane: View {
     private var introSection: some View {
         Section("Hello Intro") {
             SettingRow(symbol: "hand.wave.fill", color: .yellow, title: "Hello Intro at Launch",
-                       detail: "Writes a handwritten “hello” under the notch every time DynaNotch starts.") {
+                       detail: "A little handwritten “hello” each time the app starts.") {
                 HStack(spacing: 8) {
                     Button {
                         WelcomeController.shared.show(greetingOnly: true)
@@ -109,10 +109,10 @@ struct GeneralSettingsPane: View {
     private var automationSection: some View {
         Section {
             SettingToggle(symbol: "bubble.left.and.text.bubble.right.fill", color: .purple, title: "Show in DynaNotch",
-                          detail: "Let Shortcuts, scripts and links show a message in the notch.",
+                          detail: "Let scripts, Shortcuts and links post a message to the notch.",
                           isOn: $settings.notifyActivity, testID: "setting-notifyActivity")
             SettingRow(symbol: "link", color: .blue, title: "Example Link",
-                       detail: "Open it from Terminal with “open -g …”, or paste it into Shortcuts → Open URL.") {
+                       detail: "Run it in Terminal with “open -g …” or use it in Shortcuts.") {
                 CopyButton(title: "Copy Example Link") { GeneralSettingsPane.exampleNotifyLink }
                     .uiTestID("setting-copyNotifyLink")
             }
@@ -120,14 +120,14 @@ struct GeneralSettingsPane: View {
         } header: {
             Text("Automation")
         } footer: {
-            SettingsFooter("Parameters: title, body, symbol (an SF Symbol name) and duration in seconds.")
+            SettingsFooter("You can set title, body, symbol and duration.")
         }
     }
 
     private var recoverySection: some View {
         Section {
             SettingRow(symbol: "arrow.clockwise", color: .blue, title: "Restart DynaNotch",
-                       detail: "Use this if the island gets stuck, or after granting a permission.") {
+                       detail: "Try this if the island gets stuck or after allowing a permission.") {
                 Button("Restart") { GeneralSettingsPane.restart() }
             }
             SettingRow(symbol: "xmark.octagon.fill", color: .red, title: "Quit DynaNotch",
@@ -136,17 +136,17 @@ struct GeneralSettingsPane: View {
             }
             ShortcutRow(key: HotKeyAction.emergencyQuit.rawValue, symbol: "keyboard.fill", color: .red,
                         title: "Emergency Quit Shortcut",
-                        detail: "Quits DynaNotch from any app, even when the island is in the way. Works without a permission.")
+                        detail: "Quit from anywhere, even if the island is in the way.")
                 .disabled(!settings.hotkeysEnabled)
             SettingRow(symbol: "bolt.horizontal.circle.fill", color: .red, title: "Force Quit",
-                       detail: "Ends DynaNotch immediately without saving open windows — for when it stops responding to Quit.") {
+                       detail: "Forces DynaNotch to close if it stops responding.") {
                 InlineConfirmButton(title: "Force Quit…", confirmTitle: "Force Quit") { exit(0) }
                     .uiTestID("setting-forceQuit")
             }
         } header: {
             Text("Recovery")
         } footer: {
-            SettingsFooter("All shortcuts can be changed or turned off under Behavior → Keyboard Shortcuts.")
+            SettingsFooter("Change or turn off any shortcut under Behavior → Keyboard Shortcuts.")
         }
     }
 

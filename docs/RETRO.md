@@ -38,3 +38,24 @@
   the simplest geometry-based handling over cleverness. Stop and tell the owner before going past ~3 attempts.
 - Known flaky (2026-11-01): "smart copy: click copies result" fails only inside the full `ui-regression.sh` run
   (171/174), passes alone 8/8 — island state left by an earlier section. Open item.
+
+## 2026-11-02 In-app updates + What's New stories
+- A new setting broke `SettingsTests.testSettingsKeys` (hard-coded key count 177): bump the count with every new key.
+- `health.sh` right after `check.sh --ui` measured 62 wake-ups/s because the UI suite leaves the Settings window open
+  after visiting all 23 pages; a fresh launch measured 2.1/s. Relaunch before the idle measurement. The growth with
+  pages visited looks like the old per-page timer leak returning — open item.
+- The self-update path can only be tested end to end with two releases; a locally served fake release (re-signed copy
+  with a bumped version, `update/feed?url=`) exercised download → verify → swap → relaunch → story without GitHub.
+
+## 2026-11-07 Display picker, Bluetooth noise, popups under the pointer
+- **LG display had no island** although Every Display was on: `FullscreenDetector` treated any window filling a display
+  as full screen, and on a display whose menu bar auto-hides a zoomed browser window does exactly that. Lesson: "covers
+  the display" isn't "full screen"; also require that no other app has a window there (`FullscreenHeuristic`). A real
+  full-screen app still hides the island on its display (owner's Brave), which is the setting working.
+- **"Podcast" popup**: unclassified Bluetooth devices (a nearby phone) got the generic radio-waves icon. Filter by device
+  class and debounce per address, in Core so it's testable.
+- **Hover ate notifications**: hover-to-expand ran for every presentation. Popups now hold under the pointer; when adding
+  a hover behaviour, decide per presentation kind.
+- Test gap: settings rows far down a page can't be clicked by `ui/click` (off screen, `hit=nil`); test their effect
+  through `set?` and assert on state. The "agent: copy restored" check compares bytes and fails when the installer
+  rewrites the JSON copy with another key order — a flaky check, not a data change.

@@ -34,11 +34,11 @@ struct BatterySettingsPane: View {
                                 value: Format.percent(info.level),
                                 valueColor: levelColor(info.level))
                 SettingValueRow(symbol: "heart.fill", color: .pink, title: "Health & Cycles",
-                                detail: "Maximum capacity compared with new, charge cycles and temperature.",
+                                detail: "Capacity, charge cycles and temperature.",
                                 value: mac?.detail ?? "Reading…")
             } else {
                 SettingRow(symbol: "powerplug.fill", color: .gray, title: "No Battery",
-                           detail: "This Mac runs on mains power, so battery popups never appear.")
+                           detail: "This Mac has no battery, so there are no battery popups.")
             }
         }
     }
@@ -60,7 +60,7 @@ struct BatterySettingsPane: View {
     private var extrasSection: some View {
         Section {
             SettingRow(symbol: "chart.xyaxis.line", color: .green, title: "History Range",
-                       detail: "How far back the battery chart in the System tab goes. 30 days of samples are kept.") {
+                       detail: "How far back the battery chart goes.") {
                 Picker("History range", selection: $historyRange) {
                     Text("24 Hours").tag("day")
                     Text("7 Days").tag("week")
@@ -72,10 +72,10 @@ struct BatterySettingsPane: View {
                 .uiTestID("setting-batteryHistoryRange")
             }
             SettingToggle(symbol: "menubar.rectangle", color: .green, title: "Battery in the Menu Bar",
-                          detail: "Shows the battery level next to the DynaNotch menu bar icon.",
+                          detail: "Show the battery level in the menu bar.",
                           isOn: $settings.batteryInMenuBar, testID: "setting-batteryInMenuBar")
             SettingToggle(symbol: "flame.fill", color: .orange, title: "Drain Warnings",
-                          detail: "On battery, a popup names an app that keeps using a lot of energy. Checks CPU use every minute.",
+                          detail: "Tells you when an app is draining your battery.",
                           isOn: $settings.drainWarnings, testID: "setting-drainWarnings")
         } header: {
             Text("History & Menu Bar")
@@ -87,24 +87,24 @@ struct BatterySettingsPane: View {
     private var popupsSection: some View {
         Section("Popups") {
             SettingToggle(symbol: "bolt.fill", color: .green, title: "Charging / Unplugged",
-                          detail: "A short popup with the level when you plug in or unplug the charger.",
+                          detail: "Show the level when you plug in or unplug.",
                           isOn: $settings.chargingActivity)
             SettingToggle(symbol: "powerplug.fill", color: .orange, title: "Unplug Popup",
-                          detail: "Shows time left on battery when you unplug.",
+                          detail: "Show time left when you unplug.",
                           isOn: $settings.unplugActivity, testID: "setting-unplugActivity")
                 .disabled(!settings.chargingActivity)
             SettingToggle(symbol: "battery.25percent", color: .red, title: "Low Battery",
-                          detail: "Warns once when the level drops below the threshold while on battery.",
+                          detail: "Warn when the battery gets low.",
                           isOn: $settings.lowBatteryActivity)
             IntSliderRow(symbol: "exclamationmark.triangle.fill", color: .orange, title: "Low Battery Threshold",
                          detail: "Warn at this level, and again at 10 %.",
                          value: $settings.lowBatteryThreshold, range: 5...50, step: 5, format: { "\($0)%" })
                 .disabled(!settings.lowBatteryActivity)
             SettingToggle(symbol: "battery.100percent", color: .green, title: "Fully Charged",
-                          detail: "A popup when the battery reaches the full-charge level (\(settings.fullChargeLevel) %) while plugged in.",
+                          detail: "Tell you when the battery is full (\(settings.fullChargeLevel) %).",
                           isOn: $settings.fullChargeActivity, testID: "setting-fullChargeActivity")
             IntSliderRow(symbol: "battery.100percent.bolt", color: .green, title: "Full Charge Level",
-                         detail: "Count the battery as full at this level, e.g. 80 % with Optimised Charging.",
+                         detail: "What counts as full, like 80 % with Optimised Charging.",
                          value: $settings.fullChargeLevel, range: 80...100, step: 5, format: { "\($0)%" },
                          testID: "setting-fullChargeLevel")
                 .disabled(!settings.fullChargeActivity)
@@ -128,16 +128,16 @@ struct ConnectivitySettingsPane: View {
             trafficSection
             Section("Popups") {
                 SettingToggle(symbol: "airpods", color: .blue, title: "Device Connected / Disconnected",
-                              detail: "AirPods, headphones, mice, keyboards and trackpads, with their battery when known.",
+                              detail: "Show when AirPods, headphones and other accessories connect.",
                               isOn: $settings.bluetoothActivity)
                 SettingToggle(symbol: "battery.25percent", color: .orange, title: "Accessory Battery Alerts",
-                              detail: "A popup when an accessory's battery runs low or is fully charged.",
+                              detail: "Warn when an accessory is low or full.",
                               isOn: $settings.accessoryAlerts)
             }
             Section {
                 if accessories.isEmpty {
                     SettingRow(symbol: "dot.radiowaves.left.and.right", color: .gray, title: "No Accessories",
-                               detail: "Connected Bluetooth accessories that report a battery level appear here.")
+                               detail: "Accessories that share their battery show up here.")
                 } else {
                     ForEach(accessories) { device in
                         SettingValueRow(symbol: device.kind.symbolName, color: .blue, title: device.name,
@@ -146,13 +146,13 @@ struct ConnectivitySettingsPane: View {
                     }
                 }
                 SettingRow(symbol: "gearshape.fill", color: .gray, title: "Bluetooth Settings",
-                           detail: "Pair, rename or forget devices in System Settings.") {
+                           detail: "Pair or forget devices in System Settings.") {
                     Button("Open…") { Permissions.openBluetoothSettings() }
                 }
             } header: {
                 Text("Connected Devices")
             } footer: {
-                SettingsFooter("Battery levels also show in the battery pill of the panel header. Refreshed every minute.")
+                SettingsFooter("Also shown in the panel's battery pill.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.bluetoothActivity, SettingsKey.accessoryAlerts])
         }
@@ -167,13 +167,13 @@ struct ConnectivitySettingsPane: View {
                             value: network.isOnline ? "Online" : "Offline",
                             valueColor: network.isOnline ? .green : .secondary)
             SettingRow(symbol: "arrow.clockwise", color: .gray, title: "Refresh",
-                       detail: "The network is checked automatically when it changes.") {
+                       detail: "Updates when your network changes.") {
                 Button("Refresh") { network.refresh() }
             }
         } header: {
             Text("Network")
         } footer: {
-            SettingsFooter("The Wi-Fi name is only visible to apps with Location access (macOS rule).")
+            SettingsFooter("macOS only shows the Wi-Fi name to apps with Location access.")
         }
     }
 
@@ -198,7 +198,7 @@ struct ConnectivitySettingsPane: View {
             SettingValueRow(symbol: "calendar.badge.clock", color: .purple, title: "Last 30 Days",
                             detail: "Including today.", value: trafficValue(30))
             SettingRow(symbol: "trash.fill", color: .red, title: "Clear Traffic History",
-                       detail: "Forget every recorded day. This can't be undone.") {
+                       detail: "Forget every day you've tracked. Can't be undone.") {
                 InlineConfirmButton(title: "Clear…", confirmTitle: "Clear") { traffic.clear() }
                     .disabled(traffic.ledger.days.isEmpty)
                     .uiTestID("setting-clearTraffic")
@@ -206,7 +206,7 @@ struct ConnectivitySettingsPane: View {
         } header: {
             Text("Traffic")
         } footer: {
-            PrivacyFooter(text: "Counted from this Mac's network interfaces while DynaNotch runs. Stays on this Mac.")
+            PrivacyFooter(text: "Counted while DynaNotch runs. Stays on this Mac.")
         }
     }
 

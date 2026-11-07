@@ -44,6 +44,13 @@ final class IslandViewModel: ObservableObject {
     private var headerHoverWork: DispatchWorkItem?
     /// Settings → Timer → Controls on hover: the compact timer grew a row of pause / +1 min / stop buttons.
     @Published private(set) var showsTimerControls: Bool = false
+    /// The pointer is on a popup (notification, device, calendar …): it stays, grows to show its whole message and
+    /// a Dismiss / Open row, and the panel does not open over it.
+    @Published private(set) var holdsPopup: Bool = false
+    /// What a click on a popup opens, by activity id (popups without an entry use `ActivityKind.defaultPopupTarget`).
+    private var popupTargets: [UUID: PopupTarget] = [:]
+    /// A held popup lingers this long after the pointer leaves it.
+    private static let popupReleaseLinger: TimeInterval = 1.5
 
     let settings: AppSettings
 
@@ -108,6 +115,9 @@ final class IslandViewModel: ObservableObject {
         }
         if presentation == .expanded {
             return expandedSize
+        }
+        if heldPopupActivity != nil {
+            return IslandLayout.popupDetailSize(for: presentation, notch: notch, hudStyle: settings.hudStyle)
         }
         return IslandLayout.size(for: presentation, notch: notch, hudStyle: settings.hudStyle)
     }
@@ -364,6 +374,11 @@ final class IslandViewModel: ObservableObject {
             }
             // Agent Island: the panel must not open over Allow / Deny.
             if case .activity(let activity) = presentation, case .agentRequest = activity.kind { return }
+            // Popups stay under the pointer (so they can be read and clicked) instead of the panel replacing them.
+            if case .activity(let activity) = presentation, activity.kind.holdsOnHover {
+                holdPopup(activity)
+                return
+            }
             var delay = settings.hoverDelay
             if settings.peekOnHover && (presentation == .nowPlaying || presentation == .lyrics) {
                 beginHoverPeek()
@@ -383,12 +398,67 @@ final class IslandViewModel: ObservableObject {
             expandWorkItem?.cancel()
             expandWorkItem = nil
             endHoverPeek()
+            releasePopup()
             setTimerControls(false)
             // Settings → Behavior → Auto Collapse off: only Esc, outside clicks and the idle timeout close it.
             if engine.isExpanded && !isPinned && settings.autoCollapse && hoveredSinceExpand {
                 scheduleHoverCollapse()
             }
         }
+    }
+
+    // MARK: Popups under the pointer
+
+    /// The popup currently held under the pointer (nil when none is, or something else took the island).
+    var heldPopupActivity: LiveActivity? {
+        guard holdsPopup, case .activity(let activity) = presentation, activity.kind.holdsOnHover else { return nil }
+        return activity
+    }
+
+    func popupTarget(for activity: LiveActivity) -> PopupTarget? {
+        popupTargets[activity.id] ?? activity.kind.defaultPopupTarget
+    }
+
+    private func holdPopup(_ activity: LiveActivity) {
+        engine.post(activity.kind, now: Date(), duration: 3600)   // same category → same id, no transition
+        withAnimation(motion) { holdsPopup = true }
+        refresh()
+    }
+
+    private func releasePopup() {
+        guard holdsPopup else { return }
+        withAnimation(motion) { holdsPopup = false }
+        if case .activity(let activity) = presentation, activity.kind.holdsOnHover {
+            engine.post(activity.kind, now: Date(), duration: IslandViewModel.popupReleaseLinger)
+        }
+        refresh()
+    }
+
+    /// Dismiss the popup on screen (Dismiss button, `dynanotch://ui/action`-free test path via a click).
+    func dismissPopup() {
+        engine.dismissCurrent(now: Date())
+        holdsPopup = false
+        refresh()
+    }
+
+    /// Open what the popup is about (its tab, file or link), then dismiss it.
+    func openPopup(_ activity: LiveActivity) {
+        let target = popupTarget(for: activity)
+        dismissPopup()
+        switch target {
+        case .tab(let tab)?:
+            open(tab: tab)
+        case .url(let url)?:
+            NSWorkspace.shared.open(url)
+        case nil:
+            break
+        }
+    }
+
+    /// Remembers what a click on a just-posted popup opens.
+    private func setPopupTarget(_ target: PopupTarget?, for activity: LiveActivity) {
+        popupTargets = popupTargets.filter { id, _ in engine.activities.contains { $0.id == id } }
+        popupTargets[activity.id] = target
     }
 
     private func scheduleHoverCollapse() {
@@ -468,11 +538,22 @@ final class IslandViewModel: ObservableObject {
             refresh()
             return
         }
-        // Mac Vitals: a click on the alert opens Activity Monitor.
-        if case .activity(let activity) = presentation, case .vitals = activity.kind {
-            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app"))
-            engine.dismissCurrent(now: Date())
-            refresh()
+        // Popups (notifications, devices, calendar, Mac Vitals …): Dismiss / Open buttons on a held popup; a click
+        // anywhere else on it opens what it is about (Mac Vitals → Activity Monitor, calendar → Calendar tab …).
+        if case .activity(let activity) = presentation, activity.kind.holdsOnHover {
+            let target = popupTarget(for: activity)
+            let size = islandSize
+            let button = holdsPopup
+                ? location.flatMap { PopupButton.button(at: $0, cardWidth: size.width, cardHeight: size.height,
+                                                        hasTarget: target != nil) }
+                : nil
+            if button == .dismiss {
+                dismissPopup()
+            } else if target != nil {
+                openPopup(activity)
+            } else if !holdsPopup {
+                holdPopup(activity)   // nothing to open: a click shows the whole message
+            }
             return
         }
         // Agent Island: below the title row, the card's three equal buttons split it in thirds (Deny · Terminal ·
@@ -629,7 +710,8 @@ final class IslandViewModel: ObservableObject {
     func notify(_ notification: NotchNotification) {
         let kind = ActivityKind.notification(title: notification.title, body: notification.body, symbol: notification.symbol)
         guard settings.notifyActivity, !isQuieted(kind) else { return }
-        engine.post(kind, now: Date(), duration: notification.duration ?? settings.notificationDuration)
+        let activity = engine.post(kind, now: Date(), duration: notification.duration ?? settings.notificationDuration)
+        setPopupTarget(notification.openURL.map(PopupTarget.url), for: activity)
         didPost(kind, category: .notifications)
         refresh()
     }
@@ -930,6 +1012,11 @@ final class IslandViewModel: ObservableObject {
         } else if next == .timer && isHovering && settings.timerHoverControls && !showsTimerControls {
             showsTimerControls = true
         }
+        if holdsPopup {
+            var stillHeld = false
+            if case .activity(let activity) = next, activity.kind.holdsOnHover { stillHeld = true }
+            if !stillHeld { holdsPopup = false }
+        }
         if next != presentation {
             withAnimation(motion) {
                 presentation = next
@@ -1182,7 +1269,8 @@ final class IslandViewModel: ObservableObject {
             .sink { [weak self] event in
                 guard let self = self, self.settings.driveActivity else { return }
                 self.postNotification(title: event.name, body: event.mounted ? "Drive connected" : "Drive ejected",
-                                      symbol: event.mounted ? "externaldrive.fill" : "eject.fill", category: .downloads)
+                                      symbol: event.mounted ? "externaldrive.fill" : "eject.fill", category: .downloads,
+                                      target: event.mounted ? .url(URL(fileURLWithPath: "/Volumes").appendingPathComponent(event.name)) : nil)
             }
             .store(in: &cancellables)
 
@@ -1262,10 +1350,12 @@ final class IslandViewModel: ObservableObject {
     }
 
     /// App-originated island message (break reminders, drives, accessories…), using the Popups duration.
-    func postNotification(title: String, body: String, symbol: String, category: AlertCategory = .notifications) {
+    func postNotification(title: String, body: String, symbol: String, category: AlertCategory = .notifications,
+                          target: PopupTarget? = nil) {
         let kind = ActivityKind.notification(title: title, body: body, symbol: symbol)
         guard !isQuieted(kind) else { return }
-        engine.post(kind, now: Date(), duration: settings.notificationDuration)
+        let activity = engine.post(kind, now: Date(), duration: settings.notificationDuration)
+        setPopupTarget(target ?? PopupTarget.forCategory(category), for: activity)
         didPost(kind, category: category)
         refresh()
     }

@@ -439,7 +439,7 @@ struct RestoreDefaultsSection: View {
         Section {
             SettingRow(symbol: "arrow.counterclockwise", color: .gray, title: "Restore Defaults",
                        detail: restored ? "Done — this page is back to its defaults."
-                                        : "Reset this page's settings; nothing else changes.") {
+                                        : "Reset just this page.") {
                 InlineConfirmButton(title: "Restore…", confirmTitle: "Restore", destructive: false) {
                     settings.restoreDefaults(keys)
                     restored = true
@@ -558,7 +558,7 @@ enum SettingsSuggestions {
             result.append(SettingsSuggestion(
                 id: "accessibility", symbol: "accessibility", color: .blue,
                 title: "Allow Accessibility",
-                detail: "Lets DynaNotch replace the volume / brightness HUD and paste clipboard items. Already switched on but this stays? Select DynaNotch in that list, remove it with −, then click Allow… again (an old build is listed).",
+                detail: "For the volume and brightness popups and pasting. Already on? Remove DynaNotch from the list with − and allow it again.",
                 actionTitle: "Allow…",
                 action: {
                     Permissions.requestAccessibility()
@@ -570,7 +570,7 @@ enum SettingsSuggestions {
             result.append(SettingsSuggestion(
                 id: "calendar", symbol: "calendar", color: .red,
                 title: "Connect your calendar",
-                detail: "Shows Up Next, alerts before events and meeting reminders.",
+                detail: "For upcoming events and meeting alerts.",
                 actionTitle: cal == .notDetermined ? "Allow…" : "Open…",
                 action: {
                     if cal == .notDetermined { CalendarService.shared.requestAccess() }
@@ -582,7 +582,7 @@ enum SettingsSuggestions {
             result.append(SettingsSuggestion(
                 id: "reminders", symbol: "checklist", color: .orange,
                 title: "Allow Reminders",
-                detail: "Needed by the Reminders tab to list and complete your reminders.",
+                detail: "For the Reminders tab.",
                 actionTitle: rem == .notDetermined ? "Allow…" : "Open…",
                 action: {
                     if rem == .notDetermined { RemindersService.shared.requestAccess() }
@@ -593,7 +593,7 @@ enum SettingsSuggestions {
             result.append(SettingsSuggestion(
                 id: "fda", symbol: "moon.fill", color: .indigo,
                 title: "Detect Focus modes",
-                detail: "Grant Full Disk Access so DynaNotch can show a popup when Focus turns on or off.",
+                detail: "Allow Full Disk Access to show when Focus turns on or off.",
                 actionTitle: "Open…",
                 action: { Permissions.openFullDiskAccessSettings() }))
         }

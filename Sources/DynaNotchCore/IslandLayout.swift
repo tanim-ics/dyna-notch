@@ -36,6 +36,15 @@ public enum IslandLayout {
     static let hudExpandedExtraHeight: CGFloat = 34
     static let lyricsExtraHeight: CGFloat = 26
     static let notificationExtraHeight: CGFloat = 40
+    /// A popup under the pointer: up to four lines of text plus the Dismiss / Open row.
+    public static let popupDetailExtraHeight: CGFloat = 128
+    public static let popupDetailSide: CGFloat = 130
+
+    /// Size of a held (hovered) popup: wider and taller so the whole message and its buttons fit.
+    public static func popupDetailSize(for p: IslandPresentation, notch: NotchMetrics, hudStyle: HUDStyle) -> CGSize {
+        let base = notch.width + 2 * radii(for: p, hudStyle: hudStyle).top
+        return CGSize(width: base + 2 * popupDetailSide, height: notch.height + popupDetailExtraHeight)
+    }
     /// Unplug activity: wide enough for "On Battery" / "4 h 5 min left".
     public static let unpluggedSide: CGFloat = 100
     /// Timer controls on hover: compact timer row plus a row of buttons below the notch.

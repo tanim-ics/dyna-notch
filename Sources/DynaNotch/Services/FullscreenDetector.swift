@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreGraphics
+import DynaNotchCore
 import Foundation
 
 /// Detects whether a normal-layer window of another app covers the whole target screen (full-screen app / video).
@@ -69,7 +70,7 @@ final class FullscreenDetector: ObservableObject {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
 
-        var result = Set<CGDirectDisplayID>()
+        var windows: [FullscreenHeuristic.Window] = []
         for window in list {
             guard let layer = (window[kCGWindowLayer as String] as? NSNumber)?.intValue, layer == 0 else { continue }
             guard let pid = (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value, pid != ownPID else { continue }
@@ -79,17 +80,12 @@ final class FullscreenDetector: ObservableObject {
             if let alpha = (window[kCGWindowAlpha as String] as? NSNumber)?.doubleValue, alpha <= 0.01 { continue }
             guard let boundsDict = window[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary) else { continue }
-            for (id, displayBounds) in displays where FullscreenDetector.matches(bounds, displayBounds) {
-                result.insert(id)
-            }
+            windows.append(FullscreenHeuristic.Window(pid: pid, bounds: bounds))
         }
-        return result
-    }
-
-    private static func matches(_ a: CGRect, _ b: CGRect) -> Bool {
-        abs(a.minX - b.minX) <= tolerance &&
-            abs(a.minY - b.minY) <= tolerance &&
-            abs(a.maxX - b.maxX) <= tolerance &&
-            abs(a.maxY - b.maxY) <= tolerance
+        // A screen-filling window only counts as full screen when no other app has a window on that display
+        // (a window zoomed to fill a display with an auto-hiding menu bar is not full screen).
+        return FullscreenHeuristic.fullscreenDisplays(windows: windows,
+                                                      displays: displays.map { (id: $0.0, bounds: $0.1) },
+                                                      tolerance: FullscreenDetector.tolerance)
     }
 }

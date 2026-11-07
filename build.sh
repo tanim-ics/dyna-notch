@@ -259,6 +259,8 @@ chmod 644 "$APP_DIR/Contents/Resources/libMediaRemoteAdapter.dylib"
 if [ -f "$ICNS" ]; then
     cp "$ICNS" "$APP_DIR/Contents/Resources/AppIcon.icns"
 fi
+# Release notes for the What's New story (CONTRACTS §6.21).
+cp "Packaging/WhatsNew.json" "$APP_DIR/Contents/Resources/WhatsNew.json"
 # SwiftPM resource bundles (none expected today; harmless).
 for bundle in "$BIN_DIR"/*.bundle; do
     [ -d "$bundle" ] || continue

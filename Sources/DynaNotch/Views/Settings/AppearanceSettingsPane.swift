@@ -42,7 +42,7 @@ struct AppearanceSettingsPane: View {
     private var clockSection: some View {
         Section {
             SettingRow(symbol: "calendar.badge.clock", color: .orange, title: "Clock Shows",
-                       detail: "What the clock on the closed pill displays. Uses the time format from General.") {
+                       detail: "What the clock on the pill shows.") {
                 Picker("Clock shows", selection: $settings.clockContent) {
                     ForEach(ClockContent.allCases, id: \.self) { content in
                         Text(content.title).tag(content)
@@ -54,14 +54,14 @@ struct AppearanceSettingsPane: View {
                 .uiTestID("setting-clockContent")
             }
             SettingToggle(symbol: "rectangle.badge.plus", color: .orange, title: "Show With Activities",
-                          detail: "Keep the clock visible while music, timers or popups use the pill.",
+                          detail: "Keep the clock showing while music or timers use the pill.",
                           isOn: $settings.clockWithActivities, testID: "setting-clockWithActivities")
         } header: {
             Text("Clock")
         } footer: {
             SettingsFooter(settings.closedPillClock && usesPill
                            ? "Example: \(clockExample)"
-                           : "Turn on Clock on the Closed Pill (Island Shape) to use these.")
+                           : "Turn on the pill clock first.")
         }
         .disabled(!(settings.closedPillClock && usesPill))
     }
@@ -88,11 +88,11 @@ struct AppearanceSettingsPane: View {
     private var panelSizeSection: some View {
         Section {
             SliderRow(symbol: "arrow.left.and.right", color: .blue, title: "Panel Width",
-                      detail: "How wide the open panel is. Wider shows more of each tab.",
+                      detail: "Wider panels show more of each tab.",
                       value: $settings.panelWidth, range: 520...820, step: 10,
                       format: { String(format: "%.0f pt", $0) }, testID: "setting-panelWidth")
             SettingRow(symbol: "rectangle.expand.vertical", color: .indigo, title: "Sizing",
-                       detail: "Fixed keeps one height for every tab; Fit Content grows or shrinks with the tab.") {
+                       detail: "Keep one height, or let each tab size itself.") {
                 Picker("Sizing", selection: $settings.panelSizing) {
                     ForEach(PanelSizing.allCases, id: \.self) { sizing in
                         Text(sizing.title).tag(sizing)
@@ -105,12 +105,12 @@ struct AppearanceSettingsPane: View {
             }
             SliderRow(symbol: "arrow.up.and.down", color: .teal,
                       title: isFit ? "Maximum Height" : "Height",
-                      detail: isFit ? "The tallest the panel grows to; longer tabs scroll."
+                      detail: isFit ? "How tall the panel can get. Longer tabs scroll."
                                     : "The height of the panel below the notch.",
                       value: $settings.panelMaxHeight, range: 150...320, step: 10,
                       format: { String(format: "%.0f pt", $0) }, testID: "setting-panelMaxHeight")
             SettingRow(symbol: "rectangle.on.rectangle", color: .gray, title: "Quick Sizes",
-                       detail: "Compact is 520 pt wide; Default is 640 pt. Both are Fixed and 190 pt tall.") {
+                       detail: "Compact is 520 pt, Default 640 pt. Both 190 pt tall.") {
                 HStack(spacing: 6) {
                     Button("Use Compact Size") {
                         settings.panelWidth = 520
@@ -150,7 +150,7 @@ struct AppearanceSettingsPane: View {
     private var fillSection: some View {
         Section {
             SettingRow(symbol: "paintpalette.fill", color: .pink, title: "Custom Panel Colour",
-                       detail: "Paint the open panel with your own colour instead of the material.") {
+                       detail: "Use your own colour for the open panel.") {
                 HStack(spacing: 8) {
                     if hasCustomFill {
                         Text(settings.panelFillHex)
@@ -167,7 +167,7 @@ struct AppearanceSettingsPane: View {
                 }
             }
             SettingToggle(symbol: "capsule.fill", color: .pink, title: "Pill Uses the Same Colour",
-                          detail: "Colour the closed island too. On a notch display it then no longer blends with the notch.",
+                          detail: "Colour the closed island too. It won't blend with the notch anymore.",
                           isOn: $settings.pillMatchesPanel, testID: "setting-pillMatchesPanel")
                 .disabled(!hasCustomFill)
         } header: {
@@ -178,7 +178,7 @@ struct AppearanceSettingsPane: View {
     private var surfaceSection: some View {
         Section {
             SettingRow(symbol: "square.on.square.intersection.dashed", color: .blue, title: "Panel Surface",
-                       detail: "Glass blurs the desktop behind the open panel; Black is solid and easiest to read.") {
+                       detail: "Glass shows the desktop through it. Black is easiest to read.") {
                 Picker("Panel surface", selection: $settings.islandMaterial) {
                     ForEach(IslandMaterial.allCases, id: \.self) { material in
                         Text(material.title).tag(material)
@@ -189,13 +189,13 @@ struct AppearanceSettingsPane: View {
                 .fixedSize()
             }
             SliderRow(symbol: "circle.lefthalf.filled", color: .cyan, title: "Panel Translucency",
-                      detail: "How much of the desktop shows through the glass. Needs the Glass surface.",
+                      detail: "How see-through the glass is. Needs Glass.",
                       value: $settings.panelTranslucency, range: 0...1, step: 0.05, format: SettingsFormat.percent)
                 .disabled(!isGlass)
         } header: {
             Text("Glass Surfaces")
         } footer: {
-            SettingsFooter("The closed island always stays black so it blends with the notch.")
+            SettingsFooter("The closed island stays black so it blends with the notch.")
         }
     }
 
@@ -230,8 +230,8 @@ struct AppearanceSettingsPane: View {
         } header: {
             Text("Material")
         } footer: {
-            SettingsFooter(isGlass ? "Tints the glass panel. Click a material to use it."
-                         : "Materials tint the Glass surface — switch Panel Surface to Glass to use them.")
+            SettingsFooter(isGlass ? "Pick a tint for the glass."
+                         : "Switch the panel to Glass to use these.")
         }
         .disabled(!isGlass)
     }
@@ -239,40 +239,40 @@ struct AppearanceSettingsPane: View {
     private var islandSection: some View {
         Section {
             ShapeChoiceRow(title: "MacBook display (with notch)",
-                           detail: "Merge with the camera notch, or float a pill just below it.",
+                           detail: "Blend into the notch, or float a pill just below it.",
                            selection: $settings.notchDisplayStyle, hasNotch: true)
             ShapeChoiceRow(title: "Other displays",
                            detail: "External monitors and Macs without a notch.",
                            selection: $settings.nonNotchStyle, hasNotch: false)
             SettingToggle(symbol: "display", color: .indigo, title: "Show on Displays Without a Notch",
-                          detail: "When off, the island only appears there for activities and when you hover the top edge.",
+                          detail: "When off, it only shows up for activities or when you hover the top edge.",
                           isOn: $settings.showOnNonNotchDisplays)
             SettingToggle(symbol: "clock.fill", color: .orange, title: "Clock on the Closed Pill",
-                          detail: "Shows the time inside the resting pill. Needs the Floating pill shape.",
+                          detail: "Show the time in the pill. Floating pill only.",
                           isOn: $settings.closedPillClock, testID: "setting-closedPillClock")
                 .disabled(!usesPill)
             SliderRow(symbol: "arrow.left.and.right", color: .blue, title: "Pill Width",
-                      detail: "Width of the resting pill; never narrower than the MacBook's notch. Activities add to it. Needs the Floating pill shape.",
+                      detail: "Never narrower than the notch. Floating pill only.",
                       value: pillWidthBinding, range: pillWidthRange, step: 5,
                       format: { String(format: "%.0f pt", $0) }, testID: "setting-pillWidth")
                 .disabled(!usesPill)
             SliderRow(symbol: "arrow.up.and.down.square", color: .blue, title: "Pill Height",
-                      detail: "Thickness of the pill. Taller also makes the open panel's top row taller. Needs the Floating pill shape.",
+                      detail: "How thick the pill is. Floating pill only.",
                       value: $settings.pillHeight, range: 28...44, step: 1,
                       format: { String(format: "%.0f pt", $0) }, testID: "setting-pillHeight")
                 .disabled(!usesPill)
             SliderRow(symbol: "capsule.fill", color: .blue, title: "Pill Content Size",
-                      detail: "Scale the icons and text inside the resting pill; Pill Width and Height keep its outline. Needs the Floating pill shape.",
+                      detail: "Make the icons and text in the pill bigger or smaller. Floating pill only.",
                       value: $settings.pillScale, range: 0.8...1.3, step: 0.05, format: SettingsFormat.percent,
                       testID: "setting-pillScale")
                 .disabled(!usesPill)
             SliderRow(symbol: "arrow.up.and.down", color: .teal, title: "Pill Height Adjustment",
-                      detail: "Line the pill up with your notch: move it up (−) or down (+). Needs the Floating pill shape.",
+                      detail: "Nudge the pill up or down to line it up with the notch. Floating pill only.",
                       value: $settings.pillHeightOffset, range: -6...12, step: 1, format: SettingsFormat.signedPoints,
                       testID: "setting-pillHeightOffset")
                 .disabled(!usesPill)
             SettingToggle(symbol: "slider.horizontal.below.rectangle", color: .green, title: "Color-Coded Levels",
-                          detail: "Volume and brightness bars turn green, yellow or red with the level.",
+                          detail: "Volume and brightness bars go green, yellow or red.",
                           isOn: $settings.colorCodedLevels)
         } header: {
             Text("Island Shape")
@@ -282,7 +282,7 @@ struct AppearanceSettingsPane: View {
     private var motionSection: some View {
         Section {
             SettingRow(symbol: "wind", color: .teal, title: "Animation Style",
-                       detail: "Calm glides, Snappy is quick and direct, Bouncy overshoots a little.") {
+                       detail: "Calm glides, Snappy is quick, Bouncy has a little spring.") {
                 Picker("Animation style", selection: $settings.animationStyle) {
                     ForEach(AnimationStyle.allCases, id: \.self) { style in
                         Text(style.title).tag(style)
@@ -293,15 +293,15 @@ struct AppearanceSettingsPane: View {
                 .fixedSize()
             }
             SliderRow(symbol: "speedometer", color: .pink, title: "Animation Speed",
-                      detail: "Higher is faster. 1.0× is the default feel.",
+                      detail: "Higher is faster.",
                       value: $settings.animationSpeed, range: 0.5...2, step: 0.1, format: SettingsFormat.multiplier)
             SettingToggle(symbol: "hand.tap.fill", color: .purple, title: "Haptic Feedback",
-                          detail: "A gentle trackpad tick when the island opens.",
+                          detail: "A soft trackpad tap when the island opens.",
                           isOn: $settings.hapticFeedback)
         } header: {
             Text("Motion")
         } footer: {
-            SettingsFooter("Reduce Motion in System Settings → Accessibility always wins.")
+            SettingsFooter("Reduce Motion in System Settings always wins.")
         }
     }
 }

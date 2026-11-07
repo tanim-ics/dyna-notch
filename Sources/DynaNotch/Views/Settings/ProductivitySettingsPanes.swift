@@ -11,10 +11,10 @@ struct TimerSettingsPane: View {
     private var focusSection: some View {
         Section {
             SettingToggle(symbol: "eye.slash.fill", color: .red, title: "Focus Guard",
-                          detail: "During a Pomodoro focus phase, opening an app from the list below shakes the island and nudges you back; you see the minutes lost when focus ends.",
+                          detail: "Opening a distracting app during focus gives the island a little shake.",
                           isOn: $settings.focusGuard, testID: "setting-focusGuard")
             SettingStackedRow(symbol: "list.bullet", color: .gray, title: "Distraction Apps",
-                              detail: "Bundle IDs, separated by commas. Browsers aren't listed because you work in them too.") {
+                              detail: "App bundle IDs, separated by commas.") {
                 TextField("com.tinyspeck.slackmacgap, …", text: $settings.focusGuardApps, axis: .vertical)
                     .lineLimit(2...4)
                     .font(.system(size: 11, design: .monospaced))
@@ -22,7 +22,7 @@ struct TimerSettingsPane: View {
             }
             .disabled(!settings.focusGuard)
             SettingRow(symbol: "headphones", color: .indigo, title: "Focus Sound",
-                       detail: "Plays while you choose; generated on this Mac, no downloads. Stop it from the Timer tab.") {
+                       detail: "Made on this Mac, nothing to download. Stop it from the Timer tab.") {
                 Picker("Focus sound", selection: Binding(
                     get: { Soundscape(rawValue: settings.soundscape) ?? .none },
                     set: { sound in
@@ -40,7 +40,7 @@ struct TimerSettingsPane: View {
                       range: 0...1, step: 0.05, format: { "\(Int(($0 * 100).rounded())) %" },
                       testID: "setting-soundscapeVolume")
             SettingToggle(symbol: "timer", color: .orange, title: "Sound With Pomodoro",
-                          detail: "Starts your focus sound with each focus phase and fades it out for breaks.",
+                          detail: "Play your focus sound during focus, quiet during breaks.",
                           isOn: $settings.soundscapeWithPomodoro, testID: "setting-soundscapeWithPomodoro")
         } header: {
             Text("Focus")
@@ -69,22 +69,22 @@ struct TimerSettingsPane: View {
     private var pomodoroSection: some View {
         Section("Pomodoro") {
             StepperRow(symbol: "brain.head.profile", color: .orange, title: "Focus Length",
-                       detail: "How long each focus session lasts.",
+                       detail: "How long you focus.",
                        value: $settings.pomodoroWorkMinutes, range: 5...120, step: 5, format: SettingsFormat.minutes)
             StepperRow(symbol: "cup.and.saucer.fill", color: .green, title: "Short Break",
-                       detail: "The break after each focus session.",
+                       detail: "A short break after each focus.",
                        value: $settings.pomodoroShortBreakMinutes, range: 1...30, format: SettingsFormat.minutes)
             StepperRow(symbol: "sofa.fill", color: .teal, title: "Long Break",
-                       detail: "The longer break after a full round.",
+                       detail: "A longer break after a full round.",
                        value: $settings.pomodoroLongBreakMinutes, range: 5...60, step: 5, format: SettingsFormat.minutes)
             StepperRow(symbol: "repeat", color: .blue, title: "Sessions Before a Long Break",
                        detail: "Focus sessions in one round.",
                        value: $settings.pomodoroCycles, range: 2...8, format: { "\($0)" })
             SettingToggle(symbol: "forward.fill", color: .indigo, title: "Continue Automatically",
-                          detail: "Start the next focus or break by itself. When off, the timer waits for you.",
+                          detail: "Start the next round on its own. Off: the timer waits for you.",
                           isOn: $settings.pomodoroAutoContinue)
             SettingToggle(symbol: "brain.head.profile", color: .orange, title: "Pomodoro Only",
-                          detail: "The Timer tab shows just Pomodoro, without countdown presets and the stopwatch.",
+                          detail: "Show only Pomodoro in the Timer tab.",
                           isOn: $settings.pomodoroOnly, testID: "setting-pomodoroOnly")
         }
     }
@@ -92,24 +92,24 @@ struct TimerSettingsPane: View {
     private var displaySection: some View {
         Section("Alerts & Display") {
             SettingToggle(symbol: "bell.fill", color: .red, title: "Sound When a Timer Ends",
-                          detail: "Plays a short chime together with the “timer finished” popup.",
+                          detail: "A short chime when a timer ends.",
                           isOn: $settings.timerSound)
             SettingToggle(symbol: "repeat.circle.fill", color: .orange, title: "Repeat Timer",
-                          detail: "When a countdown ends, start it again with the same length until you stop it.",
+                          detail: "Start the countdown again when it ends.",
                           isOn: $settings.repeatTimer, testID: "setting-repeatTimer")
             SettingToggle(symbol: "alarm.waves.left.and.right.fill", color: .red, title: "Repeat Alarm Until Dismissed",
-                          detail: "Keep ringing until you stop it in the notch, instead of chiming once.",
+                          detail: "Keep ringing until you stop it.",
                           isOn: $settings.repeatAlarm, testID: "setting-repeatAlarm")
                 .disabled(!settings.timerSound)
             SettingToggle(symbol: "timer", color: .orange, title: "Running Timer Around the Notch",
-                          detail: "A small ring and the remaining time beside the notch while a timer runs.",
+                          detail: "Show the time left next to the notch.",
                           isOn: $settings.showCompactTimer)
             SettingToggle(symbol: "music.note", color: .pink, title: "Prefer Timer Over Now Playing",
-                          detail: "When music plays too, show the timer beside the notch instead of the player.",
+                          detail: "Show the timer instead of the music when both are on.",
                           isOn: $settings.timerOverNowPlaying)
                 .disabled(!settings.showCompactTimer)
             SettingToggle(symbol: "hand.point.up.left.fill", color: .blue, title: "Controls on Hover",
-                          detail: "Hover the running timer for pause, +1 min and stop.",
+                          detail: "Hover the timer to pause, add a minute or stop.",
                           isOn: $settings.timerHoverControls, testID: "setting-timerHoverControls")
                 .disabled(!settings.showCompactTimer)
         }
@@ -118,13 +118,13 @@ struct TimerSettingsPane: View {
     private var breaksSection: some View {
         Section {
             SettingToggle(symbol: BreakKind.lookAway.symbol, color: .blue, title: "Look Away (20-20-20)",
-                          detail: "Every 20 minutes, look at something 20 feet away for 20 seconds.",
+                          detail: "Every 20 minutes, look at something far away for 20 seconds.",
                           isOn: $settings.breakLookAway)
             SettingToggle(symbol: BreakKind.standUp.symbol, color: .green, title: "Stand Up",
                           detail: "A nudge to get up and move.",
                           isOn: $settings.breakStandUp)
             StepperRow(symbol: "clock.fill", color: .green, title: "Stand-Up Interval",
-                       detail: "Remind me to stand up this often.",
+                       detail: "How often to remind you.",
                        value: $settings.standUpMinutes, range: 15...180, step: 15, format: SettingsFormat.minutes)
                 .disabled(!settings.breakStandUp)
                 .padding(.leading, 20)
@@ -132,14 +132,14 @@ struct TimerSettingsPane: View {
                           detail: "A reminder to stay hydrated.",
                           isOn: $settings.breakDrinkWater)
             StepperRow(symbol: "clock.fill", color: .cyan, title: "Drink-Water Interval",
-                       detail: "Remind me to drink this often.",
+                       detail: "How often to remind you.",
                        value: $settings.drinkWaterMinutes, range: 15...180, step: 15, format: SettingsFormat.minutes)
                 .disabled(!settings.breakDrinkWater)
                 .padding(.leading, 20)
         } header: {
             Text("Break Reminders")
         } footer: {
-            SettingsFooter("Reminders pause while you are idle or in full screen.")
+            SettingsFooter("Reminders wait while you're away or in full screen.")
         }
     }
 }
@@ -179,11 +179,11 @@ struct ClipboardSettingsPane: View {
     private var smartCopySection: some View {
         Section {
             SettingToggle(symbol: "wand.and.stars", color: .purple, title: "Smart Copy",
-                          detail: "Copy an amount, a unit, a time with a zone or a hex number and the notch shows it converted; click to copy the result. Currency rates are fetched from the ECB (Frankfurter) at most twice a day, only when you copy an amount.",
+                          detail: "Copy an amount, unit, time or hex number to see it converted. Click to copy the result.",
                           isOn: $settings.smartCopy, testID: "setting-smartCopy")
                 .disabled(!settings.clipboardEnabled)
             SettingRow(symbol: "dollarsign.circle.fill", color: .green, title: "Home Currency",
-                       detail: "Amounts are converted into this currency; amounts already in it are shown in US dollars.") {
+                       detail: "Your currency. Amounts already in it show in US dollars.") {
                 Picker("Home currency", selection: $settings.homeCurrency) {
                     ForEach(Self.currencies, id: \.self) { Text($0).tag($0) }
                 }
@@ -195,7 +195,7 @@ struct ClipboardSettingsPane: View {
         } header: {
             Text("Smart Copy")
         } footer: {
-            SettingsFooter(settings.clipboardEnabled ? "Converting happens on this Mac; only the currency rates come from the network."
+            SettingsFooter(settings.clipboardEnabled ? "Done on this Mac. Only currency rates come from the internet."
                                                      : "Turn on Clipboard History to use Smart Copy.")
         }
     }
@@ -203,14 +203,14 @@ struct ClipboardSettingsPane: View {
     private var historySection: some View {
         Section {
             SettingToggle(symbol: "doc.on.clipboard.fill", color: .teal, title: "Clipboard History",
-                          detail: "Remember what you copy so you can paste it again from the Clipboard tab.",
+                          detail: "Keep what you copy so you can paste it later.",
                           isOn: $settings.clipboardEnabled)
             Group {
                 SettingValueRow(symbol: "tray.full.fill", color: .gray, title: "Stored Items",
-                                detail: "Pinned items are kept even when the history is full.",
+                                detail: "Pinned items stay even when the list is full.",
                                 value: "\(clipboard.history.items.count) of \(settings.clipboardLimit)")
                 SettingRow(symbol: "list.number", color: .blue, title: "History Limit",
-                           detail: "The oldest unpinned items are dropped beyond this.") {
+                           detail: "Older items drop off past this.") {
                     Picker("History limit", selection: $settings.clipboardLimit) {
                         ForEach(ClipboardSettingsPane.limits, id: \.self) { n in
                             Text("\(n)").tag(n)
@@ -224,7 +224,7 @@ struct ClipboardSettingsPane: View {
                     .fixedSize()
                 }
                 SettingRow(symbol: "clock.badge.xmark", color: .orange, title: "Auto-Clear",
-                           detail: "Remove unpinned items older than this.") {
+                           detail: "Clear unpinned items older than this.") {
                     Picker("Auto-clear", selection: $settings.clipboardAutoClearMinutes) {
                         Text("Never").tag(0)
                         Text("After 5 minutes").tag(5)
@@ -240,12 +240,12 @@ struct ClipboardSettingsPane: View {
                     .fixedSize()
                 }
                 SettingToggle(symbol: "link", color: .indigo, title: "Clean Links",
-                              detail: "Strip tracking parameters (utm_, fbclid …) from copied links.",
+                              detail: "Remove tracking bits from copied links.",
                               isOn: $settings.cleanLinks)
                 SettingRow(symbol: "link.badge.plus", color: .indigo, title: "Tracking Links",
                            detail: settings.offerCleanCopy
-                               ? "Keep the link as copied and offer a clean copy in the notch."
-                               : "Replace the copied link with the clean one right away.") {
+                               ? "Keep your link and offer a clean one in the notch."
+                               : "Swap in the clean link right away.") {
                     Picker("Tracking links", selection: $settings.offerCleanCopy) {
                         Text("Strip").tag(false)
                         Text("Offer a Clean Copy").tag(true)
@@ -257,10 +257,10 @@ struct ClipboardSettingsPane: View {
                 }
                 .disabled(!settings.cleanLinks)
                 SettingToggle(symbol: "doc.on.doc.fill", color: .teal, title: "Copy Twice to Open",
-                              detail: "Press ⌘C twice quickly to open the clipboard history in the notch.",
+                              detail: "Press ⌘C twice to open your clipboard.",
                               isOn: $settings.copyTwiceToOpen, testID: "setting-copyTwiceToOpen")
                 SettingToggle(symbol: "speaker.wave.2.fill", color: .pink, title: "Capture Sound",
-                              detail: "A soft click each time something new is added to the history.",
+                              detail: "A soft click when something gets copied.",
                               isOn: $settings.clipboardCaptureSound, testID: "setting-clipboardCaptureSound")
                 SettingRow(symbol: "trash.fill", color: .red, title: "Clear History",
                            detail: "Removes every unpinned item now.") {
@@ -272,36 +272,36 @@ struct ClipboardSettingsPane: View {
         } header: {
             Text("History")
         } footer: {
-            PrivacyFooter(text: "History is stored only on this Mac. Concealed items (passwords) are never recorded.")
+            PrivacyFooter(text: "Stays on this Mac. Passwords are never saved.")
         }
     }
 
     private var pasteSection: some View {
         Section {
             SettingToggle(symbol: "cursorarrow.click.2", color: .blue, title: "Paste on Click",
-                          detail: "Clicking an item pastes it into the app you were using. Needs Accessibility.",
+                          detail: "Click an item to paste it. Needs Accessibility.",
                           isOn: $settings.pasteOnClick)
             SettingToggle(symbol: "number", color: .purple, title: "Paste with 1–9",
-                          detail: "Press a number while the Clipboard tab is open to paste that item.",
+                          detail: "Press a number to paste that item.",
                           isOn: $settings.pasteWithNumbers)
             ShortcutRow(key: HotKeyAction.pastePlainText.rawValue, symbol: "doc.plaintext.fill", color: .teal,
                         title: "Paste as Plain Text",
-                        detail: "Paste the clipboard without formatting from any app. Needs Accessibility.")
+                        detail: "Paste without formatting anywhere. Needs Accessibility.")
                 .disabled(!settings.hotkeysEnabled)
             if accessibilityGranted {
                 SettingValueRow(symbol: "accessibility", color: .green, title: "Accessibility",
-                                detail: "Lets DynaNotch press ⌘V in the frontmost app.",
+                                detail: "Lets DynaNotch paste for you.",
                                 value: "Granted", valueColor: .green)
             } else {
                 SettingRow(symbol: "accessibility", color: .orange, title: "Accessibility",
-                           detail: "Needed to paste into the frontmost app. Without it, items are only copied.") {
+                           detail: "Without it, items are copied but not pasted.") {
                     Button("Allow…") { Permissions.requestAccessibility() }
                 }
             }
         } header: {
             Text("Pasting")
         } footer: {
-            SettingsFooter("⌥-click an item to paste it as plain text.")
+            SettingsFooter("⌥-click to paste as plain text.")
         }
         .disabled(!settings.clipboardEnabled)
     }
@@ -312,7 +312,7 @@ struct ClipboardSettingsPane: View {
         } header: {
             Text("Ignored Apps")
         } footer: {
-            SettingsFooter("Copies made in these apps are never recorded. Password managers are ignored by default.")
+            SettingsFooter("Nothing copied in these apps is saved. Password managers are skipped.")
         }
         .disabled(!settings.clipboardEnabled)
     }
@@ -327,7 +327,7 @@ struct QuickSearchSettingsPane: View {
         SettingsPageView(page: .quickSearch) {
             Section {
                 SettingRow(symbol: "magnifyingglass", color: .blue, title: "Default Engine",
-                           detail: "Used when you type a query without a shortcut. Searches open in your browser.") {
+                           detail: "Used when you search without a shortcut.") {
                     Picker("Default engine", selection: $settings.quickSearchEngine) {
                         ForEach(QuickSearch.builtIn) { engine in
                             Label(engine.name, systemImage: engine.symbol).tag(engine.id)
@@ -361,21 +361,21 @@ struct QuickSearchSettingsPane: View {
             } header: {
                 Text("Shortcuts")
             } footer: {
-                SettingsFooter("Type a shortcut before the query to use another engine, e.g. “gh swiftui”.")
+                SettingsFooter("Start with a shortcut to use another engine, like “gh swiftui”.")
             }
             Section {
                 CustomEnginesEditor()
             } header: {
                 Text("Custom Engines")
             } footer: {
-                SettingsFooter("Put %@ where the search words go. Custom engines are used with their shortcut, or as the default engine.")
+                SettingsFooter("Put %@ where the search words go.")
             }
             Section {
                 BundleIDListEditor(list: $settings.launcherApps, placeholder: "com.apple.Safari")
             } header: {
                 Text("Launcher Apps")
             } footer: {
-                SettingsFooter("Pinned in the Launcher tab, in this order. Running apps and a search of /Applications are always shown too.")
+                SettingsFooter("Your pinned apps, in this order. Running apps show too.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.quickSearchEngine, SettingsKey.launcherApps,
                                           SettingsKey.customSearchEngines])
@@ -394,18 +394,18 @@ struct FilesSettingsPane: View {
         SettingsPageView(page: .files) {
             Section {
                 SettingToggle(symbol: "tray.full.fill", color: .cyan, title: "File Shelf",
-                              detail: "Drag files onto the notch to park them, then drag them out into any app.",
+                              detail: "Drop files on the notch, drag them out later.",
                               isOn: $settings.shelfEnabled)
                 SettingToggle(symbol: "arrow.up.forward.app.fill", color: .blue, title: "Remove After Dragging Out",
-                              detail: "Take a file off the shelf once you've dragged it somewhere.",
+                              detail: "Remove a file once you've dragged it out.",
                               isOn: $settings.shelfRemoveOnDragOut)
                     .disabled(!settings.shelfEnabled)
                 SettingToggle(symbol: "wand.and.rays", color: .purple, title: "Drop Alchemy",
-                              detail: "Zones on the shelf: drop a picture or PDF to cut out the subject, copy its text, shrink it or make a PNG. Done on this Mac; the new file goes next to the original.",
+                              detail: "Drop an image or PDF to cut it out, grab its text or shrink it. All on this Mac.",
                               isOn: $settings.alchemyZones, testID: "setting-alchemyZones")
                     .disabled(!settings.shelfEnabled)
                 SettingStackedRow(symbol: "clock.arrow.circlepath", color: .orange, title: "Keep Files",
-                                  detail: "Take files off the shelf after this long. The files themselves are never deleted.") {
+                                  detail: "Clear the shelf after this long. Your files stay put.") {
                     Picker("Keep files", selection: $settings.shelfRetention) {
                         ForEach(ShelfRetention.allCases, id: \.self) { r in
                             Text(r.title).tag(r)
@@ -419,24 +419,24 @@ struct FilesSettingsPane: View {
             } header: {
                 Text("Shelf")
             } footer: {
-                PrivacyFooter(text: "The shelf only remembers where files are; it never copies or uploads them.")
+                PrivacyFooter(text: "The shelf only remembers where your files are.")
             }
             Section("Popups") {
                 SettingToggle(symbol: "arrow.down.circle.fill", color: .blue, title: "Downloads",
-                              detail: "When a download starts and finishes in ~/Downloads.",
+                              detail: "Show when a download starts and finishes.",
                               isOn: $settings.downloadActivity)
                 SettingToggle(symbol: "externaldrive.fill", color: .gray, title: "Drive Mounted",
-                              detail: "A popup with an Eject button when you connect a disk or USB stick.",
+                              detail: "Show an Eject button when you plug in a drive.",
                               isOn: $settings.driveActivity)
                 SettingToggle(symbol: "externaldrive.fill.badge.plus", color: .blue, title: "Offer to Install Apps",
-                              detail: "When a disk image with an app opens, offer to copy the app to Applications.",
+                              detail: "Offer to install the app when you open a .dmg.",
                               isOn: $settings.dmgInstallOffer, testID: "setting-dmgInstallOffer")
             }
             Section {
                 SettingRow(symbol: "terminal.fill", color: .gray, title: "Long-Command Islands",
                            detail: zshHookInstalled
-                               ? "Installed: long-running Terminal commands show a popup when they finish."
-                               : "Adds a small hook to ~/.zshrc so long Terminal commands show a popup when they finish.") {
+                               ? "Installed. Long Terminal commands will ping you when done."
+                               : "Get a popup when a long Terminal command finishes.") {
                     if zshHookInstalled {
                         Button("Remove") {
                             ShellHookInstaller.removeZshHook()
@@ -448,7 +448,7 @@ struct FilesSettingsPane: View {
                         Button("Install") {
                             let ok = ShellHookInstaller.installZshHook()
                             zshHookInstalled = ShellHookInstaller.zshHookInstalled
-                            zshMessage = ok ? "Hook installed. It works in new Terminal windows."
+                            zshMessage = ok ? "Done. Works in new Terminal windows."
                                             : "Could not update ~/.zshrc."
                         }
                         .uiTestID("setting-zshHook-install")
@@ -464,8 +464,8 @@ struct FilesSettingsPane: View {
                 Text("Terminal")
             } footer: {
                 SettingsFooter(settings.notifyActivity
-                               ? "The hook only calls dynanotch://notify; the rest of ~/.zshrc is left untouched. zsh only."
-                               : "Turn on Show in DynaNotch (General → Automation) to use this.")
+                               ? "Only adds one small hook to ~/.zshrc. zsh only."
+                               : "Turn on Show in DynaNotch under General first.")
             }
             .onAppear { zshHookInstalled = ShellHookInstaller.zshHookInstalled }
             RestoreDefaultsSection(keys: [
@@ -486,8 +486,8 @@ struct ScreenshotsSettingsPane: View {
             Section {
                 SettingToggle(symbol: "tray.and.arrow.down.fill", color: .cyan, title: "Add Screenshots to the Shelf",
                               detail: settings.shelfEnabled
-                                  ? "Captures are copied to the clipboard and also parked on the shelf."
-                                  : "Turn on the File Shelf in Files & Utilities to use this.",
+                                  ? "Screenshots also land on the shelf."
+                                  : "Turn on the File Shelf first.",
                               isOn: $settings.screenshotToShelf)
                     .disabled(!settings.shelfEnabled)
                 SettingRow(symbol: "folder.fill", color: .blue, title: "Save To",
@@ -503,31 +503,31 @@ struct ScreenshotsSettingsPane: View {
             } header: {
                 Text("Screenshots")
             } footer: {
-                SettingsFooter("Captures always go to the clipboard; with a folder they're also saved there as PNG files.")
+                SettingsFooter("Screenshots go to the clipboard, and to this folder if you pick one.")
             }
             Section {
                 SettingRow(symbol: "camera.viewfinder", color: .mint, title: "Capture Area",
-                           detail: "Select part of the screen; it's copied to the clipboard.") {
+                           detail: "Copy part of the screen.") {
                     Button("Capture") { QuickActions.captureScreenshot() }
                 }
                 SettingRow(symbol: "eyedropper", color: .purple, title: "Pick a Color",
-                           detail: "Click anywhere on screen to copy that colour.") {
+                           detail: "Click anywhere to copy that colour.") {
                     Button("Pick") { QuickActions.pickColor() }
                 }
                 SettingRow(symbol: "record.circle.fill", color: .red, title: "Record Screen",
-                           detail: "Starts a recording of the whole screen.") {
+                           detail: "Record the whole screen.") {
                     Button("Record") { QuickActions.recordScreen() }
                         .uiTestID("setting-recordScreen")
                 }
                 SettingRow(symbol: "rectangle.dashed.badge.record", color: .red, title: "Record Area",
-                           detail: "Select part of the screen, then record just that area.") {
+                           detail: "Record part of the screen.") {
                     Button("Record") { QuickActions.recordArea() }
                         .uiTestID("setting-recordArea")
                 }
             } header: {
                 Text("Try It")
             } footer: {
-                SettingsFooter("Capture Area and Pick a Color are also in the panel's ⋯ actions menu.")
+                SettingsFooter("Also in the panel's ⋯ menu.")
             }
             RestoreDefaultsSection(keys: [SettingsKey.screenshotToShelf, SettingsKey.screenshotFolder])
         }

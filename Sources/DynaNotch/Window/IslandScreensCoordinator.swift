@@ -37,6 +37,17 @@ final class IslandScreensCoordinator {
             .receive(on: DispatchQueue.main)   // let the primary island move first
             .sink { [weak self] _ in self?.rebuild() }
             .store(in: &cancellables)
+        settings.$hiddenDisplays
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                // The primary island may have to move off a display that was just switched off.
+                self.primaryController.repositionNow()
+                self.rebuild()
+            }
+            .store(in: &cancellables)
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -73,8 +84,9 @@ final class IslandScreensCoordinator {
     // MARK: Private (main queue)
 
     private func rebuild() {
-        let all = NSScreen.screens.compactMap { ScreenLocator.displayID($0) }
-        let wanted = settings.displayMode.extraDisplays(all: all, primary: primaryController.currentDisplayID)
+        let all = NSScreen.screens.compactMap(ScreenLocator.keyed)
+        let wanted = settings.displayMode.extraDisplays(all: all, primary: primaryController.currentDisplayID,
+                                                        hidden: DisplaySelection.parse(settings.hiddenDisplays))
         for (id, extra) in extras where !wanted.contains(id) {
             extra.controller.tearDown()
             extras[id] = nil

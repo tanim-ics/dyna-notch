@@ -91,32 +91,32 @@ struct PermissionsSettingsPane: View {
         SettingsPageView(page: .permissions) {
             Section {
                 PermissionRow(symbol: "accessibility", color: .blue, title: "Accessibility",
-                              detail: "Replace the volume / brightness HUD and paste from the clipboard.",
+                              detail: "For the volume and brightness popups and pasting.",
                               status: PermissionProbe.accessibility, anchor: "Privacy_Accessibility") {
                     Permissions.requestAccessibility()
                 }
                 PermissionRow(symbol: "externaldrive.fill", color: .gray, title: "Full Disk Access",
-                              detail: "Detect the current Focus mode. Only the Focus database is read.",
+                              detail: "To tell when Focus is on.",
                               status: PermissionProbe.fullDiskAccess, anchor: "Privacy_AllFiles", request: nil)
                 PermissionRow(symbol: "calendar", color: .red, title: "Calendar",
-                              detail: "Up Next, event alerts and meeting alerts.",
+                              detail: "For upcoming events and meeting alerts.",
                               status: PermissionProbe.eventKit(.event), anchor: "Privacy_Calendars") {
                     calendar.requestAccess()
                 }
                 PermissionRow(symbol: "checklist", color: .orange, title: "Reminders",
-                              detail: "List, add and complete reminders in the Reminders tab.",
+                              detail: "For the Reminders tab.",
                               status: PermissionProbe.eventKit(.reminder), anchor: "Privacy_Reminders") {
                     RemindersService.shared.requestAccess()
                 }
                 PermissionRow(symbol: "web.camera.fill", color: .green, title: "Camera",
-                              detail: "The Mirror tab. The picture never leaves your Mac.",
+                              detail: "For the Mirror tab. The picture stays on your Mac.",
                               status: PermissionProbe.camera, anchor: "Privacy_Camera") {
                     AVCaptureDevice.requestAccess(for: .video) { _ in
                         DispatchQueue.main.async { tick += 1 }
                     }
                 }
                 PermissionRow(symbol: "location.fill", color: .blue, title: "Location",
-                              detail: "Weather when no city is set. Looked up once, roughly.",
+                              detail: "For weather when no city is set.",
                               status: PermissionProbe.location, anchor: "Privacy_LocationServices", request: nil)
                 PermissionRow(symbol: "antenna.radiowaves.left.and.right", color: .blue, title: "Bluetooth",
                               detail: "Battery levels of connected accessories.",
@@ -124,17 +124,17 @@ struct PermissionsSettingsPane: View {
             } header: {
                 Text("Permissions")
             } footer: {
-                SettingsFooter("DynaNotch only asks for what a feature needs. Each feature works without the others.")
+                SettingsFooter("Only asked for when a feature needs it.")
             }
             Section {
                 SettingRow(symbol: "stethoscope", color: .teal, title: "Copy Diagnostics",
-                           detail: "Copies every permission's state, the app and macOS version and the code signature, to paste into a bug report.") {
+                           detail: "Copy details for a bug report.") {
                     CopyButton(title: "Copy") { PermissionDiagnostics.report() }
                         .uiTestID("setting-copyDiagnostics")
                 }
                 DisclosureGroup(isExpanded: $showHelp) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Remove DynaNotch from the list in System Settings, add it again, then restart DynaNotch. This is often needed after rebuilding the app, because macOS ties the permission to the exact build.")
+                        Text("Remove DynaNotch from the list in System Settings, add it back, then restart the app.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -146,7 +146,7 @@ struct PermissionsSettingsPane: View {
                     .padding(.top, 6)
                 } label: {
                     SettingLabel(symbol: "questionmark.circle.fill", color: .gray, title: "Still Not Working?",
-                                 detail: "A permission shows Granted but the feature doesn't work.")
+                                 detail: "It says Granted but the feature doesn't work.")
                 }
             }
         }

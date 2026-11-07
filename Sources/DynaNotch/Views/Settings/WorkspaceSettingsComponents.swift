@@ -230,17 +230,17 @@ extension HotKeyAction {
 
     var settingsDetail: String {
         switch self {
-        case .togglePanel: return "Open or close the panel from any app."
-        case .clipboard: return "Open the panel on the Clipboard tab, ready to search."
-        case .hide: return "Hide the island completely; press again to bring it back."
-        case .commandPalette: return "Search tabs, actions and settings from the keyboard."
-        case .emergencyQuit: return "Quit DynaNotch at once if it ever gets in your way."
-        case .joinMeeting: return "Open the video link of your current or next meeting."
+        case .togglePanel: return "Open or close the panel."
+        case .clipboard: return "Open the clipboard."
+        case .hide: return "Hide the island. Press again to bring it back."
+        case .commandPalette: return "Search tabs, actions and settings."
+        case .emergencyQuit: return "Quit DynaNotch right away."
+        case .joinMeeting: return "Join your current or next meeting."
         case .openCalendar: return "Open the Calendar app."
-        case .pastePlainText: return "Paste the clipboard without formatting. Needs Accessibility."
+        case .pastePlainText: return "Paste without formatting. Needs Accessibility."
         case .startPomodoro: return "Start a Pomodoro focus session."
-        case .toggleKeepAwake: return "Keep your Mac awake, or let it sleep again."
-        case .voiceNote: return "Speak a note, \u{201C}remind me to …\u{201D} or \u{201C}timer 10\u{201D}; press again to stop. Recognised on this Mac; asks for Speech and Microphone access the first time."
+        case .toggleKeepAwake: return "Keep your Mac awake."
+        case .voiceNote: return "Say a note, “remind me to …” or “timer 10”. Press again to stop."
         }
     }
 }
@@ -317,19 +317,19 @@ struct HomeCardsEditor: View {
 
     private func detail(_ card: HomeCard) -> String {
         switch card {
-        case .music: return "The mini player for what's playing."
-        case .calendar: return "This month at a glance. Needs Calendar access."
+        case .music: return "What's playing."
+        case .calendar: return "Your month. Needs Calendar access."
         case .upNext: return "Your next few events."
-        case .weather: return "Current weather. Uses the network (Open-Meteo)."
-        case .timer: return "Start a timer or see the running one."
-        case .worldClock: return "The time in the cities you choose below."
-        case .network: return "Wi-Fi name, IP address and current traffic."
-        case .batteries: return "Your Mac and Bluetooth accessories' batteries."
-        case .sun: return "Today's sunrise and sunset. Uses the weather location."
+        case .weather: return "Today's weather."
+        case .timer: return "Start or see a timer."
+        case .worldClock: return "The time in other cities."
+        case .network: return "Wi-Fi, IP address and traffic."
+        case .batteries: return "Battery for your Mac and accessories."
+        case .sun: return "Today's sunrise and sunset."
         case .links: return "One-click links you save below."
-        case .colors: return "Colours you picked, ready to copy."
-        case .agents: return "Running Claude Code and Codex sessions."
-        case .bluetooth: return "Connect your paired devices with a click."
+        case .colors: return "Colours you picked."
+        case .agents: return "Claude Code and Codex sessions."
+        case .bluetooth: return "Connect your devices in one click."
         }
     }
 
@@ -531,11 +531,11 @@ struct CustomEnginesEditor: View {
     private var problem: String? {
         if name.trimmingCharacters(in: .whitespaces).isEmpty && template.isEmpty && shortcut.isEmpty { return nil }
         if name.trimmingCharacters(in: .whitespaces).isEmpty { return "Give the engine a name." }
-        if !template.contains("%@") { return "The URL needs %@ where the search words go." }
+        if !template.contains("%@") { return "Put %@ where the search words go." }
         if URL(string: template.replacingOccurrences(of: "%@", with: "x"))?.host == nil { return "That URL doesn't look right." }
-        if trimmedShortcut.isEmpty || trimmedShortcut.contains(" ") { return "Pick a one-word shortcut, e.g. “so”." }
+        if trimmedShortcut.isEmpty || trimmedShortcut.contains(" ") { return "A short word, like “so”." }
         let taken = (QuickSearch.builtIn + engines).map { $0.shortcut.lowercased() }
-        if taken.contains(trimmedShortcut) { return "“\(trimmedShortcut)” is already used by another engine." }
+        if taken.contains(trimmedShortcut) { return "“\(trimmedShortcut)” is already taken." }
         return nil
     }
 

@@ -10,6 +10,7 @@ final class StatusItemController: NSObject {
     private var cancellables = Set<AnyCancellable>()
     private var keepAwakeItem: NSMenuItem?
     private var toggleItem: NSMenuItem?
+    private var updateItem: NSMenuItem?
     private var readouts: MenuBarReadouts?
 
     private static let demoTitles: [DemoActivity: String] = [
@@ -55,6 +56,18 @@ final class StatusItemController: NSObject {
             .sink { [weak self] hidden in self?.toggleItem?.title = hidden ? "Show DynaNotch" : "Toggle Island" }
             .store(in: &cancellables)
 
+        UpdateService.shared.$status
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                switch status {
+                case .available(let update, _): self?.updateItem?.title = "Update to \(update.version)…"
+                case .checking: self?.updateItem?.title = "Checking for Updates…"
+                case .downloading, .installing: self?.updateItem?.title = "Installing Update…"
+                default: self?.updateItem?.title = "Check for Updates…"
+                }
+            }
+            .store(in: &cancellables)
+
         KeepAwakeService.shared.$isOn
             .receive(on: DispatchQueue.main)
             .sink { [weak self] on in self?.keepAwakeItem?.state = on ? .on : .off }
@@ -85,6 +98,15 @@ final class StatusItemController: NSObject {
         awake.target = self
         menu.addItem(awake)
         keepAwakeItem = awake
+
+        let update = NSMenuItem(title: "Check for Updates…", action: #selector(updateAction(_:)), keyEquivalent: "")
+        update.target = self
+        updateItem = update
+        menu.addItem(update)
+
+        let whatsNew = NSMenuItem(title: "What's New…", action: #selector(showWhatsNew(_:)), keyEquivalent: "")
+        whatsNew.target = self
+        menu.addItem(whatsNew)
 
         let welcome = NSMenuItem(title: "Show Welcome…", action: #selector(showWelcome(_:)), keyEquivalent: "")
         welcome.target = self
@@ -121,6 +143,18 @@ final class StatusItemController: NSObject {
         } else {
             viewModel.expand()
         }
+    }
+
+    @objc private func updateAction(_ sender: Any?) {
+        if UpdateService.shared.update != nil {
+            WhatsNewController.shared.showUpdate()
+        } else {
+            UpdateService.shared.checkNow()
+        }
+    }
+
+    @objc private func showWhatsNew(_ sender: Any?) {
+        WhatsNewController.shared.showCurrent()
     }
 
     @objc private func showWelcome(_ sender: Any?) {

@@ -64,6 +64,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 WelcomeController.shared.show(greetingOnly: greetingOnly)
             }
         }
+
+        // Updates (CONTRACTS §6.21): once a day ask GitHub; after an update, play its What's New story once.
+        UpdateService.shared.start()
+        WhatsNewController.shared.showIfUpdated(delay: 1.5)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -112,6 +116,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 viewModel?.collapse()
             case "welcome":
                 WelcomeController.shared.show()
+            case "whatsnew":
+                WhatsNewController.shared.showCurrent()
+            case "story":
+                // dynanotch://story/<next|previous|confirm|close|pause|resume>
+                switch argument {
+                case "next": WhatsNewController.shared.handle(.next)
+                case "previous": WhatsNewController.shared.handle(.previous)
+                case "confirm": WhatsNewController.shared.handle(.confirm)
+                case "close": WhatsNewController.shared.handle(.close)
+                case "pause": WhatsNewController.shared.model?.setPaused(true)
+                case "resume": WhatsNewController.shared.model?.setPaused(false)
+                default: break
+                }
+            case "update":
+                // dynanotch://update/<check|show|install>, update/feed?url= (test feed, memory only; no url = GitHub)
+                switch argument {
+                case "check": UpdateService.shared.checkNow()
+                case "show": WhatsNewController.shared.showUpdate()
+                case "install": UpdateService.shared.install()
+                case "feed":
+                    let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first { $0.name == "url" }?.value
+                    UpdateService.shared.feedOverride = value.flatMap(URL.init(string:))
+                default: break
+                }
+            case "snapshot-whatsnew":
+                let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                    ?? URL(fileURLWithPath: NSTemporaryDirectory())
+                WhatsNewController.shared.snapshot(
+                    to: base.appendingPathComponent("DynaNotch/Snapshots/\(argument.isEmpty ? "whatsnew" : argument).png"))
             case "tab":
                 if let tab = PanelTab(rawValue: argument) { viewModel?.open(tab: tab) }
             case "notify":
@@ -170,6 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     case "palette": window = CommandPaletteController.shared.testWindow
                     case "dmg": window = DMGInstaller.shared.testWindow
                     case "welcome": window = WelcomeController.shared.testWindow
+                    case "whatsnew": window = WhatsNewController.shared.testWindow
                     default: window = islandController?.testWindow
                     }
                     var point: NSPoint?
@@ -268,6 +303,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "accessibility": Permissions.accessibilityGranted,
                     "displayMode": AppSettings.shared.displayMode.rawValue,
                     "islands": screensCoordinator?.extraStates ?? [],
+                    "displayKeys": ConnectedDisplay.current().map(\.key),
+                    "holdsPopup": vm.holdsPopup,
+                    "canvasWidth": Double(vm.canvasSize.width),
                     "lockScreen": LockScreenController.shared.state,
                     "copy": FileCopyMonitor.shared.state,
                     "smartCopy": SmartCopyService.shared.state,
@@ -275,6 +313,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "alchemy": AlchemyService.shared.state,
                     "vitals": MacVitalsService.shared.state,
                     "wrap": DailyWrapService.shared.state,
+                    "update": UpdateService.shared.state.merging([
+                        "lastSeen": UserDefaults.standard.string(forKey: WhatsNewController.lastSeenKey) ?? "",
+                        "story": WhatsNewController.shared.state,
+                    ]) { a, _ in a },
                     "voice": VoiceNoteService.shared.state,
                     "focus": FocusGuardService.shared.state.merging([
                         "soundscape": AppSettings.shared.soundscape,

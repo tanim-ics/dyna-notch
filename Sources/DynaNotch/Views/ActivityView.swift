@@ -25,7 +25,13 @@ struct ActivityView: View {
     }
 
     var body: some View {
-        content
+        if let held = vm.heldPopupActivity, held.id == activity.id, let text = activity.kind.popupText {
+            PopupDetailView(notchHeight: vm.notch.height, title: text.title, message: text.body, symbol: text.symbol,
+                            openTitle: vm.popupTarget(for: activity)?.buttonTitle)
+                .transition(.opacity)
+        } else {
+            content
+        }
     }
 
     @ViewBuilder
@@ -327,6 +333,73 @@ struct TimerFinishedActivity: View {
         }
         .help(label.isEmpty ? "Timer finished" : "\(label) finished")
         .accessibilityLabel(label.isEmpty ? "Timer finished" : "\(label) finished")
+    }
+}
+
+// MARK: - Popup under the pointer
+
+/// A popup the pointer rests on: the whole message plus Dismiss / Open. The buttons are drawn here; clicks are
+/// routed by position through `IslandViewModel.tap(at:)` (`PopupButton.button`), like the Agent Island card.
+struct PopupDetailView: View {
+    let notchHeight: CGFloat
+    let title: String
+    let message: String
+    let symbol: String
+    let openTitle: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: notchHeight)
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 22)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    if !title.isEmpty {
+                        Text(title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .lineLimit(2)
+                    }
+                    if !message.isEmpty {
+                        Text(message)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(IslandColors.secondary)
+                            .lineLimit(3)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 6)
+            Spacer(minLength: 4)
+            HStack(spacing: 8) {
+                button("Dismiss", symbol: "xmark", prominent: false)
+                    .uiTestID("popup-dismiss")
+                if let openTitle = openTitle {
+                    button(openTitle, symbol: "arrow.up.forward", prominent: true)
+                        .uiTestID("popup-open")
+                }
+            }
+            .frame(height: PopupButton.rowHeight)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 6)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel([title, message].filter { !$0.isEmpty }.joined(separator: ", "))
+    }
+
+    private func button(_ title: String, symbol: String, prominent: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: symbol).font(.system(size: 10, weight: .bold))
+            Text(title).font(.system(size: 11.5, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(Color.white)
+        .frame(maxWidth: .infinity, minHeight: 24)
+        .background(Capsule().fill(prominent ? Color.accentColor.opacity(0.85) : Color.white.opacity(0.14)))
     }
 }
 

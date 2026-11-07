@@ -19,6 +19,7 @@ struct PanelHeader: View {
             HStack(spacing: 6) {
                 TabPill()
                 TabMenu()
+                UpdatePill()
             }
             .frame(width: sideWidth, alignment: .leading)
             Color.clear.frame(width: gap)
@@ -32,6 +33,42 @@ struct PanelHeader: View {
 }
 
 // MARK: - Left: tabs
+
+/// "Update" capsule while a new version is available (CONTRACTS §6.21); opens the update story.
+struct UpdatePill: View {
+    @ObservedObject private var updates = UpdateService.shared
+
+    var body: some View {
+        // Stays after a failed install too, so the update can be retried.
+        if updates.update != nil {
+            Button {
+                WhatsNewController.shared.showUpdate()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isBusy ? "arrow.down.circle" : "arrow.down.circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Update")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(Color.white)
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .background(Capsule().fill(WelcomeView.gradient))
+            }
+            .buttonStyle(.plain)
+            .help(updates.update.map { "DynaNotch \($0.version) is available — see what's new" } ?? "Update")
+            .transition(.scale.combined(with: .opacity))
+            .uiTestID("header.update")
+        }
+    }
+
+    private var isBusy: Bool {
+        switch updates.status {
+        case .downloading, .installing: return true
+        default: return false
+        }
+    }
+}
 
 /// Glassy capsule showing the current tab.
 struct TabPill: View {
