@@ -7,8 +7,8 @@
 # stable identifier requirement, not notarised, so the postflight clears the download quarantine — otherwise
 # Gatekeeper refuses to open it.
 cask "dynanotch" do
-  version "3.2.0"
-  sha256 "2b626d2d20f8fe0980c8a1cf31dac7aa92d79b4825c510287f0f5b5b68d88814"
+  version "3.3.0"
+  sha256 "e76526d4e9fb0e812290ad060895a42e0ad9735c72683f81273efb9c360423b2"
 
   url "https://github.com/tanim-ics/dyna-notch/releases/download/v#{version}/DynaNotch-#{version}.zip"
   name "DynaNotch"

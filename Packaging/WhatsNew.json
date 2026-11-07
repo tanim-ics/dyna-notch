@@ -1,7 +1,7 @@
 [
   {
     "version": "3.3.0",
-    "date": "2026-11-02",
+    "date": "2026-11-07",
     "headline": "Ten new tricks for your notch",
     "features": [
       {"symbol": "arrow.down.circle.fill", "color": "blue", "title": "Updates in the Notch",
@@ -25,7 +25,13 @@
       {"symbol": "sun.horizon.fill", "color": "yellow", "title": "Daily Wrap",
        "text": "At the end of the day, one card with your screen time, focus sessions, songs and commits."},
       {"symbol": "waveform.circle.fill", "color": "teal", "title": "Voice Notes",
-       "text": "Speak a note, a reminder or a timer. Recognition runs on your Mac, so your voice never leaves it."}
+       "text": "Speak a note, a reminder or a timer. Recognition runs on your Mac, so your voice never leaves it."},
+      {"symbol": "display.2", "color": "blue", "title": "Every Screen",
+       "text": "The island now shows on all your displays. Pick the ones you want in Settings → Behavior."},
+      {"symbol": "bell.badge.fill", "color": "orange", "title": "Popups You Can Use",
+       "text": "Hover a popup and it stays put. Click it to see more or open what it's about."},
+      {"symbol": "lock.shield.fill", "color": "green", "title": "Locked Down",
+       "text": "Your clipboard, notes and history are encrypted with your Mac's security chip, copied passwords aren't saved, and updates must carry our signature."}
     ]
   },
   {
