@@ -13,11 +13,32 @@ public enum URLHookPolicy {
 
     public static let tokenItem = "token"
 
-    /// True when `action` is public, or the URL carries the secret `expected` token.
-    public static func isAllowed(action: String, token: String?, expected: String) -> Bool {
-        if publicActions.contains(action.lowercased()) { return true }
-        guard let token = token, !expected.isEmpty else { return false }
-        return constantTimeEqual(token, expected)
+    /// Tabs a link may open without the token. Mirror turns the camera on; Clipboard, Notes, Reminders, Calendar,
+    /// Shelf and AI Usage put private data on screen (e.g. during a screen share).
+    public static let publicTabs: Set<String> = [
+        "home", "nowPlaying", "timer", "calculator", "emoji", "quickSearch", "launcher", "shortcuts", "system",
+        "quickSettings",
+    ]
+
+    /// True when the URL carries the secret `expected` token, or the hook is public (and, for `tab` / `pin`, the tab
+    /// is one of `publicTabs`; `pin` with no tab is fine).
+    public static func isAllowed(action: String, argument: String = "", token: String?, expected: String) -> Bool {
+        if let token = token, !expected.isEmpty, constantTimeEqual(token, expected) { return true }
+        let action = action.lowercased()
+        guard publicActions.contains(action) else { return false }
+        if action == "tab" || (action == "pin" && !argument.isEmpty) { return publicTabs.contains(argument) }
+        return true
+    }
+
+    /// `dynanotch://timer/<minutes>`: 0 < minutes ≤ 24 h, finite (`1e300` used to crash the time formatter).
+    public static func timerMinutes(_ argument: String) -> Double? {
+        guard let minutes = Double(argument), minutes.isFinite, minutes > 0, minutes <= 24 * 60 else { return nil }
+        return minutes
+    }
+
+    /// Title / body of a notification from outside, trimmed to what the notch can show.
+    public static func clamp(_ text: String, to limit: Int) -> String {
+        text.count > limit ? String(text.prefix(limit - 1)) + "…" : text
     }
 
     /// Compares without returning early, so timing reveals nothing about the secret.
@@ -101,5 +122,56 @@ extension AgentRequest {
     public static func isValidID(_ id: String) -> Bool {
         let parts = id.split(separator: "-", omittingEmptySubsequences: false)
         return parts.count == 2 && parts.allSatisfy { !$0.isEmpty && $0.count <= 20 && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }
+    }
+}
+
+/// Public hooks per time window, so a page that may open dynanotch:// links can't flood the notch or its sounds.
+public struct HookRateLimiter: Equatable {
+    public var limit: Int
+    public var window: TimeInterval
+    private var stamps: [Date] = []
+
+    public init(limit: Int = 8, window: TimeInterval = 10) {
+        self.limit = limit
+        self.window = window
+    }
+
+    public mutating func allow(now: Date) -> Bool {
+        stamps.removeAll { now.timeIntervalSince($0) >= window || $0 > now }
+        guard stamps.count < limit else { return false }
+        stamps.append(now)
+        return true
+    }
+}
+
+/// Text shown for someone to approve (Agent Island): what you see must be what runs.
+public enum ApprovalText {
+    /// Removes invisible and direction-changing characters (zero-width, bidi overrides, other format and control
+    /// characters), turns every run of whitespace into one space, and keeps both ends of long text so the tail of a
+    /// chained command (`npm test; curl … | sh`) is never cut off.
+    public static func sanitize(_ text: String, limit: Int = 160) -> String {
+        var out = ""
+        var lastWasSpace = false
+        for scalar in text.unicodeScalars {
+            let category = scalar.properties.generalCategory
+            if scalar == "\n" || scalar == "\r" {
+                if !lastWasSpace { out += " ⏎ " }
+                lastWasSpace = true
+                continue
+            }
+            if CharacterSet.whitespacesAndNewlines.contains(scalar) || category == .spaceSeparator {
+                if !lastWasSpace { out.unicodeScalars.append(" ") }
+                lastWasSpace = true
+                continue
+            }
+            if category == .control || category == .format || category == .unassigned
+                || category == .privateUse || category == .surrogate { continue }
+            out.unicodeScalars.append(scalar)
+            lastWasSpace = false
+        }
+        out = out.trimmingCharacters(in: .whitespaces)
+        guard out.count > limit else { return out }
+        let head = (limit - 1) / 2, tail = limit - 1 - head
+        return String(out.prefix(head)) + "…" + String(out.suffix(tail))
     }
 }

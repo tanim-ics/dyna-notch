@@ -37,7 +37,10 @@ public enum NotifyURL {
         var symbol = (values["symbol"] ?? "").trimmingCharacters(in: .whitespaces)
         if symbol.isEmpty { symbol = "bell.fill" }
         let duration = values["duration"].flatMap(Double.init).map { min(30, max(1, $0)) }
-        return NotchNotification(title: title.isEmpty ? body : title, body: title.isEmpty ? "" : body,
+        // Anyone can post one: keep it to what the notch shows.
+        let shownTitle = URLHookPolicy.clamp(title.isEmpty ? body : title, to: 120)
+        let shownBody = URLHookPolicy.clamp(title.isEmpty ? "" : body, to: 400)
+        return NotchNotification(title: shownTitle, body: shownBody,
                                  symbol: symbol, duration: duration, openURL: PopupTarget.openURL(values["open"]))
     }
 }

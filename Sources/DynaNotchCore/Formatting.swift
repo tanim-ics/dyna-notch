@@ -7,7 +7,7 @@ public enum Format {
     /// "0:00", "3:07", "1:02:03"; NaN/neg/inf → "0:00".
     public static func time(_ seconds: Double) -> String {
         guard seconds.isFinite, seconds > 0 else { return "0:00" }
-        let total = Int(seconds.rounded(.down))
+        let total = Int(min(seconds, 359_999_999).rounded(.down))   // never trap on huge input
         let h = total / 3600
         let m = (total % 3600) / 60
         let s = total % 60

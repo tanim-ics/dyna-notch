@@ -506,10 +506,19 @@ final class IslandViewModel: ObservableObject {
         let kind = ActivityKind.agentRequest(id: request.id, project: request.project, tool: request.tool,
                                              detail: request.detail)
         guard isAllowed(kind) else { return }
+        if agentShownAt[request.id] == nil {
+            agentShownAt = agentShownAt.filter { id, _ in AgentIslandService.shared.requests.contains { $0.id == id } }
+            agentShownAt[request.id] = Date()
+        }
         engine.post(kind, now: Date(), duration: left)
         if isPrimary { AlertSoundPlayer.play(.notifications) }
         refresh()
     }
+
+    /// When each Claude Code request first appeared: its buttons ignore clicks for `agentArmDelay`, so a request that
+    /// pops up under a click already on its way (or one swapped in mid-click) is never answered by accident.
+    private var agentShownAt: [String: Date] = [:]
+    static let agentArmDelay: TimeInterval = 1.0
 
     /// Allow / Deny / Terminal (a click on the card, or `dynanotch://agent/answer`).
     func answerAgent(id: String, project: String, _ decision: AgentDecision) {
@@ -559,6 +568,11 @@ final class IslandViewModel: ObservableObject {
         // Agent Island: below the title row, the card's three equal buttons split it in thirds (Deny · Terminal ·
         // Allow). A click on the title row does nothing.
         if case .activity(let activity) = presentation, case let .agentRequest(id, project, _, _) = activity.kind {
+            let shownFor = Date().timeIntervalSince(agentShownAt[id] ?? .distantPast)
+            guard shownFor >= IslandViewModel.agentArmDelay else {
+                lastTap = "agent buttons not armed yet (\(Int(shownFor * 1000)) ms)"
+                return
+            }
             if let decision = location.flatMap({ AgentDecision.button(at: $0, cardWidth: islandSize.width,
                                                                        titleRowHeight: notch.height) }) {
                 answerAgent(id: id, project: project, decision)

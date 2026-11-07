@@ -690,7 +690,7 @@ struct AgentRequestActivity: View {
                     .font(.system(size: 11.5, weight: .medium, design: .monospaced))
                     .foregroundStyle(Color.white.opacity(0.9))
                     .lineLimit(1)
-                    .truncationMode(.tail)
+                    .truncationMode(.middle)   // the end of a chained command stays visible
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)

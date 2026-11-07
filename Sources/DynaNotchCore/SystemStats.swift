@@ -73,7 +73,7 @@ extension Format {
     /// "2h 05m", "14m", "<1m".
     public static func countdown(_ seconds: TimeInterval) -> String {
         guard seconds.isFinite, seconds >= 60 else { return "<1m" }
-        let minutes = Int(seconds / 60)
+        let minutes = Int(min(seconds, 359_999_999) / 60)   // never trap on huge input
         let h = minutes / 60
         let m = minutes % 60
         if h > 0 { return String(format: "%dh %02dm", h, m) }

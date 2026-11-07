@@ -122,8 +122,8 @@ public enum AgentSummary {
         } else {
             text = input.values.compactMap { $0 as? String }.first ?? tool
         }
-        let oneLine = text.replacingOccurrences(of: "\n", with: " ⏎ ")
-        return oneLine.count > 160 ? String(oneLine.prefix(159)) + "…" : oneLine
+        // What you approve must be what runs: no hidden characters, no padding that pushes the rest out of view.
+        return ApprovalText.sanitize(text)
     }
 
     /// Pill text for a status event.

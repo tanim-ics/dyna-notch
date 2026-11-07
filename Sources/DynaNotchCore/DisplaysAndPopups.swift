@@ -133,7 +133,7 @@ public enum PopupTarget: Equatable {
         case .tab(let tab): return "Open \(tab.title)"
         case .url(let url):
             if url.isFileURL { return url.pathExtension == "app" ? "Open \(url.deletingPathExtension().lastPathComponent)" : "Show in Finder" }
-            return "Open Link"
+            return url.host.map { "Open \($0)" } ?? "Open Link"
         }
     }
 

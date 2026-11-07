@@ -254,6 +254,7 @@ for decision in allow deny terminal; do
     ( echo "$REQ" | "$HOOK" permission > "$AGTMP/out-$decision" ) &
     agent_card
     check "agent: $decision request shown" "$(state presentation | grep -o 'agentRequest' | head -1)" "agentRequest"
+    sleep 1.0   # buttons arm 1 s after the card appears (clickjacking guard)
     u "ui/click?window=island&id=agent-$decision" 1.0
     if [ "$decision" = terminal ]; then
         check "agent: terminal hands back to Claude" "$(cat "$AGTMP/out-$decision")$(agk pending | grep -c regression)" "0"
@@ -424,6 +425,12 @@ check "security: notify stays public" "$(state presentation | grep -o 'Public' |
 rm -f "$SNAP/evil.png" "$SNAP/../evil.png"; u "snapshot/..%2Fevil" 1.5
 check "security: snapshot name can't leave Snapshots" "$([ -f "$SNAP/../evil.png" ] && echo escaped || echo kept)" "kept"
 rm -f "$SNAP/evil.png" "$SNAP/.evil.png" "$SNAP/..evil.png"
+open -g "dynanotch://tab/clipboard"; sleep 1.0
+check "security: private tab needs token" "$(state presentation | grep -c expanded)" "0"
+open -g "dynanotch://pin/mirror"; sleep 1.0
+check "security: camera tab needs token" "$(state presentation | grep -c expanded)" "0"
+open -g "dynanotch://timer/1e300"; sleep 1.0
+check "security: huge timer ignored, app alive" "$(pgrep -x DynaNotch >/dev/null && echo alive) $(state timerRunning)" "alive False"
 check "security: token file private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch/test-token")" "600"
 check "security: data folder private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch")" "700"
 

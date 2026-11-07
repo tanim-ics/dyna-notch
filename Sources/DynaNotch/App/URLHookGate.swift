@@ -37,13 +37,26 @@ enum URLHookGate {
         }
     }
 
+    /// Links without the token: at most 8 per 10 s (no flooding the notch or its sounds).
+    private static var publicLimiter = HookRateLimiter()
+
     /// True when the URL may run. Refusals are logged (without the token).
     static func allows(_ url: URL) -> Bool {
         let action = url.host ?? ""
+        let argument = url.pathComponents.dropFirst().first ?? ""
         let token = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
             .first { $0.name == URLHookPolicy.tokenItem }?.value
-        let ok = URLHookPolicy.isAllowed(action: action, token: token, expected: URLHookGate.token)
-        if !ok { logger.notice("refused dynanotch://\(action, privacy: .public) without a valid token") }
-        return ok
+        if let token = token, URLHookPolicy.isAllowed(action: "", token: token, expected: URLHookGate.token) {
+            return true
+        }
+        guard URLHookPolicy.isAllowed(action: action, argument: argument, token: nil, expected: URLHookGate.token) else {
+            logger.notice("refused dynanotch://\(action, privacy: .public)/\(argument, privacy: .public) without a valid token")
+            return false
+        }
+        guard publicLimiter.allow(now: Date()) else {
+            logger.notice("rate-limited dynanotch://\(action, privacy: .public)")
+            return false
+        }
+        return true
     }
 }

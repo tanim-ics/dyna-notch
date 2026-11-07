@@ -483,7 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // dynanotch://timer/25 → 25-minute countdown, dynanotch://timer/stop → reset
                 if argument == "stop" {
                     TimerService.shared.reset()
-                } else if let minutes = Double(argument), minutes > 0 {
+                } else if let minutes = URLHookPolicy.timerMinutes(argument) {
                     TimerService.shared.startCountdown(minutes: minutes, label: "Timer")
                 }
             default:

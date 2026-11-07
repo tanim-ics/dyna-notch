@@ -129,7 +129,7 @@ final class DisplaysAndPopupsTests: XCTestCase {
         XCTAssertEqual(PopupTarget.url(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")).buttonTitle,
                        "Open Activity Monitor")
         XCTAssertEqual(PopupTarget.url(URL(fileURLWithPath: "/Users/x/Downloads")).buttonTitle, "Show in Finder")
-        XCTAssertEqual(PopupTarget.url(URL(string: "https://a.b")!).buttonTitle, "Open Link")
+        XCTAssertEqual(PopupTarget.url(URL(string: "https://a.b")!).buttonTitle, "Open a.b")
     }
 
     func testHoldsOnHoverAndText() {

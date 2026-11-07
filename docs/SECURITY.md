@@ -10,7 +10,10 @@ release feeds, and data written by Claude Code hooks.
 Any web page can try to open a custom URL (browsers ask once, then may remember "always allow").
 
 - **Public:** `notify`, `tab`, `expand`, `collapse`, `settings`, `timer`, `whatsnew`, `simulate`, `pin`, `unpin`,
-  `batteries`. Harmless: they show something or open the panel.
+  `batteries`. Harmless: they show something or open the panel. `tab` / `pin` only reach `URLHookPolicy.publicTabs`
+  (Mirror would switch the camera on; Clipboard, Notes, Reminders, Calendar, Shelf, AI Usage show private data).
+  `timer` takes 0 < minutes ≤ 1440 only. At most 8 public links per 10 s (`HookRateLimiter`). Notification text is
+  clamped (120 / 400 characters) and the Open button names the site it goes to.
 - **Everything else needs `token=<secret>`**: `set`, `ui/*` (synthetic clicks, shortcuts), `agent/*` (Claude Code
   answers), `update/*` (feed, install), `state`, `snapshot*`, `alchemy`, `shelf`, `convert`, `voice`, …
 - The secret is 32 random bytes from `SecRandomCopyBytes`, new at every launch, written to
@@ -31,6 +34,11 @@ The ad-hoc signature proves nothing (anyone can sign with our identifier), so tr
 
 ## Claude Code (Agent Island)
 
+- What you approve is what runs: `ApprovalText.sanitize` drops zero-width, bidi-override and control characters,
+  collapses whitespace padding, and keeps both ends of a long command (the card truncates in the middle).
+- Allow / Deny / Terminal ignore clicks for 1 s after a request appears (clickjacking: a card popping up under a
+  click already on its way).
+
 - Requests come from files the hook script writes; IDs must look like `<ms>-<pid>` (`AgentRequest.isValidID`), and an
   answer is written only for a request that is pending on disk. Only a click in the notch (or a tokened test hook)
   answers.
@@ -42,3 +50,19 @@ The ad-hoc signature proves nothing (anyone can sign with our identifier), so tr
 - Clipboard: concealed / transient items and password managers are never recorded (`clipboardIgnoredApps`).
 - Network: HTTPS, keyless public APIs only, no cookies (`docs/DECISIONS.md` §16).
 - Not covered: malware already running as you, a compromised GitHub account, physical access.
+
+## Pentest log
+
+| Date | Finding | Severity | Fix |
+|---|---|---|---|
+| 2026-11-07 | Every test hook reachable from web pages (settings, clicks, Claude Code answers, update feed) | Critical | Per-launch token |
+| 2026-11-07 | Updater trusted any URL + forgeable ad-hoc signature | High | GitHub repo + published SHA-256 only |
+| 2026-11-07 | `notify?open=file://` could run an app/script on click; snapshot path traversal | Medium | http/https only; `SafeFileName` |
+| 2026-11-07 | `timer/1e300` crashed the app (Int conversion trap) from any web page | High (DoS) | `timerMinutes` bounds; formatters clamp |
+| 2026-11-07 | `tab/mirror` / `pin/mirror` turned the camera on from any web page; private tabs shown on demand | High (privacy) | `publicTabs` allowlist |
+| 2026-11-07 | Agent Island: padded / bidi-spoofed commands hid what you approved | High | `ApprovalText.sanitize`, middle truncation |
+| 2026-11-07 | Agent Island: request appearing under a click got answered | Medium | 1 s arming delay |
+| 2026-11-07 | Notification flood / huge text / phishing links | Low | Rate limit, clamping, host on the button |
+
+Residual (accepted): the token travels in `open` arguments, which other local users can see in `ps` for a moment
+(they still can't open URLs in your session); data at rest relies on FileVault; anything running as you is trusted.
