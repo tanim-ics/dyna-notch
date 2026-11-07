@@ -37,9 +37,10 @@ keyed network services, App Store / notarised distribution, licensing. Network u
 | Task | Command |
 |---|---|
 | Test, build, sign, install, launch | `./build.sh` (`--skip-tests`, `--no-install`, `--dmg`, `--debug`) |
-| Unit tests (Core, 327) | `swift test` |
+| Unit tests (Core, 344) | `swift test` |
 | All checks (build, tests, parse, adapter, scripts, Info.plist) | `scripts/check.sh` — add `--ui` for the 209 UI checks against the running app |
 | Health (crashes, hangs, log errors, idle energy) | `scripts/health.sh [days]` |
+| Sanitizers (ASan + TSan session) | `scripts/sanitize.sh` (quits the installed app while it runs) |
 | Live log | `log stream --predicate 'subsystem == "com.tanim.dynanotch"'` |
 
 Toolchain: macOS 27, Xcode 27, Swift 6.4 (Swift 5 language mode), deployment target macOS 14. SwiftPM only, no
@@ -96,7 +97,8 @@ words (what it does; a requirement like "Needs Accessibility" only when there is
 destructive actions red with inline confirm; every page ends with "Restore Defaults"; changes apply live.
 
 **Signing** — `build.sh` signs ad hoc with a stable designated requirement (`identifier "com.tanim.dynanotch"`) so
-permissions survive rebuilds. Don't change it.
+permissions survive rebuilds, with the hardened runtime and `Packaging/DynaNotch.entitlements`. Don't change either.
+Releases are signed with the Ed25519 release key from the Keychain (`scripts/release-key.sh`, `release.sh`).
 
 ## 5. Testing — definition of done
 
@@ -108,10 +110,14 @@ A change is done when **all** of these hold:
    (state assertion or snapshot), including its edge cases (permission denied, empty state, feature off).
 4. `docs/ROADMAP.md` row flipped, `docs/CONTRACTS.md` updated if an API changed.
 5. No energy regression: `scripts/health.sh 0` idle numbers within budget.
+6. Security: a new input (hook, download, file type, socket message, entitlement) is in `docs/SECURITY.md` with its
+   attack as a check in `scripts/ui-regression.sh`; parsers of outside input join `FuzzTests`. Release builds keep the
+   hardened runtime and the signed-update chain.
 
-**Test hooks** (no Accessibility needed; implemented in `AppDelegate` / `App/UITestDriver.swift`). Only the public hooks
-(`notify`, `tab`, `expand`, `collapse`, `settings`, `timer`, `simulate`, `pin` …) work without `token=<secret>` from
-`~/Library/Application Support/DynaNotch/test-token`; `scripts/ui-regression.sh` → `u()` adds it. See `docs/SECURITY.md`:
+**Test hooks** (no Accessibility needed; implemented in `AppDelegate` / `App/UITestDriver.swift`). Links from outside
+only reach the public hooks (`notify`, `tab` to harmless tabs, `timer`, `expand`, `collapse`, `settings`, `simulate` …);
+scripts send every hook through the private control socket: `printf 'dynanotch://state\n' | nc -U ~/Library/Application\
+Support/DynaNotch/control.sock` (`scripts/ui-regression.sh` → `u()`). See `docs/SECURITY.md`.
 
 | Hook | Does |
 |---|---|

@@ -115,6 +115,9 @@ Optional: **Calendar** (events), **Location** (weather; or type a city in Settin
   on each display; switch single displays off in the list below it) or **Follow Mouse** (one island that moves to the
   display you're using). Also turn on Appearance → "Show on Displays Without a Notch", or the resting pill stays hidden
   there. An app in real full screen hides that display's island (Behavior → Hide in Full Screen).
+- **Your data.** Clipboard history, notes and other history are encrypted with a key that never leaves this Mac's
+  Secure Enclave, so backups and copies can't be read elsewhere. To move notes to a new Mac use Settings → About →
+  Export Notes. Clipboard → Skip Secrets keeps passwords, keys and card numbers out of the history.
 - **Acting on a popup.** Rest the pointer on a notification to read all of it; it stays until you move away. Click
   **Open** to go where it points (Calendar tab, Downloads, a link from `notify?open=`) or **Dismiss** to close it.
 - **Accessibility is on but General still asks for it.** An older build is listed: select DynaNotch in System Settings →

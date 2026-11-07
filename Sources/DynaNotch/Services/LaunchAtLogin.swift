@@ -24,7 +24,7 @@ enum LaunchAtLogin {
             }
             return true
         } catch {
-            logger.error("launch at login change failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("launch at login change failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }

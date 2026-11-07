@@ -21,11 +21,11 @@ enum AppDataStore {
     }
 
     static func loadFile<T: Decodable>(_ type: T.Type, file: String) -> T? {
-        guard let data = try? Data(contentsOf: url(file)) else { return nil }
+        guard let data = Vault.read(url(file)) else { return nil }   // decrypts; plain legacy files too
         do {
             return try decoder().decode(type, from: data)
         } catch {
-            logger.error("\(file, privacy: .public) unreadable: \(error.localizedDescription, privacy: .public)")
+            logger.error("\(file, privacy: .public) unreadable: \(error.localizedDescription, privacy: .private)")
             return nil
         }
     }
@@ -36,7 +36,7 @@ enum AppDataStore {
         do {
             data = try encoder().encode(value)
         } catch {
-            logger.error("could not encode \(file, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            logger.error("could not encode \(file, privacy: .public): \(error.localizedDescription, privacy: .private)")
             return
         }
         let target = url(file)
@@ -44,9 +44,9 @@ enum AppDataStore {
         ioQueue.async {
             do {
                 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                try data.write(to: target, options: .atomic)
+                try Vault.write(data, to: target)   // encrypted with the Secure Enclave key
             } catch {
-                logger.error("could not save \(file, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                logger.error("could not save \(file, privacy: .public): \(error.localizedDescription, privacy: .private)")
             }
         }
     }

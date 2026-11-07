@@ -16,12 +16,12 @@ FAIL=0
 
 pgrep -x DynaNotch >/dev/null || { echo "DynaNotch is not running (run ./build.sh first)"; exit 1; }
 
-# Test hooks need the per-launch secret the app writes for this user (docs/SECURITY.md).
-TOKEN=$(cat "$HOME/Library/Application Support/DynaNotch/test-token" 2>/dev/null)
-[ -n "$TOKEN" ] || { echo "No test token (is this build running?)"; exit 1; }
-u() {   # u <hook>[?query] [sleep] — appends the token
-    local sep="?"; case "$1" in *\?*) sep="&" ;; esac
-    open -g "dynanotch://$1${sep}token=$TOKEN"; sleep "${2:-0.7}"
+# Test hooks go through the app's private control socket (this user only); links from outside reach only the
+# public hooks (docs/SECURITY.md).
+SOCK="$HOME/Library/Application Support/DynaNotch/control.sock"
+[ -S "$SOCK" ] || { echo "No control socket (is this build running?)"; exit 1; }
+u() {   # u <hook>[?query] [sleep]
+    printf 'dynanotch://%s\n' "$1" | nc -U "$SOCK" >/dev/null; sleep "${2:-0.7}"
 }
 state() { rm -f "$STATE"; u state 0.5; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
 check() {   # check <name> <actual> <expected-prefix>
@@ -67,6 +67,7 @@ for d in volume brightness charging lowBattery airpods focus calendar notificati
     u "simulate/$d" 0.6
     check "activity $d" "$(state presentation)" "activity"
 done
+sleep 3   # let the last demo popups (camera: 3 s) expire; the control socket is faster than `open` was
 u "simulate/peek" 0.6; check "track peek" "$(state presentation)" "peek"
 sleep 3
 
@@ -411,14 +412,14 @@ u "update/feed" 0.3; u "update/check" 3.0
 u unpin 0.8
 rm -rf "$FEED"
 
-echo "==> Security: hooks without the token are refused"
+echo "==> Security: links from outside reach only public hooks"
 OLD_HUD=$(b dn.hudEnabled true)
 open -g "dynanotch://set?dn.hudEnabled=false"; sleep 0.8
-check "security: set without token refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
-open -g "dynanotch://set?dn.hudEnabled=false&token=wrong"; sleep 0.8
-check "security: set with wrong token refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
+check "security: outside set refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
+open -g "dynanotch://set?dn.hudEnabled=false&token=guess"; sleep 0.8
+check "security: set with a guessed token refused" "$(b dn.hudEnabled true)" "$OLD_HUD"
 rm -f "$STATE"; open -g "dynanotch://state"; sleep 0.8
-check "security: state without token refused" "$([ -f "$STATE" ] && echo written || echo refused)" "refused"
+check "security: outside state refused" "$([ -f "$STATE" ] && echo written || echo refused)" "refused"
 u "ui/pointer?x=10&y=400" 0.6
 open -g "dynanotch://notify?title=Public&body=hook&duration=3"; sleep 0.8
 check "security: notify stays public" "$(state presentation | grep -o 'Public' | head -1)" "Public"
@@ -426,13 +427,31 @@ rm -f "$SNAP/evil.png" "$SNAP/../evil.png"; u "snapshot/..%2Fevil" 1.5
 check "security: snapshot name can't leave Snapshots" "$([ -f "$SNAP/../evil.png" ] && echo escaped || echo kept)" "kept"
 rm -f "$SNAP/evil.png" "$SNAP/.evil.png" "$SNAP/..evil.png"
 open -g "dynanotch://tab/clipboard"; sleep 1.0
-check "security: private tab needs token" "$(state presentation | grep -c expanded)" "0"
+check "security: outside private tab refused" "$(state presentation | grep -c expanded)" "0"
 open -g "dynanotch://pin/mirror"; sleep 1.0
-check "security: camera tab needs token" "$(state presentation | grep -c expanded)" "0"
+check "security: outside camera tab refused" "$(state presentation | grep -c expanded)" "0"
 open -g "dynanotch://timer/1e300"; sleep 1.0
 check "security: huge timer ignored, app alive" "$(pgrep -x DynaNotch >/dev/null && echo alive) $(state timerRunning)" "alive False"
-check "security: token file private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch/test-token")" "600"
+check "security: control socket private" "$(stat -f %Lp "$SOCK")" "600"
+check "security: socket refuses non-hooks" "$(printf 'file:///etc/passwd\n' | nc -U "$SOCK")" "refused"
+check "security: no token file left" "$([ -e "$HOME/Library/Application Support/DynaNotch/test-token" ] && echo present || echo gone)" "gone"
 check "security: data folder private" "$(stat -f %Lp "$HOME/Library/Application Support/DynaNotch")" "700"
+
+echo "==> Privacy: encrypted data, Skip Secrets (fake secrets; clipboard restored)"
+DATA="$HOME/Library/Application Support/DynaNotch"
+check "privacy: vault key in the Secure Enclave" "$(state vault)" "on"
+SEALED=$(for f in "$DATA"/*.json; do [ "$(head -c 4 "$f")" = "DNV1" ] || echo "$f"; done | wc -l | tr -d ' ')
+check "privacy: every data file encrypted" "$SEALED" "0"
+check "privacy: notes out of preferences" "$(defaults read com.tanim.dynanotch dn.data.notes 2>/dev/null | wc -c | tr -d ' ')" "0"
+PRIV_CLIP=$(pbpaste 2>/dev/null)
+BEFORE=$(state clipboardCount)
+printf '%s' "AKIAIOSFODNN7EXAMPLE" | pbcopy; sleep 1.5
+check "privacy: access key not saved" "$(state clipboardCount) $(state clipboardSecrets)" "$BEFORE skipped accessToken"
+printf '%s' "4111 1111 1111 1111" | pbcopy; sleep 1.5
+check "privacy: card number not saved" "$(state clipboardCount) $(state clipboardSecrets)" "$BEFORE skipped cardNumber"
+printf '%s' "482913" | pbcopy; sleep 1.5
+check "privacy: one-time code expires" "$(state clipboardSecrets)" "expiring oneTimeCode"
+printf '%s' "$PRIV_CLIP" | pbcopy; sleep 1.0
 
 echo "==> Settings pages"
 PAGES="general appearance behavior popups allTools tabs home lockScreen knock nowPlaying calendar activity aiUsage timer clipboard quickSearch files screenshots hud battery connectivity permissions about"

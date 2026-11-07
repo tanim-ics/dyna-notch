@@ -65,7 +65,7 @@ final class MusicLaunchGuard {
         configuration.activates = false
         NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
             if let error = error {
-                self?.logger.error("default player launch failed: \(error.localizedDescription, privacy: .public)")
+                self?.logger.error("default player launch failed: \(error.localizedDescription, privacy: .private)")
             }
         }
         logger.info("opened default player \(id, privacy: .public)")

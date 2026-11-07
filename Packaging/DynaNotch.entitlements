@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened runtime entitlements (docs/SECURITY.md). The hardened runtime blocks code injection
+  (DYLD_INSERT_LIBRARIES, unsigned libraries, debugger attach), so nothing can borrow DynaNotch's permissions.
+  Only what features need is granted here; library validation and the other protections stay ON.
+  Add an entry only together with its feature and a line in docs/SECURITY.md.
+-->
+<plist version="1.0">
+<dict>
+	<!-- Now Playing: play / pause / skip in Music and Spotify via AppleScript -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+	<!-- Mirror tab -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<!-- Meeting Meter talk share, Voice Notes -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<!-- Calendar, meeting alerts, Reminders tab (EventKit) -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<!-- Weather without a city -->
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
+</dict>
+</plist>

@@ -131,7 +131,7 @@ final class MeetingMeter {
             self.engine = engine
         } catch {
             input.removeTap(onBus: 0)
-            logger.error("talk meter could not start: \(error.localizedDescription, privacy: .public)")
+            logger.error("talk meter could not start: \(error.localizedDescription, privacy: .private)")
         }
     }
 

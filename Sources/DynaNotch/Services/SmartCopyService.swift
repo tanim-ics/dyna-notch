@@ -88,7 +88,7 @@ final class SmartCopyService {
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             let ok = (response as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
             let parsed = ok ? data.flatMap(CurrencyRates.parse) : nil
-            if parsed == nil { logger.debug("rates fetch failed: \(error?.localizedDescription ?? "bad response", privacy: .public)") }
+            if parsed == nil { logger.debug("rates fetch failed: \(error?.localizedDescription ?? "bad response", privacy: .private)") }
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.fetching = false

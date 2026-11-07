@@ -1,10 +1,13 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 
 // Security rules for everything that reaches DynaNotch from outside (docs/SECURITY.md).
 
 /// Who may use a `dynanotch://` URL. Web pages, mail and documents can open custom URLs, so only harmless hooks are
-/// public; everything that changes settings, clicks, answers Claude Code, writes files or touches updates needs the
-/// per-launch secret from `~/Library/Application Support/DynaNotch/test-token` (readable only by this user).
+/// public; everything that changes settings, clicks, answers Claude Code, writes files or touches updates only runs
+/// when it comes through the app's private control socket (this user only, no secret to leak).
 public enum URLHookPolicy {
     /// Hooks anyone may call: show a message, open / close the panel or a tab, start a timer, play a demo popup.
     public static let publicActions: Set<String> = [
@@ -28,6 +31,11 @@ public enum URLHookPolicy {
         guard publicActions.contains(action) else { return false }
         if action == "tab" || (action == "pin" && !argument.isEmpty) { return publicTabs.contains(argument) }
         return true
+    }
+
+    /// A link from outside (no control socket): public hook, and for `tab` / `pin` a public tab.
+    public static func isPublic(action: String, argument: String) -> Bool {
+        isAllowed(action: action, argument: argument, token: nil, expected: "")
     }
 
     /// `dynanotch://timer/<minutes>`: 0 < minutes ≤ 24 h, finite (`1e300` used to crash the time formatter).
@@ -106,9 +114,23 @@ public enum UpdateTrust {
         isGitHub(url) && url.path.hasPrefix("/\(owner)/\(repo)/")
     }
 
-    /// Install only a trusted asset whose SHA-256 GitHub published (checked against the download before unpacking).
+    /// Ed25519 public key of the release signing key (private half: the owner's login Keychain, `release-key.sh`).
+    public static let releasePublicKey = "tKrXBY5r8IRnManXzGgs2ohaRTwYtGt7ifOizlr6OdQ="
+
+    /// Install only a trusted asset whose SHA-256 GitHub published and that comes with a release signature; both are
+    /// checked against the download before it is unpacked. Taking over the GitHub account is not enough.
     public static func canInstall(_ update: AvailableUpdate) -> Bool {
-        isTrustedAsset(update.zipURL) && update.sha256 != nil
+        guard let signature = update.signatureURL else { return false }
+        return isTrustedAsset(update.zipURL) && isTrustedAsset(signature) && update.sha256 != nil
+    }
+
+    /// What `codesign -R` must accept in a downloaded update. Ad-hoc builds can only pin the identifier (which anyone
+    /// can copy, hence the release signature); a Developer ID build pins Apple's certificate chain and its own team.
+    public static func codeRequirement(bundleID: String, teamID: String?) -> String {
+        guard let team = teamID, !team.isEmpty, team.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
+            return "identifier \"\(bundleID)\""
+        }
+        return "anchor apple generic and identifier \"\(bundleID)\" and certificate leaf[subject.OU] = \"\(team)\""
     }
 
     private static func isGitHub(_ url: URL) -> Bool {
@@ -173,5 +195,50 @@ public enum ApprovalText {
         guard out.count > limit else { return out }
         let head = (limit - 1) / 2, tail = limit - 1 - head
         return String(out.prefix(head)) + "…" + String(out.suffix(tail))
+    }
+}
+
+#if canImport(CryptoKit)
+/// Release signatures (Ed25519, CryptoKit). The app holds only the public key.
+public enum ReleaseSignature {
+    public static func verify(_ data: Data, signatureBase64: String,
+                              publicKeyBase64: String = UpdateTrust.releasePublicKey) -> Bool {
+        let text = signatureBase64.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count <= 200, let signature = Data(base64Encoded: text), signature.count == 64,
+              let raw = Data(base64Encoded: publicKeyBase64),
+              let key = try? Curve25519.Signing.PublicKey(rawRepresentation: raw) else { return false }
+        return key.isValidSignature(signature, for: data)
+    }
+}
+#endif
+
+/// Sandbox for `DynaNotchWorker` (Drop Alchemy's image / PDF decoding), applied with `sandbox-exec`. Paths arrive as
+/// parameters (`-D WORKER= INPUT= TMP= CACHE= HOME=`, real paths), never pasted into the text, so a file name can't
+/// change the rules. Inside: no network, no forking or other programs, writes only to its scratch folder and Vision
+/// cache, reads nothing in the home folder but the input, and no TCC, pasteboard, Apple Events or Keychain services.
+public enum WorkerSandbox {
+    public static let profile = """
+    (version 1)
+    (allow default)
+    (deny network*)
+    (deny process-fork)
+    (deny process-exec*)
+    (allow process-exec (literal (param "WORKER")))
+    (deny file-write*)
+    (allow file-write* (subpath (param "TMP")) (subpath (param "CACHE")) (literal "/dev/null"))
+    (deny file-read-data (subpath (param "HOME")))
+    (allow file-read-data (literal (param "INPUT")) (literal (param "WORKER")) (subpath (param "TMP")) (subpath (param "CACHE")))
+    (deny mach-lookup
+      (global-name "com.apple.tccd") (global-name "com.apple.tccd.system")
+      (global-name "com.apple.pasteboard.1") (global-name "com.apple.coreservices.appleevents")
+      (global-name "com.apple.SecurityServer") (global-name "com.apple.securityd.xpc")
+      (global-name "com.apple.axserver") (global-name "com.apple.windowserver.active"))
+    """
+
+    /// `sandbox-exec` arguments for one run (everything after the tool path).
+    public static func arguments(worker: String, input: String, tmp: String, cache: String, home: String,
+                                 workerArguments: [String]) -> [String] {
+        ["-p", profile, "-D", "WORKER=\(worker)", "-D", "INPUT=\(input)", "-D", "TMP=\(tmp)", "-D", "CACHE=\(cache)",
+         "-D", "HOME=\(home)", worker] + workerArguments
     }
 }

@@ -51,7 +51,7 @@ final class RemindersService: ObservableObject {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let error = error {
-                    self.logger.error("Reminders access error: \(error.localizedDescription, privacy: .public)")
+                    self.logger.error("Reminders access error: \(error.localizedDescription, privacy: .private)")
                 }
                 self.access = granted ? .granted : .denied
                 if granted { self.refresh() }
@@ -111,7 +111,7 @@ final class RemindersService: ObservableObject {
             try store.save(reminder, commit: true)
             refresh()
         } catch {
-            logger.error("Saving reminder failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Saving reminder failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -123,7 +123,7 @@ final class RemindersService: ObservableObject {
         do {
             try store.save(reminder, commit: true)
         } catch {
-            logger.error("Completing reminder failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Completing reminder failed: \(error.localizedDescription, privacy: .private)")
             refresh()
         }
     }

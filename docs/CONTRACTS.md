@@ -1017,3 +1017,20 @@ serialised with the scratchpad `applock.sh` lock.
   `AgentRequest.isValidID`. App `URLHookGate` (`token`, `publishToken()`, `allows(_:)`).
 - Every non-public `dynanotch://` hook needs `token=` (per-launch, `test-token`, 0600). Updates install only from this
   repository's GitHub releases with a published SHA-256. `PopupTarget.openURL` is http/https only.
+
+### 6.23 Hardening (2026-11-07 — docs/SECURITY.md)
+- `LocalControlServer` (App): Unix socket `control.sock`, same-user only; replaces the URL token. `URLHookPolicy.isPublic`.
+- `DebugEnvironment.value(_:)`: test env switches, nil in release builds. `DataProtection.lockDown/keepPrivate`.
+- `UpdateTrust.releasePublicKey`, `ReleaseSignature.verify(_:signatureBase64:publicKeyBase64:)`, `AvailableUpdate.signatureURL`
+  (`DynaNotch-<v>.zip.sig`), `UpdateTrust.codeRequirement(bundleID:teamID:)`.
+- `DynaNotchWorker` executable (Contents/MacOS) + `WorkerSandbox.profile/arguments`: Drop Alchemy decoding.
+- Tooling: `scripts/release-key.sh`, `scripts/release-tools/release-key.swift`, `scripts/sanitize.sh`,
+  `.github/workflows/ci.yml`, `Tests/…/FuzzTests.swift`.
+
+### 6.24 Privacy (2026-11-07 — docs/SECURITY.md §6)
+- Core `SealedFile` (`magic`, `isSealed`, `seal`, `open`, `fileKey(from:)`), `SecretDetector.scan` → `SecretVerdict`
+  (`.secret` / `.likely`, `SecretKind`, `likelyLifetime` 120 s), `ClipItem.expiresAt`.
+- App `Vault` (`key`, `write`, `read`, `sealInPlace`, `migrateExistingFiles`, `status` on / unavailable / locked).
+  `AppDataStore` and `ClipboardService` go through it; notes → `notes.json`, recent searches → `recent-searches.json`.
+- Settings: `clipboardSkipSecrets` (true), `clipboardClearOnLock` (false); defaults now `screenSharingPrivacy` true,
+  `clipboardAutoClearMinutes` 1440 (range 0…10080). state.json `vault`, `clipboardSecrets`, `clipboardCount`.

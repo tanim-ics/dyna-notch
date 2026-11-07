@@ -167,7 +167,7 @@ final class AIUsageService: ObservableObject {
                     if let resets = window.resetsAt { body += " · resets in " + Format.countdown(resets.timeIntervalSince(now)) }
                     ScreenRecorder.notify(title: "Codex at \(Int(window.usedPercent))%", body: body, symbol: "gauge.with.dots.needle.67percent",
                                           category: .aiUsage)
-                    logger.info("codex \(name, privacy: .public) limit warning at \(Int(window.usedPercent))%")
+                    logger.info("codex \(name, privacy: .private) limit warning at \(Int(window.usedPercent))%")
                 } else if warned.remove(key) != nil {
                     changed = true   // dropped below again (window without a reset time) → re-arm
                 }
@@ -274,7 +274,7 @@ final class AIUsageService: ObservableObject {
             try handle.seek(toOffset: state.readOffset)
             data = try handle.readToEnd() ?? Data()
         } catch {
-            logger.debug("could not read \(path, privacy: .private): \(error.localizedDescription, privacy: .public)")
+            logger.debug("could not read \(path, privacy: .private): \(error.localizedDescription, privacy: .private)")
             return false
         }
         guard !data.isEmpty else { return false }

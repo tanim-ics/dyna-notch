@@ -53,7 +53,7 @@ enum PermissionDiagnostics {
         do {
             try task.run()
         } catch {
-            logger.error("codesign failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("codesign failed: \(error.localizedDescription, privacy: .private)")
             return "unavailable (\(error.localizedDescription))"
         }
         // Small output: read it all (also prevents the pipe from filling up), then wait for exit.

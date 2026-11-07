@@ -26,7 +26,7 @@ final class AgentIslandService {
     var installTest = "none"
 
     static var directory: URL {
-        if let path = ProcessInfo.processInfo.environment["DYNANOTCH_AGENT_DIR"], !path.isEmpty {
+        if let path = DebugEnvironment.value("DYNANOTCH_AGENT_DIR") {
             return URL(fileURLWithPath: path, isDirectory: true)
         }
         return AppDataStore.directory.appendingPathComponent("agent", isDirectory: true)
@@ -80,7 +80,7 @@ final class AgentIslandService {
             try decision.rawValue.write(to: tmp, atomically: false, encoding: .utf8)
             _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
         } catch {
-            logger.error("answer write failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("answer write failed: \(error.localizedDescription, privacy: .private)")
         }
         lastAnswer = "\(decision.rawValue) \(id)"
         requests.removeAll { $0.id == id }

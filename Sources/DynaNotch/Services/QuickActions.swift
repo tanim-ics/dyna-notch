@@ -21,7 +21,7 @@ enum QuickActions {
                 task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
                 task.arguments = ["-i", "-c"]
                 do { try task.run() } catch {
-                    logger.error("screencapture failed: \(error.localizedDescription, privacy: .public)")
+                    logger.error("screencapture failed: \(error.localizedDescription, privacy: .private)")
                 }
             }
         }
@@ -115,7 +115,7 @@ enum QuickActions {
                 try task.run()
                 task.waitUntilExit()
             } catch {
-                logger.error("screencapture failed: \(error.localizedDescription, privacy: .public)")
+                logger.error("screencapture failed: \(error.localizedDescription, privacy: .private)")
                 return
             }
             // Esc during the interactive capture leaves no file.
@@ -127,7 +127,7 @@ enum QuickActions {
                     pasteboard.clearContents()
                     pasteboard.writeObjects([image])
                 }
-                logger.info("screenshot saved to \(url.path, privacy: .public)")
+                logger.info("screenshot saved to \(url.path, privacy: .private)")
             }
         }
     }

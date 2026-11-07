@@ -100,7 +100,7 @@ final class CalendarService: ObservableObject {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let error = error {
-                    self.logger.error("calendar access request failed: \(error.localizedDescription, privacy: .public)")
+                    self.logger.error("calendar access request failed: \(error.localizedDescription, privacy: .private)")
                 }
                 self.access = granted ? .granted : CalendarService.currentAccess()
                 if self.access == .granted { self.refresh() }
@@ -226,7 +226,7 @@ final class CalendarService: ObservableObject {
             refresh()
             return nil
         } catch {
-            logger.error("calendar edit failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("calendar edit failed: \(error.localizedDescription, privacy: .private)")
             return error.localizedDescription
         }
     }

@@ -82,7 +82,7 @@ final class DrainMonitor {
     private func warn(pid: pid_t, percent: Double) {
         guard let name = DrainMonitor.appName(pid: pid), !warnedApps.contains(name) else { return }
         warnedApps.insert(name)
-        logger.info("drain warning: \(name, privacy: .public) at \(Int(percent))% CPU")
+        logger.info("drain warning: \(name, privacy: .private) at \(Int(percent))% CPU")
         DispatchQueue.main.async {
             ScreenRecorder.notify(title: "\(name) is draining the battery",
                                   body: "\(Int(percent.rounded()))% CPU for over 6 min", symbol: "bolt.trianglebadge.exclamationmark.fill", category: .battery)

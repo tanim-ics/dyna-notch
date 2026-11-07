@@ -258,7 +258,7 @@ final class MenuBarReadouts: NSObject {
         image?.isTemplate = true
         if button.image?.accessibilityDescription != content.tip || button.image == nil { button.image = image }
         if button.title != content.title {
-            logger.info("readout \(kind.rawValue, privacy: .public): \(content.title, privacy: .public)")
+            logger.info("readout \(kind.rawValue, privacy: .public): \(content.title, privacy: .private)")
             button.title = content.title
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize - 1, weight: .regular)
         }

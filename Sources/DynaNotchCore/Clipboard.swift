@@ -16,9 +16,12 @@ public struct ClipItem: Equatable, Identifiable, Codable {
     public var sourceApp: String?
     /// File name inside the app's clipboard image directory.
     public var imageFile: String?
+    /// Likely secrets (one-time codes, random tokens) leave the history at this time unless pinned.
+    public var expiresAt: Date?
 
     public init(id: UUID = UUID(), kind: ClipKind, text: String, date: Date, pinned: Bool = false,
-                sourceApp: String? = nil, imageFile: String? = nil) {
+                sourceApp: String? = nil, imageFile: String? = nil, expiresAt: Date? = nil) {
+        self.expiresAt = expiresAt
         self.id = id
         self.kind = kind
         self.text = text

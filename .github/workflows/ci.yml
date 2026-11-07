@@ -1,0 +1,21 @@
+# Unit + fuzz tests on every push and pull request (docs/SECURITY.md). Read-only token, no secrets used.
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  core-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build app and worker
+        run: swift build --product DynaNotch && swift build --product DynaNotchWorker
+      - name: Unit tests
+        run: swift test
+      - name: Long fuzz run
+        run: DYNANOTCH_FUZZ_ITERATIONS=20000 swift test --filter FuzzTests

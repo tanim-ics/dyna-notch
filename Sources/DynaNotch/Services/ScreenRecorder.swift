@@ -53,7 +53,7 @@ final class ScreenRecorder: ObservableObject {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try task.run()
             } catch {
-                self.logger.error("screencapture -v failed: \(error.localizedDescription, privacy: .public)")
+                self.logger.error("screencapture -v failed: \(error.localizedDescription, privacy: .private)")
                 self.finish(url: url)
                 return
             }
@@ -96,7 +96,7 @@ final class ScreenRecorder: ObservableObject {
             logger.info("recording cancelled or produced no file")
             return
         }
-        logger.info("recording saved to \(url.path, privacy: .public)")
+        logger.info("recording saved to \(url.path, privacy: .private)")
         if AppSettings.shared.screenshotToShelf { ShelfService.shared.add(urls: [url]) }
         ScreenRecorder.notify(title: "Recording Saved", body: url.lastPathComponent, symbol: "film")
     }

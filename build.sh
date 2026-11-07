@@ -193,6 +193,11 @@ set +e
 # shellcheck disable=SC2086  # word-splitting of the extra flags is intended
 swift build -c "$CONFIG" ${DYNANOTCH_SWIFTPM_FLAGS:-} --product "$APP_NAME" 2>&1 | tee "$SWIFT_LOG" | sed 's/^/    /'
 BUILD_RC=${PIPESTATUS[0]}
+if [ "$BUILD_RC" -eq 0 ]; then
+    # Drop Alchemy's sandboxed decoder (docs/SECURITY.md)
+    swift build -c "$CONFIG" ${DYNANOTCH_SWIFTPM_FLAGS:-} --product DynaNotchWorker 2>&1 | tee -a "$SWIFT_LOG" | sed 's/^/    /'
+    BUILD_RC=${PIPESTATUS[0]}
+fi
 set -e
 if [ "$BUILD_RC" -ne 0 ]; then
     echo "----- errors from $SWIFT_LOG -----" >&2
@@ -251,6 +256,8 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$BINARY" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod 755 "$APP_DIR/Contents/MacOS/$APP_NAME"
+cp "$BIN_DIR/DynaNotchWorker" "$APP_DIR/Contents/MacOS/DynaNotchWorker" || die "DynaNotchWorker missing from $BIN_DIR"
+chmod 755 "$APP_DIR/Contents/MacOS/DynaNotchWorker"
 cp "Packaging/Info.plist" "$APP_DIR/Contents/Info.plist"
 chmod 644 "$APP_DIR/Contents/Info.plist"
 printf 'APPL????' >"$APP_DIR/Contents/PkgInfo"
@@ -283,7 +290,9 @@ IDENTITY_DESC=""
 if [ -n "$IDENTITY" ]; then
     IDENTITY_DESC="\$SIGN_IDENTITY ($IDENTITY)"
 else
-    IDENTITY_LINE="$(security find-identity -v -p codesigning 2>/dev/null | grep '"Apple Development' | head -n 1 || true)"
+    # A Developer ID (notarisable, team-pinned updates — docs/SECURITY.md) wins over an Apple Development identity.
+    IDENTITY_LINE="$(security find-identity -v -p codesigning 2>/dev/null | grep '"Developer ID Application' | head -n 1 || true)"
+    [ -n "$IDENTITY_LINE" ] || IDENTITY_LINE="$(security find-identity -v -p codesigning 2>/dev/null | grep '"Apple Development' | head -n 1 || true)"
     if [ -n "$IDENTITY_LINE" ]; then
         IDENTITY="$(printf '%s\n' "$IDENTITY_LINE" | grep -oE '[0-9A-Fa-f]{40}' | head -n 1 || true)"
         IDENTITY_NAME="$(printf '%s\n' "$IDENTITY_LINE" | sed -n 's/.*"\(.*\)".*/\1/p')"
@@ -300,13 +309,21 @@ sign_all() {
     # Ad-hoc signatures default to a cdhash designated requirement, which changes on every build, so
     # macOS privacy permissions (Calendar, Reminders, Camera, Accessibility …) were forgotten after
     # each rebuild. An explicit identifier-only requirement keeps the app's identity stable.
+    # Hardened runtime (--options runtime) blocks code injection, so nothing can borrow the app's permissions;
+    # Packaging/DynaNotch.entitlements lists the few exceptions features need (docs/SECURITY.md).
     local req_args=()
+    local ts="--timestamp=none"
     if [ "$1" = "-" ]; then
         req_args=(--requirements "=designated => identifier \"$BUNDLE_ID\"")
+    else
+        ts="--timestamp"   # a secure timestamp: required for notarisation
     fi
-    codesign --force --sign "$1" --timestamp=none \
+    codesign --force --sign "$1" "$ts" \
         "$APP_DIR/Contents/Resources/libMediaRemoteAdapter.dylib" >>"$SIGN_LOG" 2>&1 \
-    && codesign --force --sign "$1" --identifier "$BUNDLE_ID" --timestamp=none ${req_args[@]+"${req_args[@]}"} \
+    && codesign --force --sign "$1" --identifier "$BUNDLE_ID.worker" "$ts" --options runtime \
+        "$APP_DIR/Contents/MacOS/DynaNotchWorker" >>"$SIGN_LOG" 2>&1 \
+    && codesign --force --sign "$1" --identifier "$BUNDLE_ID" "$ts" ${req_args[@]+"${req_args[@]}"} \
+        --options runtime --entitlements "$SCRIPT_DIR/Packaging/DynaNotch.entitlements" \
         "$APP_DIR" >>"$SIGN_LOG" 2>&1
 }
 

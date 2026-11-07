@@ -1,5 +1,8 @@
 import XCTest
 @testable import DynaNotchCore
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 
 final class SecurityTests: XCTestCase {
     private let secret = String(repeating: "ab", count: 32)
@@ -56,15 +59,21 @@ final class SecurityTests: XCTestCase {
 
     // MARK: Updates
 
-    private func update(zip: String, sha: String? = String(repeating: "a", count: 64)) -> AvailableUpdate {
+    private static let goodSig = "https://github.com/tanim-ics/dyna-notch/releases/download/v9.0.0/DynaNotch-9.0.0.zip.sig"
+
+    private func update(zip: String, sha: String? = String(repeating: "a", count: 64),
+                        sig: String? = SecurityTests.goodSig) -> AvailableUpdate {
         AvailableUpdate(version: "9.0.0", zipURL: URL(string: zip)!, sha256: sha,
-                        pageURL: URL(string: "https://github.com/tanim-ics/dyna-notch/releases/tag/v9.0.0")!)
+                        pageURL: URL(string: "https://github.com/tanim-ics/dyna-notch/releases/tag/v9.0.0")!,
+                        signatureURL: sig.flatMap(URL.init(string:)))
     }
 
     func testOnlyThisRepositorysReleasesInstall() {
         let good = "https://github.com/tanim-ics/dyna-notch/releases/download/v9.0.0/DynaNotch-9.0.0.zip"
         XCTAssertTrue(UpdateTrust.canInstall(update(zip: good)))
         XCTAssertFalse(UpdateTrust.canInstall(update(zip: good, sha: nil)), "no checksum, no install")
+        XCTAssertFalse(UpdateTrust.canInstall(update(zip: good, sig: nil)), "no signature, no install")
+        XCTAssertFalse(UpdateTrust.canInstall(update(zip: good, sig: "https://evil.com/x.sig")), "signature from elsewhere")
         for bad in [
             "http://github.com/tanim-ics/dyna-notch/releases/download/v9/DynaNotch-9.0.0.zip",
             "https://github.com/someone/dyna-notch/releases/download/v9/DynaNotch-9.0.0.zip",
@@ -168,5 +177,66 @@ final class SecurityTests: XCTestCase {
         }
         XCTAssertEqual(ApprovalText.sanitize("a\nb"), "a ⏎ b")
         XCTAssertEqual(ApprovalText.sanitize("  a   b  "), "a b")
+    }
+
+    // MARK: Signed updates
+
+    #if canImport(CryptoKit)
+    func testReleaseSignatureVerifies() throws {
+        let key = Curve25519.Signing.PrivateKey()
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        let zip = Data((0..<10_000).map { UInt8($0 % 251) })
+        let signature = try key.signature(for: zip).base64EncodedString()
+        XCTAssertTrue(ReleaseSignature.verify(zip, signatureBase64: signature + "\n", publicKeyBase64: publicKey))
+        var tampered = zip
+        tampered[5] ^= 1
+        XCTAssertFalse(ReleaseSignature.verify(tampered, signatureBase64: signature, publicKeyBase64: publicKey))
+        let otherKey = Curve25519.Signing.PrivateKey().publicKey.rawRepresentation.base64EncodedString()
+        XCTAssertFalse(ReleaseSignature.verify(zip, signatureBase64: signature, publicKeyBase64: otherKey))
+        XCTAssertFalse(ReleaseSignature.verify(zip, signatureBase64: "not base64!", publicKeyBase64: publicKey))
+        XCTAssertFalse(ReleaseSignature.verify(zip, signatureBase64: "", publicKeyBase64: publicKey))
+        XCTAssertFalse(ReleaseSignature.verify(zip, signatureBase64: signature), "the release key didn't sign this")
+    }
+
+    func testReleasePublicKeyIsValid() {
+        let raw = Data(base64Encoded: UpdateTrust.releasePublicKey)
+        XCTAssertEqual(raw?.count, 32)
+        XCTAssertNotNil(raw.flatMap { try? Curve25519.Signing.PublicKey(rawRepresentation: $0) })
+    }
+    #endif
+
+    func testEvaluatePicksTheSignatureAsset() throws {
+        let json = #"""
+        {"tag_name":"v99.0.0","html_url":"https://github.com/tanim-ics/dyna-notch/releases/tag/v99.0.0","assets":[
+          {"name":"DynaNotch-99.0.0.zip","browser_download_url":"https://github.com/tanim-ics/dyna-notch/releases/download/v99.0.0/DynaNotch-99.0.0.zip","digest":"sha256:\#(String(repeating: "b", count: 64))"},
+          {"name":"DynaNotch-99.0.0.zip.sig","browser_download_url":"https://github.com/tanim-ics/dyna-notch/releases/download/v99.0.0/DynaNotch-99.0.0.zip.sig"}]}
+        """#
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: Data(json.utf8))
+        let found = try XCTUnwrap(UpdateCheck.evaluate(release, current: "3.3.0"))
+        XCTAssertEqual(found.signatureURL?.lastPathComponent, "DynaNotch-99.0.0.zip.sig")
+        XCTAssertTrue(UpdateTrust.canInstall(found))
+    }
+
+    func testCodeRequirementPinsTheTeamWhenThereIsOne() {
+        XCTAssertEqual(UpdateTrust.codeRequirement(bundleID: "com.tanim.dynanotch", teamID: nil),
+                       "identifier \"com.tanim.dynanotch\"")
+        XCTAssertEqual(UpdateTrust.codeRequirement(bundleID: "com.tanim.dynanotch", teamID: "ABCDE12345"),
+                       "anchor apple generic and identifier \"com.tanim.dynanotch\" and certificate leaf[subject.OU] = \"ABCDE12345\"")
+        XCTAssertEqual(UpdateTrust.codeRequirement(bundleID: "x", teamID: "AB\" or true"), "identifier \"x\"",
+                       "a strange team ID never reaches the requirement text")
+    }
+
+    func testWorkerSandboxProfile() {
+        let p = WorkerSandbox.profile
+        for rule in ["(deny network*)", "(deny process-fork)", "(deny file-write*)", "(deny file-read-data (subpath (param \"HOME\")))",
+                     "com.apple.tccd", "com.apple.pasteboard.1", "com.apple.coreservices.appleevents", "com.apple.SecurityServer"] {
+            XCTAssertTrue(p.contains(rule), rule)
+        }
+        let args = WorkerSandbox.arguments(worker: "/w", input: "/in\")(allow default)", tmp: "/t", cache: "/c", home: "/h",
+                                           workerArguments: ["alchemy", "png"])
+        XCTAssertEqual(args.first, "-p")
+        XCTAssertEqual(args[1], p, "paths never go into the profile text")
+        XCTAssertTrue(args.contains("INPUT=/in\")(allow default)"))
+        XCTAssertEqual(Array(args.suffix(3)), ["/w", "alchemy", "png"])
     }
 }

@@ -3,6 +3,7 @@ import Combine
 import CryptoKit
 import Foundation
 import os
+import Security
 import DynaNotchCore
 
 /// In-app updates (CONTRACTS §6.21): asks GitHub for the latest release once a day, offers it in the panel header and
@@ -119,7 +120,7 @@ final class UpdateService: ObservableObject {
         let now = Date()
         guard let release = release else {
             let message = error?.localizedDescription ?? (code == 404 ? "No release published yet." : "GitHub answered \(code).")
-            logger.error("check failed: \(message, privacy: .public)")
+            logger.error("check failed: \(message, privacy: .private)")
             status = manual ? .failed(message) : .idle
             return
         }
@@ -217,7 +218,23 @@ final class UpdateService: ObservableObject {
             if UpdateTrust.isTrustedPage(found.pageURL) { NSWorkspace.shared.open(found.pageURL) }
             return
         }
+        guard let signatureURL = found.signatureURL else { return }
         status = .downloading(0)
+        // The signature first (a few bytes), then the zip; both are checked before anything is unpacked.
+        session.dataTask(with: signatureURL) { [weak self] data, response, _ in
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let signature = code == 200 ? data.map { String(decoding: $0.prefix(512), as: UTF8.self) } : nil
+            DispatchQueue.main.async {
+                guard let signature = signature else {
+                    self?.fail("Can't download the update's signature.")
+                    return
+                }
+                self?.downloadZip(found, signature: signature, appURL: appURL)
+            }
+        }.resume()
+    }
+
+    private func downloadZip(_ found: AvailableUpdate, signature: String, appURL: URL) {
         logger.info("downloading \(found.zipURL.absoluteString, privacy: .public)")
         let task = session.downloadTask(with: found.zipURL) { [weak self] location, response, error in
             let code = (response as? HTTPURLResponse)?.statusCode ?? 200
@@ -234,7 +251,7 @@ final class UpdateService: ObservableObject {
                     self?.fail(error?.localizedDescription ?? "Download failed (\(code)).")
                     return
                 }
-                self?.verifyAndInstall(zip: zip, update: found, appURL: appURL)
+                self?.verifyAndInstall(zip: zip, update: found, signature: signature, appURL: appURL)
             }
         }
         progressObservation = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
@@ -246,10 +263,10 @@ final class UpdateService: ObservableObject {
         task.resume()
     }
 
-    private func verifyAndInstall(zip: URL, update found: AvailableUpdate, appURL: URL) {
+    private func verifyAndInstall(zip: URL, update found: AvailableUpdate, signature: String, appURL: URL) {
         status = .installing
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = UpdateService.prepare(zip: zip, update: found)
+            let result = UpdateService.prepare(zip: zip, update: found, signature: signature)
             DispatchQueue.main.async {
                 switch result {
                 case .failure(let message):
@@ -267,12 +284,15 @@ final class UpdateService: ObservableObject {
     }
 
     /// Off the main queue: digest, unzip, bundle id, version, signature and its requirement.
-    private static func prepare(zip: URL, update found: AvailableUpdate) -> Prepared {
+    private static func prepare(zip: URL, update found: AvailableUpdate, signature: String) -> Prepared {
         guard let expected = found.sha256 else { return .failure("The download has no checksum to verify.") }
         guard let data = try? Data(contentsOf: zip, options: .mappedIfSafe) else { return .failure("Can't read the download.") }
         let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         guard URLHookPolicy.constantTimeEqual(actual, expected) else {
             return .failure("The download is damaged (checksum mismatch).")
+        }
+        guard ReleaseSignature.verify(data, signatureBase64: signature) else {
+            return .failure("The update isn't signed by DynaNotch's release key.")
         }
         let unpack = workDirectory().appendingPathComponent("unpacked")
         try? FileManager.default.removeItem(at: unpack)
@@ -287,7 +307,9 @@ final class UpdateService: ObservableObject {
               AppVersion(version) == AppVersion(found.version) else {
             return .failure("The download has the wrong version.")
         }
-        guard run("/usr/bin/codesign", ["--verify", "--strict", "-R=identifier \"\(bundleIdentifier)\"", newApp.path]) == 0 else {
+        // Same team as this app when it is Developer ID signed; else the identifier (the release signature carries trust).
+        let requirement = UpdateTrust.codeRequirement(bundleID: bundleIdentifier, teamID: ownTeamID())
+        guard run("/usr/bin/codesign", ["--verify", "--strict", "--deep", "-R=\(requirement)", newApp.path]) == 0 else {
             return .failure("The download's signature doesn't check out.")
         }
         _ = run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", newApp.path])
@@ -323,12 +345,12 @@ final class UpdateService: ObservableObject {
             fail("Can't start the installer: \(error.localizedDescription)")
             return
         }
-        logger.info("installing \(newApp.path, privacy: .public) over \(appURL.path, privacy: .public), quitting")
+        logger.info("installing \(newApp.path, privacy: .private) over \(appURL.path, privacy: .private), quitting")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
     }
 
     private func fail(_ message: String) {
-        logger.error("update failed: \(message, privacy: .public)")
+        logger.error("update failed: \(message, privacy: .private)")
         status = .failed(message)
     }
 
@@ -338,6 +360,18 @@ final class UpdateService: ObservableObject {
         let dir = base.appendingPathComponent("DynaNotch/Updates")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    /// This app's signing team (nil for ad-hoc builds).
+    private static func ownTeamID() -> String? {
+        var code: SecCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code = code else { return nil }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode = staticCode else { return nil }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+              let dict = info as? [String: Any] else { return nil }
+        return dict[kSecCodeInfoTeamIdentifier as String] as? String
     }
 
     @discardableResult

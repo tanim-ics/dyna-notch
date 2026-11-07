@@ -52,7 +52,7 @@ final class UITestDriver {
             NSApp.postEvent(up, atStart: false)   // a Button's tracking loop reads the mouse-up from the queue
             window.sendEvent(down)
         }
-        logger.info("click \(point.x, privacy: .public),\(point.y, privacy: .public) in \(window.title, privacy: .public)")
+        logger.info("click \(point.x, privacy: .public),\(point.y, privacy: .public) in \(window.title, privacy: .private)")
     }
 
     /// `delay` keeps the menu open that long first, like a person reading it.
@@ -72,10 +72,10 @@ final class UITestDriver {
             if let (owner, index) = UITestDriver.find(title, in: menu) {
                 self?.lastMenuResult = "chose \(title) [\(index) of \(owner.items.count)]"
                 owner.performActionForItem(at: index)
-                self?.logger.info("menu item \(title, privacy: .public) chosen")
+                self?.logger.info("menu item \(title, privacy: .private) chosen")
             } else {
                 self?.lastMenuResult = "missing \(title) in [\(menu.items.map(\.title).joined(separator: "|"))]"
-                self?.logger.error("menu item \(title, privacy: .public) not found")
+                self?.logger.error("menu item \(title, privacy: .private) not found")
             }
             menu.cancelTracking()
         }

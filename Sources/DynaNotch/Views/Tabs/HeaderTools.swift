@@ -31,7 +31,7 @@ final class QRScanner: ObservableObject {
                 try process.run()
                 process.waitUntilExit()
             } catch {
-                self?.logger.error("screencapture failed: \(error.localizedDescription, privacy: .public)")
+                self?.logger.error("screencapture failed: \(error.localizedDescription, privacy: .private)")
             }
             // Esc during the selection leaves no file: then stay silent.
             let captured = FileManager.default.fileExists(atPath: file.path)

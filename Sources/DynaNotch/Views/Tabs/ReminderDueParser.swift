@@ -89,7 +89,7 @@ enum ReminderComposer {
             try store.save(reminder, commit: true)
             return true
         } catch {
-            logger.error("Saving reminder failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Saving reminder failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }

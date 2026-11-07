@@ -93,7 +93,7 @@ final class FocusService: ObservableObject {
         state = newState
         let name = newState.name
         let onOff: String = newState.isActive ? "on" : "off"
-        logger.info("focus changed: \(name, privacy: .public) (\(onOff, privacy: .public))")
+        logger.info("focus changed: \(name, privacy: .private) (\(onOff, privacy: .public))")
         changes.send(newState)
     }
 }

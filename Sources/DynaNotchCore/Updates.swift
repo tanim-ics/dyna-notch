@@ -195,15 +195,18 @@ public struct AvailableUpdate: Equatable {
     public var notesURL: URL?
     public var pageURL: URL
     public var body: String?
+    /// `DynaNotch-<version>.zip.sig`: base64 Ed25519 signature of the zip by the release key (docs/SECURITY.md).
+    public var signatureURL: URL?
 
     public init(version: String, zipURL: URL, sha256: String? = nil, notesURL: URL? = nil, pageURL: URL,
-                body: String? = nil) {
+                body: String? = nil, signatureURL: URL? = nil) {
         self.version = version
         self.zipURL = zipURL
         self.sha256 = sha256
         self.notesURL = notesURL
         self.pageURL = pageURL
         self.body = body
+        self.signatureURL = signatureURL
     }
 }
 
@@ -228,8 +231,9 @@ public enum UpdateCheck {
             if hex.count == 64, hex.allSatisfy({ $0.isHexDigit }) { sha = hex }
         }
         let notes = release.assets.first { $0.name == notesAssetName }?.downloadURL
+        let signature = release.assets.first { $0.name == zip.name + ".sig" }?.downloadURL
         return AvailableUpdate(version: version, zipURL: zip.downloadURL, sha256: sha, notesURL: notes,
-                               pageURL: release.pageURL, body: release.body)
+                               pageURL: release.pageURL, body: release.body, signatureURL: signature)
     }
 
     /// Play the What's New story at launch? Not on a fresh install (the welcome runs), not twice for one version.

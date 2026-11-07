@@ -1,11 +1,7 @@
 import AppKit
-import CoreImage
+import Darwin
 import Foundation
-import ImageIO
 import os
-import PDFKit
-import UniformTypeIdentifiers
-import Vision
 import DynaNotchCore
 
 /// Drop Alchemy (CONTRACTS §6.15): turns a file into a cutout, its text, a smaller copy or another format — all on
@@ -66,107 +62,91 @@ final class AlchemyService {
         case .failure(let error):
             let message = (error as? Failure)?.message ?? error.localizedDescription
             last = "failed \(action.rawValue): \(message)"
-            logger.error("alchemy \(action.rawValue, privacy: .public) failed: \(message, privacy: .public)")
+            logger.error("alchemy \(action.rawValue, privacy: .public) failed: \(message, privacy: .private)")
             ScreenRecorder.notify(title: "\(action.title) didn't work", body: message, symbol: "exclamationmark.triangle.fill")
         }
     }
 
     // MARK: Work (utility queue)
 
-    /// Returns the output path, or the text for `.text`.
+    /// Returns the output path, or the text for `.text`. The file is decoded by `DynaNotchWorker` inside a sandbox
+    /// (docs/SECURITY.md): an image or PDF that exploits a decoder can't touch the app or its permissions.
     private func perform(_ action: AlchemyAction, on url: URL) throws -> String {
-        let isPDF = url.pathExtension.lowercased() == "pdf"
-        if action == .text { return isPDF ? try pdfText(url) : try recognizeText(url) }
+        let fm = FileManager.default
+        let scratch = URL(fileURLWithPath: AlchemyService.realPath(NSTemporaryDirectory()), isDirectory: true)
+            .appendingPathComponent("DynaNotchWorker-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: scratch) }
+        let result = try runWorker(action: action, input: URL(fileURLWithPath: AlchemyService.realPath(url.path)),
+                                   scratch: scratch)
+        if action == .text { return result }
+        let produced = URL(fileURLWithPath: result)
+        guard produced.deletingLastPathComponent().standardizedFileURL == scratch.standardizedFileURL,
+              fm.fileExists(atPath: produced.path) else { throw Failure(message: "The worker made no file") }
         let folder = url.deletingLastPathComponent()
-        let existing = Set((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [])
-        let transparent = action == .shrink && !isPDF && hasTransparency(url)
-        guard let name = action.outputName(for: url.lastPathComponent, existing: existing,
-                                           keepsTransparency: transparent) else {
+        let existing = Set((try? fm.contentsOfDirectory(atPath: folder.path)) ?? [])
+        let keepsAlpha = action == .shrink && produced.pathExtension == "png"
+        guard let name = action.outputName(for: url.lastPathComponent, existing: existing, keepsTransparency: keepsAlpha) else {
             throw Failure(message: "No output name")
         }
         let out = folder.appendingPathComponent(name)
-        switch action {
-        case .cutout: try cutout(url, to: out)
-        case .shrink: try isPDF ? shrinkPDF(url, to: out) : shrinkImage(url, to: out)
-        case .png: try convert(url, to: out, type: .png)
-        case .jpeg: try convert(url, to: out, type: .jpeg)
-        case .text: break
-        }
+        try fm.moveItem(at: produced, to: out)
         return out.path
     }
 
-    private func cgImage(_ url: URL) throws -> CGImage {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCache: false] as CFDictionary) else {
-            throw Failure(message: "Couldn't read the image")
+    /// Runs the worker (sandboxed when `sandbox-exec` exists) and returns its stdout; 60 s at most.
+    private func runWorker(action: AlchemyAction, input: URL, scratch: URL) throws -> String {
+        guard let worker = AlchemyService.workerURL else { throw Failure(message: "DynaNotchWorker is missing") }
+        let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            .map { $0.appendingPathComponent("DynaNotchWorker", isDirectory: true) }
+            ?? scratch.appendingPathComponent("cache", isDirectory: true)
+        try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        let workerArgs = ["alchemy", action.rawValue, input.path, scratch.path]
+        let process = Process()
+        let sandbox = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
+        if FileManager.default.isExecutableFile(atPath: sandbox.path) {
+            process.executableURL = sandbox
+            process.arguments = WorkerSandbox.arguments(
+                worker: AlchemyService.realPath(worker.path), input: input.path, tmp: scratch.path,
+                cache: AlchemyService.realPath(cache.path), home: AlchemyService.realPath(NSHomeDirectory()),
+                workerArguments: workerArgs)
+        } else {
+            logger.error("sandbox-exec missing: worker runs unsandboxed (still out of process)")
+            process.executableURL = worker
+            process.arguments = workerArgs
         }
-        return image
-    }
-
-    private func hasTransparency(_ url: URL) -> Bool {
-        guard let image = try? cgImage(url) else { return false }
-        switch image.alphaInfo {
-        case .none, .noneSkipFirst, .noneSkipLast: return false
-        default: return true
+        var env = ProcessInfo.processInfo.environment
+        env["TMPDIR"] = scratch.path + "/"
+        process.environment = env
+        let out = Pipe(), err = Pipe()
+        process.standardOutput = out
+        process.standardError = err
+        process.standardInput = FileHandle.nullDevice
+        try process.run()
+        let killer = DispatchWorkItem { if process.isRunning { process.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: killer)
+        let output = out.fileHandleForReading.readDataToEndOfFile()
+        let errors = err.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        killer.cancel()
+        guard process.terminationReason == .exit, process.terminationStatus == 0 else {
+            let message = String(decoding: errors.prefix(300), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            throw Failure(message: message.isEmpty ? "The file couldn't be processed" : message)
         }
+        return String(decoding: output, as: UTF8.self)
     }
 
-    private func write(_ image: CGImage, to url: URL, type: UTType, quality: Double = 0.9) throws {
-        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else {
-            throw Failure(message: "Couldn't write \(url.lastPathComponent)")
-        }
-        CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
-        guard CGImageDestinationFinalize(dest) else { throw Failure(message: "Couldn't write \(url.lastPathComponent)") }
+    /// `Contents/MacOS/DynaNotchWorker` next to the app's executable.
+    private static var workerURL: URL? {
+        guard let exe = Bundle.main.executableURL else { return nil }
+        let url = exe.deletingLastPathComponent().appendingPathComponent("DynaNotchWorker")
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
     }
 
-    private func cutout(_ url: URL, to out: URL) throws {
-        let image = try cgImage(url)
-        let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        let request = VNGenerateForegroundInstanceMaskRequest()
-        try handler.perform([request])
-        guard let observation = request.results?.first, !observation.allInstances.isEmpty else {
-            throw Failure(message: "No subject found in the picture")
-        }
-        let buffer = try observation.generateMaskedImage(ofInstances: observation.allInstances, from: handler,
-                                                         croppedToInstancesExtent: false)
-        let ci = CIImage(cvPixelBuffer: buffer)
-        guard let masked = CIContext().createCGImage(ci, from: ci.extent) else { throw Failure(message: "Cutout failed") }
-        try write(masked, to: out, type: .png)
-    }
-
-    private func recognizeText(_ url: URL) throws -> String {
-        let image = try cgImage(url)
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
-        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-    }
-
-    private func pdfText(_ url: URL) throws -> String {
-        guard let doc = PDFDocument(url: url) else { throw Failure(message: "Couldn't open the PDF") }
-        return (doc.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func shrinkImage(_ url: URL, to out: URL) throws {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { throw Failure(message: "Couldn't read the image") }
-        let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true,
-                                        kCGImageSourceCreateThumbnailWithTransform: true,
-                                        kCGImageSourceThumbnailMaxPixelSize: 2048]
-        guard let small = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            throw Failure(message: "Couldn't resize the image")
-        }
-        let type: UTType = out.pathExtension.lowercased() == "png" ? .png : .jpeg
-        try write(small, to: out, type: type, quality: 0.75)
-    }
-
-    private func shrinkPDF(_ url: URL, to out: URL) throws {
-        guard let doc = PDFDocument(url: url) else { throw Failure(message: "Couldn't open the PDF") }
-        let options: [PDFDocumentWriteOption: Any] = [.saveImagesAsJPEGOption: true, .optimizeImagesForScreenOption: true]
-        guard doc.write(to: out, withOptions: options) else { throw Failure(message: "Couldn't save the smaller PDF") }
-    }
-
-    private func convert(_ url: URL, to out: URL, type: UTType) throws {
-        try write(try cgImage(url), to: out, type: type)
+    /// The sandbox compares resolved paths (/var → /private/var, symlinks followed).
+    static func realPath(_ path: String) -> String {
+        guard let resolved = realpath(path, nil) else { return path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 }

@@ -165,6 +165,7 @@ struct ClipboardSettingsPane: View {
                 SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks,
                 SettingsKey.pasteOnClick, SettingsKey.pasteWithNumbers, SettingsKey.clipboardIgnoredApps,
                 SettingsKey.clipboardAutoClearMinutes, SettingsKey.clipboardCaptureSound,
+                SettingsKey.clipboardSkipSecrets, SettingsKey.clipboardClearOnLock,
                 SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy,
             ])
         }
@@ -232,7 +233,9 @@ struct ClipboardSettingsPane: View {
                         Text("After 30 minutes").tag(30)
                         Text("After 1 hour").tag(60)
                         Text("After 2 hours").tag(120)
-                        if ![0, 5, 15, 30, 60, 120].contains(settings.clipboardAutoClearMinutes) {
+                        Text("After 1 day").tag(1440)
+                        Text("After 1 week").tag(10080)
+                        if ![0, 5, 15, 30, 60, 120, 1440, 10080].contains(settings.clipboardAutoClearMinutes) {
                             Text("After \(settings.clipboardAutoClearMinutes) minutes").tag(settings.clipboardAutoClearMinutes)
                         }
                     }
@@ -259,6 +262,12 @@ struct ClipboardSettingsPane: View {
                 SettingToggle(symbol: "doc.on.doc.fill", color: .teal, title: "Copy Twice to Open",
                               detail: "Press ⌘C twice to open your clipboard.",
                               isOn: $settings.copyTwiceToOpen, testID: "setting-copyTwiceToOpen")
+                SettingToggle(symbol: "key.fill", color: .red, title: "Skip Secrets",
+                              detail: "Passwords, keys, tokens and card numbers aren't saved. Codes vanish after 2 minutes.",
+                              isOn: $settings.clipboardSkipSecrets, testID: "setting-clipboardSkipSecrets")
+                SettingToggle(symbol: "lock.fill", color: .gray, title: "Clear on Lock",
+                              detail: "Clear the history (except pinned items) when your Mac locks.",
+                              isOn: $settings.clipboardClearOnLock, testID: "setting-clipboardClearOnLock")
                 SettingToggle(symbol: "speaker.wave.2.fill", color: .pink, title: "Capture Sound",
                               detail: "A soft click when something gets copied.",
                               isOn: $settings.clipboardCaptureSound, testID: "setting-clipboardCaptureSound")

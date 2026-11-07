@@ -380,9 +380,9 @@ final class AppSettings: ObservableObject {
     @Published var clipboardIgnoredApps: String = AppSettings.defaultIgnoredApps {
         didSet { defaults.set(clipboardIgnoredApps, forKey: SettingsKey.clipboardIgnoredApps) }
     }
-    @Published var clipboardAutoClearMinutes: Int = 0 {
+    @Published var clipboardAutoClearMinutes: Int = 1440 {
         didSet {
-            let clamped = min(max(clipboardAutoClearMinutes, 0), 120)
+            let clamped = min(max(clipboardAutoClearMinutes, 0), 10080)
             if clamped != clipboardAutoClearMinutes { clipboardAutoClearMinutes = clamped }
             defaults.set(clipboardAutoClearMinutes, forKey: SettingsKey.clipboardAutoClearMinutes)
         }
@@ -547,7 +547,7 @@ final class AppSettings: ObservableObject {
             defaults.set(agentTimeout, forKey: SettingsKey.agentTimeout)
         }
     }
-    @Published var screenSharingPrivacy: Bool = false {
+    @Published var screenSharingPrivacy: Bool = true {
         didSet { defaults.set(screenSharingPrivacy, forKey: SettingsKey.screenSharingPrivacy) }
     }
     @Published var hideWhileMirroring: Bool = false {
@@ -585,6 +585,12 @@ final class AppSettings: ObservableObject {
     }
     @Published var clipboardCaptureSound: Bool = false {
         didSet { defaults.set(clipboardCaptureSound, forKey: SettingsKey.clipboardCaptureSound) }
+    }
+    @Published var clipboardSkipSecrets: Bool = true {
+        didSet { defaults.set(clipboardSkipSecrets, forKey: SettingsKey.clipboardSkipSecrets) }
+    }
+    @Published var clipboardClearOnLock: Bool = false {
+        didSet { defaults.set(clipboardClearOnLock, forKey: SettingsKey.clipboardClearOnLock) }
     }
     @Published var shelfRetention: ShelfRetention = .untilCleared {
         didSet { defaults.set(shelfRetention.rawValue, forKey: SettingsKey.shelfRetention) }
@@ -770,7 +776,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.calendarEnabled,
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
         SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
-        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays, SettingsKey.checkForUpdates, SettingsKey.hiddenDisplays,
+        SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays, SettingsKey.checkForUpdates, SettingsKey.hiddenDisplays, SettingsKey.clipboardSkipSecrets, SettingsKey.clipboardClearOnLock,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -873,7 +879,7 @@ final class AppSettings: ObservableObject {
         fullChargeActivity = defaults.object(forKey: SettingsKey.fullChargeActivity) as? Bool ?? false
         accessoryAlerts = defaults.object(forKey: SettingsKey.accessoryAlerts) as? Bool ?? true
         clipboardIgnoredApps = defaults.string(forKey: SettingsKey.clipboardIgnoredApps) ?? AppSettings.defaultIgnoredApps
-        clipboardAutoClearMinutes = min(max(defaults.object(forKey: SettingsKey.clipboardAutoClearMinutes) as? Int ?? 0, 0), 120)
+        clipboardAutoClearMinutes = min(max(defaults.object(forKey: SettingsKey.clipboardAutoClearMinutes) as? Int ?? 1440, 0), 10080)
         pasteWithNumbers = defaults.object(forKey: SettingsKey.pasteWithNumbers) as? Bool ?? true
         meetingAlert = defaults.object(forKey: SettingsKey.meetingAlert) as? Bool ?? false
         meetingAlertMinutes = min(max(defaults.object(forKey: SettingsKey.meetingAlertMinutes) as? Int ?? 1, 0), 15)
@@ -912,7 +918,7 @@ final class AppSettings: ObservableObject {
         dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
         dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
         checkForUpdates = defaults.object(forKey: SettingsKey.checkForUpdates) as? Bool ?? true
-        screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
+        screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? true
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
         autoCollapse = defaults.object(forKey: SettingsKey.autoCollapse) as? Bool ?? true
@@ -925,6 +931,8 @@ final class AppSettings: ObservableObject {
         calendarHotkeys = defaults.object(forKey: SettingsKey.calendarHotkeys) as? Bool ?? true
         timerHoverControls = defaults.object(forKey: SettingsKey.timerHoverControls) as? Bool ?? true
         clipboardCaptureSound = defaults.object(forKey: SettingsKey.clipboardCaptureSound) as? Bool ?? false
+        clipboardSkipSecrets = defaults.object(forKey: SettingsKey.clipboardSkipSecrets) as? Bool ?? true
+        clipboardClearOnLock = defaults.object(forKey: SettingsKey.clipboardClearOnLock) as? Bool ?? false
         shelfRetention = defaults.string(forKey: SettingsKey.shelfRetention).flatMap { ShelfRetention(rawValue: $0) } ?? .untilCleared
         screenshotFolder = defaults.string(forKey: SettingsKey.screenshotFolder) ?? ""
         unplugActivity = defaults.object(forKey: SettingsKey.unplugActivity) as? Bool ?? true
@@ -1074,7 +1082,7 @@ final class AppSettings: ObservableObject {
         fullChargeActivity = defaults.object(forKey: SettingsKey.fullChargeActivity) as? Bool ?? false
         accessoryAlerts = defaults.object(forKey: SettingsKey.accessoryAlerts) as? Bool ?? true
         clipboardIgnoredApps = defaults.string(forKey: SettingsKey.clipboardIgnoredApps) ?? AppSettings.defaultIgnoredApps
-        clipboardAutoClearMinutes = min(max(defaults.object(forKey: SettingsKey.clipboardAutoClearMinutes) as? Int ?? 0, 0), 120)
+        clipboardAutoClearMinutes = min(max(defaults.object(forKey: SettingsKey.clipboardAutoClearMinutes) as? Int ?? 1440, 0), 10080)
         pasteWithNumbers = defaults.object(forKey: SettingsKey.pasteWithNumbers) as? Bool ?? true
         meetingAlert = defaults.object(forKey: SettingsKey.meetingAlert) as? Bool ?? false
         meetingAlertMinutes = min(max(defaults.object(forKey: SettingsKey.meetingAlertMinutes) as? Int ?? 1, 0), 15)
@@ -1113,7 +1121,7 @@ final class AppSettings: ObservableObject {
         dailyWrapMinutes = AppSettings.clamp(defaults.object(forKey: SettingsKey.dailyWrapMinutes) as? Double ?? 1080, 0, 1439)
         dailyWrapWeekdays = defaults.object(forKey: SettingsKey.dailyWrapWeekdays) as? Bool ?? true
         checkForUpdates = defaults.object(forKey: SettingsKey.checkForUpdates) as? Bool ?? true
-        screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? false
+        screenSharingPrivacy = defaults.object(forKey: SettingsKey.screenSharingPrivacy) as? Bool ?? true
         hideWhileMirroring = defaults.object(forKey: SettingsKey.hideWhileMirroring) as? Bool ?? false
         fullscreenScope = defaults.string(forKey: SettingsKey.fullscreenScope).flatMap { FullscreenScope(rawValue: $0) } ?? .allApps
         autoCollapse = defaults.object(forKey: SettingsKey.autoCollapse) as? Bool ?? true
@@ -1126,6 +1134,8 @@ final class AppSettings: ObservableObject {
         calendarHotkeys = defaults.object(forKey: SettingsKey.calendarHotkeys) as? Bool ?? true
         timerHoverControls = defaults.object(forKey: SettingsKey.timerHoverControls) as? Bool ?? true
         clipboardCaptureSound = defaults.object(forKey: SettingsKey.clipboardCaptureSound) as? Bool ?? false
+        clipboardSkipSecrets = defaults.object(forKey: SettingsKey.clipboardSkipSecrets) as? Bool ?? true
+        clipboardClearOnLock = defaults.object(forKey: SettingsKey.clipboardClearOnLock) as? Bool ?? false
         shelfRetention = defaults.string(forKey: SettingsKey.shelfRetention).flatMap { ShelfRetention(rawValue: $0) } ?? .untilCleared
         screenshotFolder = defaults.string(forKey: SettingsKey.screenshotFolder) ?? ""
         unplugActivity = defaults.object(forKey: SettingsKey.unplugActivity) as? Bool ?? true
@@ -1296,7 +1306,7 @@ final class AppSettings: ObservableObject {
         fullChargeActivity = false
         accessoryAlerts = true
         clipboardIgnoredApps = AppSettings.defaultIgnoredApps
-        clipboardAutoClearMinutes = 0
+        clipboardAutoClearMinutes = 1440
         pasteWithNumbers = true
         meetingAlert = false
         meetingAlertMinutes = 1
@@ -1335,7 +1345,7 @@ final class AppSettings: ObservableObject {
         dailyWrapMinutes = 1080
         dailyWrapWeekdays = true
         checkForUpdates = true
-        screenSharingPrivacy = false
+        screenSharingPrivacy = true
         hideWhileMirroring = false
         fullscreenScope = .allApps
         autoCollapse = true
@@ -1348,6 +1358,8 @@ final class AppSettings: ObservableObject {
         calendarHotkeys = true
         timerHoverControls = true
         clipboardCaptureSound = false
+        clipboardSkipSecrets = true
+        clipboardClearOnLock = false
         shelfRetention = .untilCleared
         screenshotFolder = ""
         unplugActivity = true

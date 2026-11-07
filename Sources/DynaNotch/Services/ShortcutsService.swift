@@ -57,7 +57,7 @@ final class ShortcutsService: ObservableObject {
                     if sorted != self.shortcuts { self.shortcuts = sorted }
                 } else {
                     self.loadError = result.error.isEmpty ? "Could not list shortcuts" : result.error
-                    self.logger.error("shortcuts list failed: \(result.error, privacy: .public)")
+                    self.logger.error("shortcuts list failed: \(result.error, privacy: .private)")
                 }
             }
         }
@@ -79,7 +79,7 @@ final class ShortcutsService: ObservableObject {
                     message = out.isEmpty ? "Done" : String(out.prefix(120))
                 } else {
                     message = result.error.isEmpty ? "Failed" : String(result.error.prefix(120))
-                    self.logger.error("shortcut \(name, privacy: .public) failed: \(result.error, privacy: .public)")
+                    self.logger.error("shortcut \(name, privacy: .private) failed: \(result.error, privacy: .private)")
                 }
                 self.lastResult = RunResult(name: name, success: ok, message: message, date: Date())
             }

@@ -173,7 +173,7 @@ final class WeatherService: ObservableObject {
         let logger = self.logger
         session.dataTask(with: url) { data, response, error in
             if let error = error {
-                logger.debug("weather request failed: \(error.localizedDescription, privacy: .public)")
+                logger.debug("weather request failed: \(error.localizedDescription, privacy: .private)")
             }
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             let ok = (200..<300).contains(code)

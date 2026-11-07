@@ -49,6 +49,8 @@ final class IslandViewModel: ObservableObject {
     @Published private(set) var holdsPopup: Bool = false
     /// What a click on a popup opens, by activity id (popups without an entry use `ActivityKind.defaultPopupTarget`).
     private var popupTargets: [UUID: PopupTarget] = [:]
+    /// The popup being held (kept even when another activity covers it, so its long hold life can be undone).
+    private var heldPopupKind: ActivityKind?
     /// A held popup lingers this long after the pointer leaves it.
     private static let popupReleaseLinger: TimeInterval = 1.5
 
@@ -421,22 +423,31 @@ final class IslandViewModel: ObservableObject {
 
     private func holdPopup(_ activity: LiveActivity) {
         engine.post(activity.kind, now: Date(), duration: 3600)   // same category → same id, no transition
+        heldPopupKind = activity.kind
         withAnimation(motion) { holdsPopup = true }
         refresh()
     }
 
     private func releasePopup() {
-        guard holdsPopup else { return }
+        guard holdsPopup || heldPopupKind != nil else { return }
         withAnimation(motion) { holdsPopup = false }
-        if case .activity(let activity) = presentation, activity.kind.holdsOnHover {
-            engine.post(activity.kind, now: Date(), duration: IslandViewModel.popupReleaseLinger)
-        }
+        endHold(linger: IslandViewModel.popupReleaseLinger)
         refresh()
+    }
+
+    /// Gives the held popup its normal short life back (it was posted with a long one while held).
+    private func endHold(linger: TimeInterval) {
+        guard let kind = heldPopupKind else { return }
+        heldPopupKind = nil
+        // Only if it is still that popup (a newer one of the same kind keeps its own text and life).
+        guard engine.activities.contains(where: { $0.kind == kind }) else { return }
+        engine.post(kind, now: Date(), duration: linger)
     }
 
     /// Dismiss the popup on screen (Dismiss button, `dynanotch://ui/action`-free test path via a click).
     func dismissPopup() {
         engine.dismissCurrent(now: Date())
+        heldPopupKind = nil
         holdsPopup = false
         refresh()
     }
@@ -1029,7 +1040,11 @@ final class IslandViewModel: ObservableObject {
         if holdsPopup {
             var stillHeld = false
             if case .activity(let activity) = next, activity.kind.holdsOnHover { stillHeld = true }
-            if !stillHeld { holdsPopup = false }
+            if !stillHeld {
+                // Something else took the island (camera, volume …): don't let the held popup keep its long life.
+                holdsPopup = false
+                endHold(linger: settings.notificationDuration)
+            }
         }
         if next != presentation {
             withAnimation(motion) {

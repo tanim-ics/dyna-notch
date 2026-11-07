@@ -54,6 +54,10 @@ final class ClipboardService: ObservableObject {
         supportDirectory.appendingPathComponent("clipboard.json")
     }
 
+    /// What Skip Secrets did last (state.json `clipboardSecrets`; never the text itself).
+    private(set) var lastSecret = "none"
+    private var lockObserver: AnyCancellable?
+
     private init() {
         lastChangeCount = NSPasteboard.general.changeCount
         imageCache.countLimit = 40
@@ -86,6 +90,13 @@ final class ClipboardService: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in self?.autoClear() }
         autoClear()
+        // Settings → Clipboard → Clear on Lock.
+        lockObserver = UserPresence.shared.lockChanges
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] locked in
+                guard locked, AppSettings.shared.clipboardClearOnLock else { return }
+                self?.clear()
+            }
     }
 
     func stop() {
@@ -201,7 +212,7 @@ final class ClipboardService: ObservableObject {
         guard let file = item.imageFile, !file.isEmpty else { return nil }
         if let cached = imageCache.object(forKey: file as NSString) { return cached }
         let url = ClipboardService.clipsDirectory.appendingPathComponent(file)
-        guard let image = NSImage(contentsOf: url) else { return nil }
+        guard let data = Vault.read(url), let image = NSImage(data: data) else { return nil }
         imageCache.setObject(image, forKey: file as NSString)
         return image
     }
@@ -263,6 +274,23 @@ final class ClipboardService: ObservableObject {
 
         if let string = pasteboard.string(forType: .string) {
             guard !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            // Settings → Clipboard → Skip Secrets: keys, tokens, passwords and card numbers are never stored;
+            // one-time codes and random-looking tokens leave after 2 minutes.
+            var expiresAt: Date?
+            if AppSettings.shared.clipboardSkipSecrets, let verdict = SecretDetector.scan(string) {
+                switch verdict {
+                case .secret(let kind):
+                    lastSecret = "skipped \(kind.rawValue)"
+                    logger.info("clipboard: kept a \(kind.rawValue, privacy: .public) out of history")
+                    return
+                case .likely(let kind):
+                    lastSecret = "expiring \(kind.rawValue)"
+                    expiresAt = now.addingTimeInterval(SecretDetector.likelyLifetime)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + SecretDetector.likelyLifetime + 0.5) { [weak self] in
+                        self?.removeExpired()
+                    }
+                }
+            }
             var text = string
             let kind = ClipClassifier.kind(for: text)
             // Offer a clean copy instead (row button): keep the link exactly as copied.
@@ -275,7 +303,7 @@ final class ClipboardService: ObservableObject {
                     markOwnChange()
                 }
             }
-            add(ClipItem(kind: kind, text: text, date: now, sourceApp: sourceApp))
+            add(ClipItem(kind: kind, text: text, date: now, sourceApp: sourceApp, expiresAt: expiresAt))
             copiedText.send(text)
             return
         }
@@ -297,9 +325,9 @@ final class ClipboardService: ObservableObject {
         let url = ClipboardService.clipsDirectory.appendingPathComponent(fileName)
         do {
             try FileManager.default.createDirectory(at: ClipboardService.clipsDirectory, withIntermediateDirectories: true)
-            try png.write(to: url, options: .atomic)
+            try Vault.write(png, to: url)
         } catch {
-            logger.error("could not save clip image: \(error.localizedDescription, privacy: .public)")
+            logger.error("could not save clip image: \(error.localizedDescription, privacy: .private)")
             return
         }
         add(ClipItem(kind: .image, text: hash, date: date, sourceApp: sourceApp, imageFile: fileName))
@@ -334,8 +362,21 @@ final class ClipboardService: ObservableObject {
         return Set(ids)
     }
 
+    /// Drops unpinned items whose `expiresAt` has passed (likely secrets).
+    private func removeExpired() {
+        let now = Date()
+        let expired = history.items.filter { !$0.pinned && ($0.expiresAt.map { $0 <= now } ?? false) }
+        guard !expired.isEmpty else { return }
+        var h = history
+        let removed = expired.compactMap { h.remove(id: $0.id) }
+        history = h
+        deleteImageFiles(of: removed)
+        scheduleSave()
+    }
+
     /// `clipboardAutoClearMinutes` > 0: drops unpinned items older than that.
     private func autoClear() {
+        removeExpired()
         let minutes = AppSettings.shared.clipboardAutoClearMinutes
         guard minutes > 0 else { return }
         let cutoff = Date().addingTimeInterval(-TimeInterval(minutes) * 60)
@@ -371,11 +412,8 @@ final class ClipboardService: ObservableObject {
         pasteboard.clearContents()
         switch item.kind {
         case .image:
-            if !plainText, let image = image(for: item) {
-                pasteboard.writeObjects([image])
-            } else if let file = item.imageFile {
-                pasteboard.setString(ClipboardService.clipsDirectory.appendingPathComponent(file).path, forType: .string)
-            }
+            // The stored file is encrypted, so an image always pastes as the image.
+            if let image = image(for: item) { pasteboard.writeObjects([image]) }
         case .file:
             let paths = item.text.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
             if plainText {
@@ -455,16 +493,16 @@ final class ClipboardService: ObservableObject {
                 let encoder = JSONEncoder()
                 encoder.dateEncodingStrategy = .secondsSince1970
                 let data = try encoder.encode(snapshot)
-                try data.write(to: url, options: .atomic)
+                try Vault.write(data, to: url)   // encrypted; also re-applies 0600 + no-backup to the new file
             } catch {
-                logger.error("could not save clipboard history: \(error.localizedDescription, privacy: .public)")
+                logger.error("could not save clipboard history: \(error.localizedDescription, privacy: .private)")
             }
         }
     }
 
     private func loadHistory() {
         let url = ClipboardService.historyFile
-        guard let data = try? Data(contentsOf: url) else {
+        guard let data = Vault.read(url) else {
             history = ClipboardHistory(limit: AppSettings.shared.clipboardLimit)
             return
         }

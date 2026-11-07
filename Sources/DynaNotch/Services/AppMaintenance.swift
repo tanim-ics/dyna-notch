@@ -27,7 +27,7 @@ enum AppMaintenance {
             do {
                 try FileManager.default.removeItem(at: url)
             } catch {
-                logger.error("could not remove \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                logger.error("could not remove \(url.lastPathComponent, privacy: .private): \(error.localizedDescription, privacy: .private)")
             }
         }
         URLCache.shared.removeAllCachedResponses()
@@ -109,13 +109,13 @@ enum ShellHookInstaller {
 
     static var zshrcURL: URL {
         if let url = zshrcOverride { return url }
-        if let path = ProcessInfo.processInfo.environment["DYNANOTCH_ZSHRC"], !path.isEmpty { return URL(fileURLWithPath: path) }
+        if let path = DebugEnvironment.value("DYNANOTCH_ZSHRC") { return URL(fileURLWithPath: path) }
         return URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".zshrc")
     }
 
     static var claudeSettingsURL: URL {
         if let url = claudeSettingsOverride { return url }
-        if let path = ProcessInfo.processInfo.environment["DYNANOTCH_CLAUDE_SETTINGS"], !path.isEmpty {
+        if let path = DebugEnvironment.value("DYNANOTCH_CLAUDE_SETTINGS") {
             return URL(fileURLWithPath: path)
         }
         return URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude/settings.json")
@@ -149,10 +149,10 @@ enum ShellHookInstaller {
         text += (text.isEmpty ? "" : "\n") + zshBlock
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
-            logger.info("zsh hook installed in \(url.path, privacy: .public)")
+            logger.info("zsh hook installed in \(url.path, privacy: .private)")
             return true
         } catch {
-            logger.error("zsh hook install failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("zsh hook install failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }
@@ -162,9 +162,9 @@ enum ShellHookInstaller {
         guard let text = try? String(contentsOf: url, encoding: .utf8), text.contains(blockStart) else { return }
         do {
             try removingBlock(from: text).write(to: url, atomically: true, encoding: .utf8)
-            logger.info("zsh hook removed from \(url.path, privacy: .public)")
+            logger.info("zsh hook removed from \(url.path, privacy: .private)")
         } catch {
-            logger.error("zsh hook removal failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("zsh hook removal failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -336,7 +336,7 @@ enum ShellHookInstaller {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             return true
         } catch {
-            logger.error("script write failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("script write failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }
@@ -407,10 +407,10 @@ enum ShellHookInstaller {
             let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
-            logger.info("Claude settings updated: \(url.path, privacy: .public)")
+            logger.info("Claude settings updated: \(url.path, privacy: .private)")
             return true
         } catch {
-            logger.error("Claude settings write failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Claude settings write failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }
@@ -429,7 +429,7 @@ enum ShellHookInstaller {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             return true
         } catch {
-            logger.error("cost script write failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("cost script write failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }

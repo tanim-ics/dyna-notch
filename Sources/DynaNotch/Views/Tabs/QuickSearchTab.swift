@@ -162,15 +162,22 @@ private struct EngineChip: View {
     }
 }
 
-/// Last few Quick Search queries (UserDefaults `dn.data.recentSearches`).
+/// Last few Quick Search queries, in `recent-searches.json` (encrypted, `Vault`); moved out of UserDefaults once.
 final class RecentSearches: ObservableObject {
     static let shared = RecentSearches()
     private static let key = "dn.data.recentSearches"
+    private static let file = "recent-searches.json"
 
     @Published private(set) var items: [String]
 
     private init() {
-        items = UserDefaults.standard.stringArray(forKey: Self.key) ?? []
+        if let stored = AppDataStore.loadFile([String].self, file: Self.file) {
+            items = stored
+        } else {
+            items = UserDefaults.standard.stringArray(forKey: Self.key) ?? []
+            if !items.isEmpty { AppDataStore.saveFile(items, file: Self.file) }
+            UserDefaults.standard.removeObject(forKey: Self.key)
+        }
     }
 
     func add(_ text: String) {
@@ -178,12 +185,12 @@ final class RecentSearches: ObservableObject {
         var list = items.filter { $0.caseInsensitiveCompare(text) != .orderedSame }
         list.insert(text, at: 0)
         items = Array(list.prefix(8))
-        UserDefaults.standard.set(items, forKey: Self.key)
+        AppDataStore.saveFile(items, file: Self.file)
     }
 
     func clear() {
         items = []
-        UserDefaults.standard.removeObject(forKey: Self.key)
+        AppDataStore.saveFile(items, file: Self.file)
     }
 }
 

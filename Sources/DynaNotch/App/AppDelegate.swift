@@ -14,7 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = AppLaunch.uptime   // pin the launch time for SettingsSceneRedirect
-        URLHookGate.publishToken()   // test hooks need it (docs/SECURITY.md)
+        URLHookGate.prepare()   // private data folder (docs/SECURITY.md)
+        Vault.migrateExistingFiles()   // encrypt data written by older builds
+        // Scripts and tests drive every hook through the private control socket (this user only).
+        LocalControlServer.shared.handler = { [weak self] url in self?.handle(url) }
+        LocalControlServer.shared.start()
         NSApp.setActivationPolicy(.accessory)
 
         let vm = IslandViewModel()
@@ -81,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        LocalControlServer.shared.stop()
         if let observer = openSettingsObserver {
             NotificationCenter.default.removeObserver(observer)
             openSettingsObserver = nil
@@ -92,9 +97,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// dynanotch://tab/<tab>, dynanotch://notify?title=…&body=…&symbol=…&duration=…
     /// Used by scripts/build_agent.sh and shell hooks (e.g. Claude Code) to drive the island.
     func application(_ application: NSApplication, open urls: [URL]) {
-        // Public hooks (notify, tab, timer …) are open to everyone; the rest need the per-launch token
-        // (URLHookGate), because any web page, mail or document can open a dynanotch:// link.
-        for url in urls where url.scheme?.lowercased() == "dynanotch" && URLHookGate.allows(url) {
+        // Links from outside (web pages, mail, documents, other apps) only reach the public hooks; scripts on this
+        // Mac use LocalControlServer for the rest (docs/SECURITY.md).
+        for url in urls where url.scheme?.lowercased() == "dynanotch" && URLHookGate.allowsPublic(url) {
+            handle(url)
+        }
+    }
+
+    /// Runs one hook. Callers have already decided it is allowed (public link, or the control socket).
+    private func handle(_ url: URL) {
+        do {
             let action = url.host ?? ""
             let argument = url.pathComponents.dropFirst().first ?? ""
             switch action {
@@ -308,6 +320,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "islands": screensCoordinator?.extraStates ?? [],
                     "displayKeys": ConnectedDisplay.current().map(\.key),
                     "holdsPopup": vm.holdsPopup,
+                    "vault": Vault.status,
+                    "clipboardSecrets": ClipboardService.shared.lastSecret,
+                    "clipboardCount": ClipboardService.shared.history.items.count,
                     "canvasWidth": Double(vm.canvasSize.width),
                     "lockScreen": LockScreenController.shared.state,
                     "copy": FileCopyMonitor.shared.state,

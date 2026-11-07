@@ -198,7 +198,7 @@ final class LyricsService: ObservableObject {
         let logger = self.logger
         session.dataTask(with: request) { data, response, error in
             if let error = error {
-                logger.debug("lrclib request failed: \(error.localizedDescription, privacy: .public)")
+                logger.debug("lrclib request failed: \(error.localizedDescription, privacy: .private)")
             }
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             DispatchQueue.main.async { completion(data, status) }

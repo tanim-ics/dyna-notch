@@ -30,7 +30,7 @@ final class DMGInstaller: ObservableObject {
 
     /// Destination folder; `DYNANOTCH_INSTALL_DIR` redirects it (tests).
     static var applicationsURL: URL {
-        if let path = ProcessInfo.processInfo.environment["DYNANOTCH_INSTALL_DIR"], !path.isEmpty {
+        if let path = DebugEnvironment.value("DYNANOTCH_INSTALL_DIR") {
             return URL(fileURLWithPath: path, isDirectory: true)
         }
         return URL(fileURLWithPath: "/Applications", isDirectory: true)
@@ -89,9 +89,9 @@ final class DMGInstaller: ObservableObject {
                     try fm.trashItem(at: destination, resultingItemURL: nil)
                 }
                 try fm.copyItem(at: offer.appURL, to: destination)
-                self.logger.info("installed \(offer.appName, privacy: .public) to \(destination.path, privacy: .public)")
+                self.logger.info("installed \(offer.appName, privacy: .private) to \(destination.path, privacy: .private)")
                 let ejected = DMGInstaller.detach(offer.volumeURL)
-                if !ejected { self.logger.error("could not eject \(offer.volumeURL.path, privacy: .public)") }
+                if !ejected { self.logger.error("could not eject \(offer.volumeURL.path, privacy: .private)") }
                 DispatchQueue.main.async {
                     self.phase = .done
                     ScreenRecorder.notify(title: "\(offer.appName) installed",
@@ -99,7 +99,7 @@ final class DMGInstaller: ObservableObject {
                                           symbol: "checkmark.circle.fill", category: .downloads)
                 }
             } catch {
-                self.logger.error("install failed: \(error.localizedDescription, privacy: .public)")
+                self.logger.error("install failed: \(error.localizedDescription, privacy: .private)")
                 DispatchQueue.main.async { self.phase = .failed(error.localizedDescription) }
             }
         }
@@ -147,7 +147,7 @@ final class DMGInstaller: ObservableObject {
         }
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
-        if ProcessInfo.processInfo.environment["DYNANOTCH_DMG_AUTOCONFIRM"] == "1" {
+        if DebugEnvironment.value("DYNANOTCH_DMG_AUTOCONFIRM") == "1" {
             // Scripted test: press Install (and Replace) like a user would.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 self?.install()

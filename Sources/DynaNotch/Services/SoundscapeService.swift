@@ -61,7 +61,7 @@ final class SoundscapeService: ObservableObject {
                 try engine.start()
                 self.engine = engine
             } catch {
-                logger.error("soundscape could not start: \(error.localizedDescription, privacy: .public)")
+                logger.error("soundscape could not start: \(error.localizedDescription, privacy: .private)")
                 return
             }
         }

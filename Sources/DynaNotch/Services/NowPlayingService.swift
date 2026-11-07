@@ -222,7 +222,7 @@ final class NowPlayingService: ObservableObject {
                 return
             }
             let text = String(decoding: data.prefix(2000), as: UTF8.self)
-            NowPlayingService.logger.debug("adapter stderr: \(text, privacy: .public)")
+            NowPlayingService.logger.debug("adapter stderr: \(text, privacy: .private)")
         }
         proc.terminationHandler = { [weak self] p in
             let status = p.terminationStatus
@@ -237,7 +237,7 @@ final class NowPlayingService: ObservableObject {
             stdinHandle = inPipe.fileHandleForWriting
             log.info("MediaRemote adapter launched (pid \(proc.processIdentifier))")
         } catch {
-            log.error("failed to launch adapter: \(error.localizedDescription, privacy: .public)")
+            log.error("failed to launch adapter: \(error.localizedDescription, privacy: .private)")
             outPipe.fileHandleForReading.readabilityHandler = nil
             errPipe.fileHandleForReading.readabilityHandler = nil
             proc.terminationHandler = nil
@@ -310,7 +310,7 @@ final class NowPlayingService: ObservableObject {
             do {
                 try handle.write(contentsOf: data)
             } catch {
-                NowPlayingService.logger.error("adapter write failed: \(error.localizedDescription, privacy: .public)")
+                NowPlayingService.logger.error("adapter write failed: \(error.localizedDescription, privacy: .private)")
             }
         }
         return true
@@ -377,7 +377,7 @@ final class NowPlayingService: ObservableObject {
             if source != .mediaRemote { source = .mediaRemote }
             applyEmpty()
         case .error(let text):
-            log.error("adapter error: \(text, privacy: .public)")
+            log.error("adapter error: \(text, privacy: .private)")
             let lower = text.lowercased()
             if lower.contains("unavailable") || lower.contains("missing") {
                 adapterFatal = true
@@ -583,7 +583,7 @@ final class NowPlayingService: ObservableObject {
         let result = script.executeAndReturnError(&errorInfo)
         if let errorInfo = errorInfo {
             let text = (errorInfo[NSAppleScript.errorMessage] as? String) ?? "unknown error"
-            logger.debug("AppleScript failed: \(text, privacy: .public)")
+            logger.debug("AppleScript failed: \(text, privacy: .private)")
             return nil
         }
         return result

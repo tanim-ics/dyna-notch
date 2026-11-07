@@ -48,6 +48,18 @@ targets.append(
 )
 #endif
 
+#if os(macOS)
+// Decodes untrusted images / PDFs for Drop Alchemy inside a sandbox (docs/SECURITY.md).
+products.append(.executable(name: "DynaNotchWorker", targets: ["DynaNotchWorker"]))
+targets.append(
+    .executableTarget(
+        name: "DynaNotchWorker",
+        path: "Sources/DynaNotchWorker",
+        linkerSettings: [.linkedFramework("Vision"), .linkedFramework("PDFKit"), .linkedFramework("CoreImage")]
+    )
+)
+#endif
+
 let package = Package(
     name: "DynaNotch",
     platforms: [.macOS(.v14)],

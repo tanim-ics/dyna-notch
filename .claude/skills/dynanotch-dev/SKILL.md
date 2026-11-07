@@ -25,8 +25,8 @@ keeps the panel open while testing (the owner's real clicks otherwise close it);
 change. New controls get `.uiTestID`; new screens get a check in `scripts/ui-regression.sh`.
 
 **Gotchas specific to this app**
-- Test hooks need `token=` from `~/Library/Application Support/DynaNotch/test-token` (new each launch); only
-  notify/tab/timer/expand/collapse/settings/simulate/pin are public. Use `u()` in scripts. See `docs/SECURITY.md`.
+- Test hooks go through the control socket (`nc -U ~/Library/Application Support/DynaNotch/control.sock`, via `u()`);
+  links from outside only reach public hooks. Hardened runtime + signed updates: see `docs/SECURITY.md`.
 - Concurrency rule: no async/await/actors/`@MainActor` — GCD + Combine only.
 - Energy budget idle ≤ 0.2 % CPU / ≤ 4 wake-ups/s; decorative motion = Core Animation (`Views/LayerAnimations.swift`);
   Settings timers via `SettingsTicker`.

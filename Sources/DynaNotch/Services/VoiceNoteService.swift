@@ -144,7 +144,7 @@ final class VoiceNoteService {
     }
 
     private func fail(_ message: String) {
-        logger.error("voice note: \(message, privacy: .public)")
+        logger.error("voice note: \(message, privacy: .private)")
         last = "failed: \(message)"
         updates.send(("", message))
     }

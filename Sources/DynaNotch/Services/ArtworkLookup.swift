@@ -69,7 +69,7 @@ final class ArtworkLookup {
         session.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }
             if let error = error {
-                self.logger.debug("iTunes search failed: \(error.localizedDescription, privacy: .public)")
+                self.logger.debug("iTunes search failed: \(error.localizedDescription, privacy: .private)")
             }
             guard let data = data, let artURL = ArtworkLookup.artworkURL(fromSearchResponse: data) else {
                 DispatchQueue.main.async { self.finish(query: query, image: nil) }

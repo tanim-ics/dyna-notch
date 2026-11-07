@@ -57,6 +57,11 @@ struct AboutSettingsPane: View {
                            detail: "Load settings from a file. Replaces what you have now.") {
                     Button("Import…", action: importSettings)
                 }
+                SettingRow(symbol: "note.text", color: .yellow, title: "Export Notes",
+                           detail: "Save your notes and to-dos as a text file, e.g. to move to a new Mac.") {
+                    Button("Export…", action: exportNotes)
+                        .uiTestID("setting-exportNotes")
+                }
                 if let message = message {
                     Label(message, systemImage: "info.circle")
                         .font(.caption)
@@ -65,7 +70,7 @@ struct AboutSettingsPane: View {
             } header: {
                 Text("Backup")
             } footer: {
-                SettingsFooter("Clipboard, notes and the shelf aren't included.")
+                SettingsFooter("Settings files don't include your clipboard, notes or shelf. Notes and history are encrypted with a key only this Mac has.")
             }
             Section {
                 SettingRow(symbol: "arrow.counterclockwise", color: .red, title: "Reset All Settings",
@@ -240,6 +245,20 @@ struct AboutSettingsPane: View {
         do {
             try settings.exportJSON().write(to: url, options: .atomic)
             message = "Exported to \(url.lastPathComponent)."
+        } catch {
+            message = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func exportNotes() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "DynaNotch Notes.txt"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try Data(NotesService.shared.exportText.utf8).write(to: url, options: .atomic)
+            message = "Notes saved to \(url.lastPathComponent)."
         } catch {
             message = "Export failed: \(error.localizedDescription)"
         }

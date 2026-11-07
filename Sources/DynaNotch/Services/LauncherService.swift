@@ -78,7 +78,7 @@ final class LauncherService: ObservableObject {
         let logger = self.logger
         NSWorkspace.shared.openApplication(at: app.url, configuration: configuration) { _, error in
             if let error = error {
-                logger.error("Launching \(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                logger.error("Launching \(name, privacy: .private) failed: \(error.localizedDescription, privacy: .private)")
             }
         }
     }

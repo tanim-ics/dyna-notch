@@ -125,7 +125,7 @@ final class CameraService: ObservableObject {
             }
             return true
         } catch {
-            logger.error("Camera input failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("Camera input failed: \(error.localizedDescription, privacy: .private)")
             DispatchQueue.main.async { self.errorMessage = "Camera is unavailable" }
             return false
         }
