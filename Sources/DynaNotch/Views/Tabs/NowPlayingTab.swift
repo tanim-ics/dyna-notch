@@ -373,16 +373,27 @@ struct SyncedLyricsList: View {
         }
     }
 
+    /// The line being sung: bright, larger, with an accent bar; sung lines fade more than the ones still to come.
     private func lineView(_ line: LyricLine, index: Int) -> some View {
         let isCurrent = index == current
-        return Text(line.text.isEmpty ? "♪" : line.text)
-            .font(.system(size: isCurrent ? 13 : 12, weight: isCurrent ? .bold : .medium))
-            .foregroundStyle(Color.white.opacity(isCurrent ? 1 : 0.45))
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onTapGesture { nowPlaying.seek(to: line.time) }
-            .animation(.easeInOut(duration: 0.2), value: isCurrent)
+        let isPast = current.map { index < $0 } ?? false
+        return HStack(alignment: .top, spacing: 7) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(Color.accentColor)
+                .frame(width: 3)
+                .opacity(isCurrent ? 1 : 0)
+            Text(line.text.isEmpty ? "♪" : line.text)
+                .font(.system(size: isCurrent ? 14 : 12, weight: isCurrent ? .bold : .medium))
+                .foregroundStyle(Color.white.opacity(isCurrent ? 1 : (isPast ? 0.3 : 0.5)))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, isCurrent ? 3 : 0)
+        .contentShape(Rectangle())
+        .onTapGesture { nowPlaying.seek(to: line.time) }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isCurrent)
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
     }
 
     private func scroll(_ proxy: ScrollViewProxy, animated: Bool) {
