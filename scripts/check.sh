@@ -157,6 +157,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "Settings search index"
+if out="$(python3 -I "$ROOT/scripts/gen_settings_index.py" --check 2>&1)"; then
+    pass "$out"
+else
+    fail "settings index"
+    printf '%s\n' "$out" | sed 's/^/    | /'
+fi
+
+# ---------------------------------------------------------------------------
 section "UI regression (scripted user scenarios)"
 if [ "${1:-}" = "--ui" ]; then
     if [ "$(uname -s)" = "Darwin" ] && pgrep -x DynaNotch >/dev/null 2>&1; then

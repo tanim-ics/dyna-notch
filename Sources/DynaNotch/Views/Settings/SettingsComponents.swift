@@ -12,8 +12,108 @@ import os
 final class SettingsNavigator: ObservableObject {
     static let shared = SettingsNavigator()
     @Published var selection: SettingsPage? = .general
+    /// Row title the open page should scroll to (consumed by `SettingsPageView`).
+    @Published var pendingReveal: String?
+    /// Row title that blinks right now (set after the scroll).
+    @Published var flashing: String?
+    /// Sidebar search text (here so the test hook can type into it).
+    @Published var search = ""
+    /// Last row that blinked (for `dynanotch://state`).
+    private(set) var lastFlash = ""
+    private var flashToken = 0
 
     func go(_ page: SettingsPage) { selection = page }
+
+    /// Opens the option's page, scrolls to its row and makes it blink.
+    func reveal(_ option: SettingsOption) {
+        selection = option.page
+        pendingReveal = nil
+        DispatchQueue.main.async { self.pendingReveal = option.title }
+    }
+
+    func flash(_ title: String) {
+        flashToken += 1
+        let token = flashToken
+        flashing = title
+        lastFlash = title
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { [weak self] in
+            guard let self = self, self.flashToken == token else { return }
+            self.flashing = nil
+        }
+    }
+}
+
+/// One settings row, for search (the list is generated: `scripts/gen_settings_index.py`).
+struct SettingsOption: Identifiable, Hashable {
+    let page: SettingsPage
+    let title: String
+    let detail: String
+    let symbol: String
+    let color: Color
+
+    var id: String { page.rawValue + "/" + title }
+
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    static func == (a: SettingsOption, b: SettingsOption) -> Bool { a.id == b.id }
+
+    /// Every word of the query appears in the title (or, for longer words, the grey line); title hits first.
+    static func search(_ query: String, limit: Int = 30) -> [SettingsOption] {
+        let words = query.lowercased().split(separator: " ").map(String.init).filter { !$0.isEmpty }
+        guard !words.isEmpty, words.joined().count >= 2 else { return [] }
+        func has(_ text: String, _ word: String) -> Bool {
+            text.range(of: word, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
+        var titleHits: [SettingsOption] = []
+        var detailHits: [SettingsOption] = []
+        for option in all {
+            if words.allSatisfy({ has(option.title, $0) }) {
+                titleHits.append(option)
+            } else if words.allSatisfy({ has(option.title, $0) || ($0.count >= 3 && has(option.detail, $0)) }) {
+                detailHits.append(option)
+            }
+        }
+        return Array((titleHits + detailHits).prefix(limit))
+    }
+}
+
+/// Scroll target + blink for a settings row; `SettingRow` / `SettingStackedRow` apply it.
+private struct SettingRevealModifier: ViewModifier {
+    let title: String
+    @ObservedObject private var navigator = SettingsNavigator.shared
+    @State private var lit = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.accentColor.opacity(lit ? 0.28 : 0))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(lit ? 0.9 : 0), lineWidth: 1.5))
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -4)
+                    .allowsHitTesting(false)
+            )
+            .id(SettingRevealModifier.anchor(title))
+            .onChange(of: navigator.flashing) { _, value in
+                guard value == title else { return }
+                blink(times: 3)
+            }
+    }
+
+    static func anchor(_ title: String) -> String { "setting-row:" + title }
+
+    private func blink(times: Int) {
+        guard times > 0 else { return }
+        withAnimation(.easeInOut(duration: 0.22)) { lit = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+            withAnimation(.easeInOut(duration: 0.22)) { lit = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { blink(times: times - 1) }
+        }
+    }
+}
+
+extension View {
+    func settingReveal(_ title: String) -> some View { modifier(SettingRevealModifier(title: title)) }
 }
 
 // MARK: - Page
@@ -33,20 +133,40 @@ struct SettingsPageView<Content: View>: View {
         // a standard title bar whose material appears as soon as the content scrolls under it.
         // The header sits in an empty Section's header slot: grouped Forms draw no card for a section without rows,
         // so it reads as a plain large title (a row with .listRowBackground(.clear) still gets the card border).
-        Form {
-            Section {
-                EmptyView()
-            } header: {
-                SettingsPageHeader(page: page)
-                    .padding(.bottom, 12)
-                    .textCase(nil)
+        ScrollViewReader { proxy in
+            Form {
+                Section {
+                    EmptyView()
+                } header: {
+                    SettingsPageHeader(page: page)
+                        .padding(.bottom, 12)
+                        .textCase(nil)
+                }
+                content
             }
-            content
+            .formStyle(.grouped)
+            .onAppear { reveal(proxy, navigator.pendingReveal) }
+            // @Published sends before the value is stored: use the sent title, not navigator.pendingReveal.
+            .onReceive(navigator.$pendingReveal) { title in reveal(proxy, title) }
         }
-        .formStyle(.grouped)
         .navigationTitle(page.title)
         .background(SettingsWindowProbe())
         .onAppear { SettingsScrollDriver.shared.start() }
+    }
+
+    @ObservedObject private var navigator = SettingsNavigator.shared
+
+    /// Scrolls to the searched-for row (once this page is the one showing it), then makes it blink.
+    private func reveal(_ proxy: ScrollViewProxy, _ title: String?) {
+        guard let title = title, navigator.selection == page else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            guard navigator.pendingReveal == title else { return }
+            navigator.pendingReveal = nil
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(SettingRevealModifier.anchor(title), anchor: .center)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { navigator.flash(title) }
+        }
     }
 }
 
@@ -141,6 +261,7 @@ struct SettingRow<Control: View>: View {
             control
         }
         .padding(.vertical, 1)
+        .settingReveal(title)
     }
 }
 
@@ -173,6 +294,7 @@ struct SettingStackedRow<Control: View>: View {
                 .padding(.leading, 32)
         }
         .padding(.vertical, 2)
+        .settingReveal(title)
     }
 }
 

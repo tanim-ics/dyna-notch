@@ -203,6 +203,8 @@ struct PaletteItem: Identifiable {
     let section: Section
     var keywords: String = ""
     var shortcut: String = ""
+    /// Only listed once something is typed (the many single settings options).
+    var searchOnly = false
     let perform: () -> Void
 
     /// 0 = title starts with the query, 1 = a title word starts with it, 2 = contains, 3 = keyword match, nil = no match.
@@ -240,10 +242,10 @@ final class CommandPaletteModel: ObservableObject {
 
     var filtered: [PaletteItem] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return items }
+        guard !q.isEmpty else { return items.filter { !$0.searchOnly } }
         return items.enumerated()
             .compactMap { pair -> (Int, Int, PaletteItem)? in
-                guard let r = pair.element.rank(q) else { return nil }
+                guard let r = pair.element.rank(q), !pair.element.searchOnly || r <= 2 else { return nil }
                 return (r, pair.offset, pair.element)
             }
             .sorted { $0.0 != $1.0 ? $0.0 < $1.0 : $0.1 < $1.1 }
@@ -359,6 +361,15 @@ final class CommandPaletteModel: ObservableObject {
             list.append(PaletteItem(id: "settings.\(page.rawValue)", title: "Settings › \(page.title)",
                                     symbol: page.symbol, section: .settings, keywords: "preferences \(page.rawValue)") {
                 actions.openSettings(page: page)
+            })
+        }
+        // Single options: open the page, scroll to the row and make it blink.
+        for option in SettingsOption.all {
+            list.append(PaletteItem(id: "settings.option.\(option.id)", title: "\(option.title) — \(option.page.title)",
+                                    symbol: option.symbol, section: .settings,
+                                    searchOnly: true) {
+                actions.openSettings(page: option.page)
+                SettingsNavigator.shared.reveal(option)
             })
         }
         return list
