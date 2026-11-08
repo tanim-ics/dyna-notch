@@ -23,6 +23,17 @@ public enum Vitals {
         }
     }
 
+    /// `kern.memorystatus_vm_pressure_level` (1 normal, 2 warning, 4 critical) → 0 none, 1 tight, 2 almost full.
+    /// The dispatch memory-pressure event alone is not enough: macOS sends short "warning" blips while Activity
+    /// Monitor's pressure is still green, so the alert only fires when this level confirms it.
+    public static func memorySeverity(pressureLevel: Int) -> Int {
+        switch pressureLevel {
+        case 4...: return 2
+        case 2, 3: return 1
+        default: return 0
+        }
+    }
+
     public static func gigabytes(_ bytes: Int64) -> String {
         let gb = Double(bytes) / 1_000_000_000
         return gb >= 10 ? "\(Int(gb.rounded())) GB" : String(format: "%.1f GB", gb)

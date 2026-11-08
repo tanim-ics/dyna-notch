@@ -37,4 +37,12 @@ final class VitalsTests: XCTestCase {
         XCTAssertEqual(k.category, .vitals)
         XCTAssertFalse(k.isQuietedDuringFocus)
     }
+
+    func testMemorySeverity() {
+        XCTAssertEqual(Vitals.memorySeverity(pressureLevel: 0), 0)
+        XCTAssertEqual(Vitals.memorySeverity(pressureLevel: 1), 0)
+        XCTAssertEqual(Vitals.memorySeverity(pressureLevel: 2), 1)
+        XCTAssertEqual(Vitals.memorySeverity(pressureLevel: 4), 2)
+        XCTAssertEqual(Vitals.memorySeverity(pressureLevel: -1), 0)
+    }
 }
