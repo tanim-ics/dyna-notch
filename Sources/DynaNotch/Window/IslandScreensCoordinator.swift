@@ -21,6 +21,9 @@ final class IslandScreensCoordinator {
     private var primaryHiddenSync: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     private var screenObserver: NSObjectProtocol?
+    private var primaryMoveObserver: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
+    private var settleWork: DispatchWorkItem?
 
     init(primary: IslandViewModel, primaryController: IslandWindowController) {
         self.primary = primary
@@ -29,6 +32,8 @@ final class IslandScreensCoordinator {
 
     deinit {
         if let observer = screenObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = primaryMoveObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
     }
 
     func start() {
@@ -52,6 +57,18 @@ final class IslandScreensCoordinator {
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
             DispatchQueue.main.async { self?.rebuild() }
+            self?.rebuildWhenSettled()
+        }
+        primaryMoveObserver = NotificationCenter.default.addObserver(
+            forName: IslandWindowController.primaryDisplayChanged, object: primaryController, queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.async { self?.rebuild() }
+        }
+        // After sleep or a cable re-plug displays can come back a moment after the change notification.
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.rebuildWhenSettled()
         }
         primaryHiddenSync = primary.$isUserHidden
             .removeDuplicates()
@@ -82,6 +99,17 @@ final class IslandScreensCoordinator {
     }
 
     // MARK: Private (main queue)
+
+    /// One more rebuild once the display configuration has settled (coalesced).
+    private func rebuildWhenSettled() {
+        settleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.primaryController.repositionNow()
+            self?.rebuild()
+        }
+        settleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
+    }
 
     private func rebuild() {
         let all = NSScreen.screens.compactMap(ScreenLocator.keyed)
