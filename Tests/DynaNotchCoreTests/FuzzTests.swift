@@ -125,6 +125,8 @@ final class FuzzTests: XCTestCase {
             _ = HotKeyMap.parse(s)
             _ = PanelTab.parseList(s)
             _ = AlertSounds.parse(s)
+            _ = LyricsQuery.clean(title: s, artist: s)   // titles from any player / browser tab
+            _ = LyricsQuery.cleanArtist(s)
         }
     }
 

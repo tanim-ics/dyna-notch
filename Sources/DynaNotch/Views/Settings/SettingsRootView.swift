@@ -201,7 +201,6 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
 struct SettingsRootView: View {
     @EnvironmentObject var settings: AppSettings
     @ObservedObject private var navigator = SettingsNavigator.shared
-    @State private var search: String = ""
     @State private var suggestionCount = 0
 
     private let poll = SettingsTicker.tick
@@ -222,13 +221,21 @@ struct SettingsRootView: View {
         if count != suggestionCount { suggestionCount = count }
     }
 
+    private var search: String { navigator.search }
+
     private var sidebar: some View {
         VStack(spacing: 0) {
-            SettingsSearchField(text: $search)
+            SettingsSearchField(text: $navigator.search)
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
-            List(selection: $navigator.selection) {
+            List(selection: sidebarSelection) {
+                let options = SettingsOption.search(search)
+                if !options.isEmpty {
+                    Section("Options") {
+                        ForEach(options) { option in optionRow(option) }
+                    }
+                }
                 ForEach(SettingsGroup.allCases) { group in
                     let pages = group.pages.filter { $0.matches(search) }
                     if !pages.isEmpty {
@@ -242,7 +249,7 @@ struct SettingsRootView: View {
             }
             .listStyle(.sidebar)
             .overlay {
-                if SettingsPage.allCases.allSatisfy({ !$0.matches(search) }) {
+                if SettingsPage.allCases.allSatisfy({ !$0.matches(search) }) && SettingsOption.search(search).isEmpty {
                     Text("No settings match “\(search)”")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -267,11 +274,48 @@ struct SettingsRootView: View {
             .help("Quit DynaNotch")
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 260)
-        .onChange(of: search) { _, newValue in
+        .onChange(of: navigator.search) { _, newValue in
             let visible = SettingsPage.allCases.filter { $0.matches(newValue) }
             if let current = navigator.selection, visible.contains(current) { return }
             if let first = visible.first { navigator.selection = first }
         }
+    }
+
+    /// Sidebar rows are pages or, while searching, single options; picking an option reveals it on its page.
+    private enum SidebarItem: Hashable {
+        case page(SettingsPage)
+        case option(SettingsOption)
+    }
+
+    private var sidebarSelection: Binding<SidebarItem?> {
+        Binding(get: { navigator.selection.map { SidebarItem.page($0) } },
+                set: { item in
+                    switch item {
+                    case .page(let page)?: navigator.selection = page
+                    case .option(let option)?: navigator.reveal(option)
+                    case nil: break
+                    }
+                })
+    }
+
+    /// A search hit for one option: opens its page, scrolls to it and makes it blink.
+    private func optionRow(_ option: SettingsOption) -> some View {
+        HStack(spacing: 8) {
+            SettingsIcon(symbol: option.symbol, color: option.color)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(option.title)
+                    .lineLimit(1)
+                Text(option.page.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+        .help(option.detail.isEmpty ? option.title : option.detail)
+        .uiTestID("settings.search.option.\(option.id)")
+        .tag(SidebarItem.option(option))
     }
 
     private func rows(_ pages: [SettingsPage]) -> some View {
@@ -290,7 +334,7 @@ struct SettingsRootView: View {
                         .help("Suggestions waiting on the General page")
                 }
             }
-            .tag(page)
+            .tag(SidebarItem.page(page))
         }
     }
 

@@ -21,6 +21,7 @@ final class LyricsService: ObservableObject {
     private var started = false
     private var cancellables = Set<AnyCancellable>()
     private var currentKey = ""
+    private var lastQuery = ""
     private var cache: [String: Result] = [:]   // main queue only; misses cached as empty results
     private var cacheOrder: [String] = []
     private let cacheLimit = 50
@@ -97,20 +98,62 @@ final class LyricsService: ObservableObject {
             return
         }
         isLoading = true
-        fetchExact(snapshot) { [weak self] result, transient in
-            guard let self = self else { return }
-            if let result = result {
-                self.finish(key: key, result: result, cacheable: true)
-            } else if transient {
-                // Network trouble: show nothing, but try again next time this track comes up.
-                self.finish(key: key, result: Result(lines: [], plain: ""), cacheable: false)
-            } else {
-                self.fetchSearch(snapshot) { [weak self] result, transient in
-                    self?.finish(key: key, result: result ?? Result(lines: [], plain: ""),
-                                 cacheable: result != nil || !transient)
-                }
+        lastQuery = "\(snapshot.artist) — \(snapshot.title)"
+        // Browsers and YouTube send titles like "Artist - Song (Official Video)": clean them up, then try
+        // the exact lookup, a search with the cleaned names and finally a title-only search matched by length.
+        let cleaned = LyricsQuery.clean(title: snapshot.title, artist: snapshot.artist)
+        let duration = snapshot.duration.isFinite ? snapshot.duration : 0
+        var steps: [(@escaping (Result?, Bool) -> Void) -> Void] = [
+            { [weak self] done in self?.fetchExact(title: snapshot.title, artist: snapshot.artist, album: snapshot.album,
+                                                  duration: duration, completion: done) },
+        ]
+        if cleaned.title != snapshot.title || cleaned.artist != snapshot.artist {
+            steps.append { [weak self] done in self?.fetchExact(title: cleaned.title, artist: cleaned.artist, album: "",
+                                                               duration: duration, completion: done) }
+        }
+        steps.append { [weak self] done in
+            self?.fetchSearch([URLQueryItem(name: "track_name", value: cleaned.title),
+                               URLQueryItem(name: "artist_name", value: cleaned.artist)],
+                              artist: cleaned.artist, duration: duration, requireArtist: false, completion: done)
+        }
+        steps.append { [weak self] done in
+            self?.fetchSearch([URLQueryItem(name: "q", value: "\(cleaned.artist) \(cleaned.title)")],
+                              artist: cleaned.artist, duration: duration, requireArtist: true, completion: done)
+        }
+        if duration > 0 || !cleaned.artist.isEmpty {
+            steps.append { [weak self] done in
+                self?.fetchSearch([URLQueryItem(name: "track_name", value: cleaned.title)],
+                                  artist: cleaned.artist, duration: duration, requireArtist: true, completion: done)
             }
         }
+        run(steps, key: key, sawTransient: false, plainFallback: nil)
+    }
+
+    /// Tries each lookup in turn; stops at the first synced result, keeps the first plain one as a fallback.
+    private func run(_ steps: [(@escaping (Result?, Bool) -> Void) -> Void], key: String, sawTransient: Bool,
+                     plainFallback: Result?) {
+        guard key == currentKey else { return }
+        guard let step = steps.first else {
+            finish(key: key, result: plainFallback ?? Result(lines: [], plain: ""),
+                   cacheable: plainFallback != nil || !sawTransient)
+            return
+        }
+        step { [weak self] result, transient in
+            guard let self = self else { return }
+            if let result = result, !result.lines.isEmpty {
+                self.finish(key: key, result: result, cacheable: true)
+                return
+            }
+            let fallback = plainFallback ?? result.flatMap { $0.plain.isEmpty ? nil : $0 }
+            self.run(Array(steps.dropFirst()), key: key, sawTransient: sawTransient || transient, plainFallback: fallback)
+        }
+    }
+
+    /// For `dynanotch://state`.
+    var state: [String: Any] {
+        ["lines": lines.count, "plain": !plain.isEmpty, "loading": isLoading, "query": lastQuery,
+         "current": LRCParser.currentIndex(at: NowPlayingService.shared.snapshot.elapsed(at: Date())
+                                             + AppSettings.shared.lyricsOffset, in: lines) ?? -1]
     }
 
     private func finish(key: String, result: Result, cacheable: Bool) {
@@ -138,18 +181,16 @@ final class LyricsService: ObservableObject {
         status == 0 || status == 429 || status >= 500
     }
 
-    private func fetchExact(_ snapshot: NowPlayingSnapshot, completion: @escaping (Result?, Bool) -> Void) {
-        var items = [
-            URLQueryItem(name: "track_name", value: snapshot.title),
-            URLQueryItem(name: "artist_name", value: snapshot.artist),
-        ]
-        if !snapshot.album.isEmpty {
-            items.append(URLQueryItem(name: "album_name", value: snapshot.album))
+    private func fetchExact(title: String, artist: String, album: String, duration: Double,
+                            completion: @escaping (Result?, Bool) -> Void) {
+        guard !title.isEmpty, !artist.isEmpty else {
+            completion(nil, false)
+            return
         }
-        let duration = Int(snapshot.duration.rounded())
-        if snapshot.duration.isFinite, duration > 0 {
-            items.append(URLQueryItem(name: "duration", value: String(duration)))
-        }
+        var items = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
+        if !album.isEmpty { items.append(URLQueryItem(name: "album_name", value: album)) }
+        let seconds = Int(duration.rounded())
+        if seconds > 0 { items.append(URLQueryItem(name: "duration", value: String(seconds))) }
         request(path: "https://lrclib.net/api/get", items: items) { data, status in
             guard status == 200, let data = data, let parsed = LRCLibParser.parse(data) else {
                 completion(nil, LyricsService.isTransient(status))
@@ -159,30 +200,35 @@ final class LyricsService: ObservableObject {
         }
     }
 
-    private func fetchSearch(_ snapshot: NowPlayingSnapshot, completion: @escaping (Result?, Bool) -> Void) {
-        let items = [
-            URLQueryItem(name: "track_name", value: snapshot.title),
-            URLQueryItem(name: "artist_name", value: snapshot.artist),
-        ]
+    private func fetchSearch(_ items: [URLQueryItem], artist: String, duration: Double, requireArtist: Bool,
+                             completion: @escaping (Result?, Bool) -> Void) {
+        guard items.allSatisfy({ !($0.value ?? "").trimmingCharacters(in: .whitespaces).isEmpty }) else {
+            completion(nil, false)
+            return
+        }
         request(path: "https://lrclib.net/api/search", items: items) { data, status in
             guard status == 200, let data = data,
                   let array = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
                 completion(nil, LyricsService.isTransient(status))
                 return
             }
-            var plainFallback: Result?
-            for element in array {
+            var parsed: [(synced: [LyricLine], plain: String)] = []
+            var candidates: [LyricsQuery.Candidate] = []
+            for element in array.prefix(20) {
                 guard let elementData = try? JSONSerialization.data(withJSONObject: element),
-                      let parsed = LRCLibParser.parse(elementData) else { continue }
-                if !parsed.synced.isEmpty {
-                    completion(Result(lines: parsed.synced, plain: parsed.plain), false)
-                    return
-                }
-                if plainFallback == nil, !parsed.plain.isEmpty {
-                    plainFallback = Result(lines: [], plain: parsed.plain)
-                }
+                      let result = LRCLibParser.parse(elementData) else { continue }
+                parsed.append(result)
+                candidates.append(LyricsQuery.Candidate(artist: element["artistName"] as? String ?? "",
+                                                        duration: element["duration"] as? Double ?? 0,
+                                                        hasSynced: !result.synced.isEmpty,
+                                                        hasPlain: !result.plain.isEmpty))
             }
-            completion(plainFallback, false)
+            guard let index = LyricsQuery.best(candidates, artist: artist, duration: duration,
+                                               requireArtist: requireArtist) else {
+                completion(nil, false)
+                return
+            }
+            completion(Result(lines: parsed[index].synced, plain: parsed[index].plain), false)
         }
     }
 

@@ -89,3 +89,104 @@ public enum LRCLibParser {
         return (synced, plain)
     }
 }
+
+/// Turns what a player reports (often a browser / YouTube title) into an LRCLIB query, and picks the best search hit.
+public enum LyricsQuery {
+    public struct Candidate: Equatable {
+        public var artist: String
+        public var duration: Double
+        public var hasSynced: Bool
+        public var hasPlain: Bool
+
+        public init(artist: String, duration: Double, hasSynced: Bool, hasPlain: Bool) {
+            self.artist = artist
+            self.duration = duration
+            self.hasSynced = hasSynced
+            self.hasPlain = hasPlain
+        }
+    }
+
+    private static let noise = ["official", "video", "audio", "lyric", "visualizer", "visualiser", "remaster",
+                                "hd", "4k", "mv", "live", "explicit", "clean", "music"]
+
+    /// "Kings of Leon - Topic" → "Kings of Leon"; "A, B & C" / "A • Album" / "A feat. B" → "A".
+    public static func cleanArtist(_ artist: String) -> String {
+        var s = artist.trimmingCharacters(in: .whitespaces)
+        for suffix in [" - Topic", "VEVO", " Official"] where s.hasSuffix(suffix) {
+            s = String(s.dropLast(suffix.count)).trimmingCharacters(in: .whitespaces)
+        }
+        for separator in [" • ", " · ", ", ", " & ", " feat. ", " feat ", " ft. ", " x ", " X ", " and "] {
+            if let range = s.range(of: separator), range.lowerBound > s.startIndex {
+                s = String(s[..<range.lowerBound])
+            }
+        }
+        return s.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Drops "(Official Video)", "[Lyrics]", "(feat. X)", "| Topic" tails and an "Artist - " prefix.
+    /// Returns (title, artist); the artist is taken from "Artist - Title" when the player sent none.
+    public static func clean(title: String, artist: String) -> (title: String, artist: String) {
+        var t = title
+        // Bracketed tails with noise words or features.
+        var changed = true
+        while changed {
+            changed = false
+            for (open, close) in [("(", ")"), ("[", "]"), ("【", "】")] {
+                guard let o = t.range(of: open, options: .backwards),
+                      let c = t.range(of: close, range: o.upperBound..<t.endIndex) else { continue }
+                let inner = t[o.upperBound..<c.lowerBound].lowercased()
+                let words = inner.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+                if inner.hasPrefix("feat") || inner.hasPrefix("ft.") || inner.hasPrefix("with ")
+                    || words.contains(where: { noise.contains($0) || $0 == "lyrics" || $0 == "remastered" }) {
+                    t.removeSubrange(o.lowerBound..<c.upperBound)
+                    t = t.trimmingCharacters(in: .whitespaces)
+                    changed = true
+                }
+            }
+        }
+        if let bar = t.range(of: " | ") { t = String(t[..<bar.lowerBound]) }
+        for marker in [" feat. ", " ft. "] {
+            if let r = t.range(of: marker, options: .caseInsensitive) { t = String(t[..<r.lowerBound]) }
+        }
+        var a = cleanArtist(artist)
+        if let dash = t.range(of: " - ") {
+            let left = t[..<dash.lowerBound].trimmingCharacters(in: .whitespaces)
+            let right = t[dash.upperBound...].trimmingCharacters(in: .whitespaces)
+            if a.isEmpty {
+                a = cleanArtist(left)
+                t = right
+            } else if left.lowercased() == a.lowercased() || left.lowercased() == artist.lowercased() {
+                t = right
+            }
+        }
+        return (t.trimmingCharacters(in: .whitespaces), a)
+    }
+
+    /// Index of the best hit: synced before plain. When the player sent an artist, a hit must be by that artist —
+    /// a same-named song by someone else is never used, even with a matching length. With a known duration only
+    /// hits within 3 s count (closest first). Without an artist, a hit needs a known duration within 3 s, or
+    /// `requireArtist == false` to take the first one.
+    public static func best(_ candidates: [Candidate], artist: String, duration: Double,
+                            requireArtist: Bool = false) -> Int? {
+        let wanted = cleanArtist(artist).lowercased()
+        func artistMatches(_ c: Candidate) -> Bool {
+            let have = c.artist.lowercased()
+            let haveClean = cleanArtist(c.artist).lowercased()
+            return !haveClean.isEmpty && (have.contains(wanted) || wanted.contains(haveClean))
+        }
+        func pick(_ ok: (Candidate) -> Bool) -> Int? {
+            var usable = candidates.indices.filter { ok(candidates[$0]) }
+            if !wanted.isEmpty {
+                usable = usable.filter { artistMatches(candidates[$0]) }
+            } else if duration <= 0 && requireArtist {
+                return nil
+            }
+            if duration > 0 {
+                let timed = usable.filter { candidates[$0].duration <= 0 || abs(candidates[$0].duration - duration) <= 3 }
+                return timed.min { abs(candidates[$0].duration - duration) < abs(candidates[$1].duration - duration) }
+            }
+            return usable.first
+        }
+        return pick { $0.hasSynced } ?? pick { $0.hasPlain }
+    }
+}

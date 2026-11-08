@@ -419,6 +419,16 @@ public enum LRCLibParser {   // https://lrclib.net/api/get?track_name=&artist_na
     /// → (synced lines, plain text). nil on garbage. instrumental → ([], "")
     public static func parse(_ data: Data) -> (synced: [LyricLine], plain: String)?
 }
+public enum LyricsQuery {   // 2026-11-08: browser / YouTube titles → LRCLIB query
+    public struct Candidate: Equatable { artist: String; duration: Double; hasSynced: Bool; hasPlain: Bool }
+    public static func cleanArtist(_ artist: String) -> String          // "X - Topic", "XVEVO", "A, B", "A • Album" → "A"
+    public static func clean(title: String, artist: String) -> (title: String, artist: String)   // drops "(Official Video)",
+                                                                       // "(feat. …)", "| …", "Artist - " prefix
+    public static func best(_ c: [Candidate], artist: String, duration: Double, requireArtist: Bool = false) -> Int?
+                                                                       // synced first; ±3 s of the track when known;
+                                                                       // a hit by another artist is never used when the
+                                                                       // player sent an artist (same-title songs)
+}
 
 // AIUsage.swift
 public struct TokenUsage: Equatable { public var input, output, cacheCreation, cacheRead: Int
@@ -938,6 +948,10 @@ serialised with the scratchpad `applock.sh` lock.
 - Core `Vitals`: `cpuPercent(previous:current:elapsed:)` (CPU ns → % of one core), `RunawayTracker.update(
   [pid: percent], now:) -> [pid]` (≥ 90 % in 2 samples in a row, each app reported once until it calms down),
   `diskLow(free:total:)` (< 10 GB or < 5 %), `thermalTitle(_ raw: Int) -> String?` (serious / critical only).
+- Core `Vitals.memorySeverity(pressureLevel:) -> Int` (2026-11-08): `kern.memorystatus_vm_pressure_level` 1/2/4 → 0
+  none / 1 tight / 2 almost full. The memory alert fires only when this level is raised now **and** 20 s after the
+  dispatch event (the event alone fires on short blips while pressure is green). Its detail names the app with the
+  largest memory footprint (`ri_phys_footprint`), not the busiest CPU app.
 - Core `ActivityKind.vitals(title: String, detail: String, symbol: String)` (category `.vitals`, priority 92, 8 s,
   not quieted by Focus; 110 pt sides, notification height). A click opens Activity Monitor.
 - Setting `macVitals: Bool = true` (`dn.macVitals`, Settings → Popups → Privacy & Files).
@@ -1034,3 +1048,26 @@ serialised with the scratchpad `applock.sh` lock.
   `AppDataStore` and `ClipboardService` go through it; notes → `notes.json`, recent searches → `recent-searches.json`.
 - Settings: `clipboardSkipSecrets` (true), `clipboardClearOnLock` (false); defaults now `screenSharingPrivacy` true,
   `clipboardAutoClearMinutes` 1440 (range 0…10080). state.json `vault`, `clipboardSecrets`, `clipboardCount`.
+
+### 6.25 Settings search to a single option (2026-11-08)
+- `SettingsOption` (`page`, `title`, `detail`, `symbol`, `color`; `static let all` generated into
+  `Views/Settings/SettingsIndex.swift` by `scripts/gen_settings_index.py` from every settings row with a literal
+  title; `scripts/check.sh` fails when it is stale). `SettingsOption.search(_:limit:)` — every query word in the
+  title (or, ≥ 3 letters, the grey line); title hits first.
+- `SettingsNavigator`: `search` (sidebar text), `reveal(_ option)` (select page → scroll the row to the centre →
+  `flash(title)`, three accent blinks over ~2 s), `pendingReveal`, `flashing`, `lastFlash`. `SettingRow` and
+  `SettingStackedRow` carry `.settingReveal(title)` (scroll anchor + blink), so every row type built on them works.
+- Sidebar: an "Options" section above the pages while searching (`uiTestID` `settings.search.option.<page>/<title>`).
+  Command palette: one search-only item per option ("<title> — <page>"), listed only for title matches.
+- Lyrics: `LyricsService` tries exact → exact with cleaned names → search → `q=` search → title-only search matched by
+  length, stops at the first synced result and keeps a plain one as fallback (a plain-only exact hit used to end the
+  lookup with no synced lines). state.json `lyrics` {lines, plain, loading, query, current}.
+- Every display (§6.10, 2026-11-08): `IslandWindowController.primaryDisplayChanged` is posted when the primary island
+  moves to another display; the coordinator rebuilds the extras on it, and once more 2 s after a display change or
+  `screensDidWakeNotification` (displays can come back after the first notification).
+- Now Playing adapter (2026-11-08): when the elected now-playing app is paused, it asks every other client
+  (`MRMediaRemoteGetNowPlayingClients` + `MRMediaRemoteGetNowPlayingInfoForClient(client, origin, nil, queue, block)`)
+  and reports one that is playing (`"override": true`). Commands are not sent while overriding: macOS only routes
+  them to the elected (paused) app, and per-client / per-player send calls had no effect when probed.
+- Hooks: `dynanotch://ui/search?q=` (socket only) types into the sidebar search; state.json `settingsSearch`
+  {query, results, page, flashing, lastFlash}.

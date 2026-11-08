@@ -153,6 +153,9 @@ final class IslandWindowController: NSObject {
         panel.orderOut(nil)
     }
 
+    /// Posted when the primary island moves to another display.
+    static let primaryDisplayChanged = Notification.Name("com.tanim.dynanotch.primaryDisplayChanged")
+
     /// Display the island is on now (state dump, Every display bookkeeping).
     var currentDisplayID: CGDirectDisplayID? { currentScreen.flatMap { ScreenLocator.displayID($0) } }
 
@@ -195,7 +198,12 @@ final class IslandWindowController: NSObject {
         }
         guard let screen = pinnedDisplay.flatMap({ ScreenLocator.screen(displayID: $0) })
             ?? ScreenLocator.targetScreen(mode: settings.displayMode) else { return }
+        let previousDisplay = currentDisplayID
         currentScreen = screen
+        if pinnedDisplay == nil, previousDisplay != currentDisplayID {
+            // The extra islands are "every display except the primary one": they must be recomputed.
+            NotificationCenter.default.post(name: IslandWindowController.primaryDisplayChanged, object: self)
+        }
         viewModel.setNotch(ScreenLocator.metrics(for: screen))
         // The canvas is fixed while the island animates; it only grows for a wider / taller panel setting.
         let frame = IslandLayout.panelFrame(screenFrame: screen.frame, canvas: viewModel.canvasSize)

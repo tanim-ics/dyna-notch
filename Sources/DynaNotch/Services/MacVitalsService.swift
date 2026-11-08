@@ -21,6 +21,7 @@ final class MacVitalsService {
     private var started = false
     private var cancellables = Set<AnyCancellable>()
     private var memorySource: DispatchSourceMemoryPressure?
+    private var memoryCheckPending = false
     private var diskTimer: AnyCancellable?
     private var cpuTimer: AnyCancellable?
     private var lastCPU: [Int32: (cpu: UInt64, at: Date)] = [:]
@@ -64,10 +65,7 @@ final class MacVitalsService {
             .sink { [weak self] _ in self?.thermalChanged() }
             .store(in: &cancellables)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
-        source.setEventHandler { [weak self, weak source] in
-            guard let self = self, let event = source?.data else { return }
-            self.raise("memory", self.memoryAlert(critical: event.contains(.critical)))
-        }
+        source.setEventHandler { [weak self] in self?.memoryEvent() }
         source.resume()
         memorySource = source
         diskTimer = Timer.publish(every: 600, tolerance: 60, on: .main, in: .common)
@@ -96,6 +94,27 @@ final class MacVitalsService {
         alerts.send(alert)
     }
 
+    /// The kernel event is only a hint (it also fires on short blips while pressure is green): check the system's
+    /// own pressure level now and again 20 s later, and alert only if it is still raised.
+    private func memoryEvent() {
+        guard !memoryCheckPending, MacVitalsService.memorySeverity() > 0 else { return }
+        memoryCheckPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+            guard let self = self else { return }
+            self.memoryCheckPending = false
+            guard self.memorySource != nil else { return }
+            let severity = MacVitalsService.memorySeverity()
+            if severity > 0 { self.raise("memory", self.memoryAlert(critical: severity >= 2)) }
+        }
+    }
+
+    private static func memorySeverity() -> Int {
+        var level: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else { return 0 }
+        return Vitals.memorySeverity(pressureLevel: Int(level))
+    }
+
     private func thermalChanged() {
         let raw = ProcessInfo.processInfo.thermalState.rawValue
         guard let title = Vitals.thermalTitle(raw) else { return }
@@ -109,7 +128,7 @@ final class MacVitalsService {
 
     private func memoryAlert(critical: Bool) -> Alert {
         Alert(title: critical ? "Memory is almost full" : "Memory is getting tight",
-              detail: topApp().map { "\($0) uses the most · click to open Activity Monitor" } ?? "Click to open Activity Monitor",
+              detail: topMemoryApp().map { "\($0) uses the most · click to open Activity Monitor" } ?? "Click to open Activity Monitor",
               symbol: "memorychip.fill")
     }
 
@@ -131,6 +150,22 @@ final class MacVitalsService {
     }
 
     // MARK: CPU
+
+    private static func footprint(_ pid: Int32) -> UInt64? {
+        var info = rusage_info_v2()
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V2, $0) }
+        }
+        return result == 0 ? info.ri_phys_footprint : nil
+    }
+
+    /// The regular app using the most memory (the old text named the busiest-CPU app instead).
+    private func topMemoryApp() -> String? {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { app in MacVitalsService.footprint(app.processIdentifier).map { (app, $0) } }
+            .max { $0.1 < $1.1 }?.0.localizedName
+    }
 
     private static func cpuTime(_ pid: Int32) -> UInt64? {
         var info = rusage_info_v2()

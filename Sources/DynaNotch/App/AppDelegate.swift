@@ -239,6 +239,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         UITestDriver.shared.chooseInNextMenu(item, delay: Double(query["delay"] ?? "") ?? 0,
                                                              pointerAway: query["away"] == "1")
                     }
+                case "search":
+                    // dynanotch://ui/search?q=<text> → types into the Settings sidebar search
+                    SettingsNavigator.shared.search = query["q"] ?? ""
                 case "override":
                     // dynanotch://ui/override?fullscreen=1&front=<bundle id>&mirror=1&focus=1 (no query = real values)
                     func flag(_ name: String) -> Bool? { query[name].map { $0 == "1" || $0 == "true" } }
@@ -355,6 +358,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "panelVisible": islandController?.testWindow.isVisible ?? false,
                     "nowPlayingBundle": NowPlayingService.shared.snapshot.bundleIdentifier ?? "",
                     "nowPlayingTitle": NowPlayingService.shared.snapshot.title,
+                    "lyrics": LyricsService.shared.state,
+                    "settingsSearch": ["query": SettingsNavigator.shared.search,
+                                       "results": SettingsOption.search(SettingsNavigator.shared.search).map(\.title),
+                                       "page": SettingsNavigator.shared.selection?.rawValue ?? "",
+                                       "flashing": SettingsNavigator.shared.flashing ?? "",
+                                       "lastFlash": SettingsNavigator.shared.lastFlash],
                     "lastMediaKey": vm.lastMediaKey,
                     "unplugMinutes": vm.unplugMinutesLeft.map { String($0) } ?? "nil",
                     "keepAwake": KeepAwakeService.shared.isOn,

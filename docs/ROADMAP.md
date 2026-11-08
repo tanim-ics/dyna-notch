@@ -36,7 +36,7 @@ Notchy lists 131 feature guides; we take the ones that belong in a notch and nee
 |---|---|---|
 | Tabbed panel (Home, ⋯ tabs, quick toggles) | ✅ | tab icons left of the notch, toggles right; last tab remembered |
 | Home tab: music, weather, timer, month calendar, Up Next | ✅ | |
-| Now Playing + **synced lyrics** (LRCLIB) | ✅ | lyrics tab view + optional lyric line under the notch (`.lyrics` presentation) |
+| Now Playing + **synced lyrics** (LRCLIB) | ✅ | lyrics tab view + optional lyric line under the notch (`.lyrics` presentation); browser/YouTube titles cleaned and matched by length, playing line marked with an accent bar (2026-11-08) |
 | Podcast ±15 s skips, playback speed | ✅ (skips) | seek ±15 s buttons; speed not exposed by MediaRemote adapter → skipped |
 | Audio output switcher | ✅ | CoreAudio default output device menu |
 | Focus timer: countdown presets, custom, Pomodoro, stopwatch | ✅ | compact `.timer` presentation while running, finished activity + sound |
@@ -282,7 +282,8 @@ lives ("Stays on this Mac").
 | Camera Guard+ | Mic popup names the app, dot while on, usage log in Settings | ✅ (quit button and unexpected-use alert not built) | CoreAudio process objects (macOS 14.2+) |
 | Focus Guard | Distraction apps during a Pomodoro focus phase shake the island + nudge; minutes lost at the end | ✅ | `NSWorkspace` activation (CONTRACTS §6.17) |
 | Focus Soundscapes | Rain, brown / pink noise, fireplace — generated; Timer tab menu; starts with focus, fades on breaks | ✅ (café dropped: needs recorded audio) | `AVAudioSourceNode` (CONTRACTS §6.17) |
-| Mac Vitals | Heat, memory pressure, disk almost full, an app at a full core for 2 min; click opens Activity Monitor | ✅ (no Quit button: too easy to hit by accident) | `ProcessInfo` thermal, memory-pressure source, `proc_pid_rusage` every 60 s (CONTRACTS §6.18) |
+| Mac Vitals | Heat, memory pressure, disk almost full, an app at a full core for 2 min; click opens Activity Monitor | ✅ (no Quit button: too easy to hit by accident) | `ProcessInfo` thermal, memory-pressure source, `proc_pid_rusage` every 60 s (CONTRACTS §6.18); memory alert confirmed by the system pressure level (no false alarms while green) |
 | Daily Wrap | One end-of-day card: time at the Mac + top apps, Pomodoros, commits, most-played, Claude cost | ✅ (one card, not a swipeable set; no weekly version yet) | existing local data + `git rev-list` (CONTRACTS §6.19) |
 | Voice Notes | Shortcut or knock → speak → note / reminder / timer, live words in the island | ✅ (command path tested via hook; live recognition needs the owner's voice + permission) — press-to-toggle, not hold | `SFSpeechRecognizer` on-device only (CONTRACTS §6.20) |
 | In-app updates + What's New stories | Update button when a new release is out; Stories-style slides of the new features before updating and once after | ✅ (full loop tested against a local 3.3.1 release; the first real GitHub update will be 3.3.0 → the next release) | GitHub `releases/latest`, digest + signature check, self-swap helper; `Packaging/WhatsNew.json` (CONTRACTS §6.21) |
+| Settings | Search finds single options; clicking one opens its page, scrolls to it and blinks it (sidebar + palette) | ✅ 2026-11-08 | `SettingsOption` index generated from the panes (CONTRACTS §6.25) |

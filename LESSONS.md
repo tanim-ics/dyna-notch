@@ -35,3 +35,17 @@ Read at the start of every project. Add one line per lesson in Phase 8; merge du
   user-level test with an observed result, noted per item.
 - 1,200-line CLAUDE.md nobody could scan → history, contracts and roadmap mixed with rules → CLAUDE.md = rules +
   index (≤ 200 lines); contracts / roadmap / decisions / UX in `docs/`.
+- Settings search reveal never fired on the open page → `.onReceive(obj.$value)` runs on *willSet*, so reading
+  `obj.value` inside it still sees the old value → use the value the publisher sends.
+- Memory alert fired while Activity Monitor showed green → the dispatch memory-pressure event also fires on short
+  blips → confirm with `kern.memorystatus_vm_pressure_level` now and again a little later before alerting.
+- Lyrics missing for a song LRCLIB has → a plain-only exact hit ended the lookup → keep trying the other lookups
+  until a synced result, and keep the plain one only as a fallback.
+- The LG display lost its island → "every display except the primary" was only recomputed on a screen-change
+  notification, not when the primary island moved, and displays can return after that notification → rebuild when
+  the primary changes display, and once more ~2 s after a display change or wake.
+- Wrong lyrics for a song LRCLIB doesn't have → the title-only fallback took a same-named song by another artist
+  whose length matched → when the player names an artist, a result must be by that artist; "No lyrics" beats wrong.
+- A YouTube tab wasn't detected while the YouTube Music web app was paused → macOS keeps a paused app as the
+  elected now-playing client → when it's paused, ask every client for its own info and show one that plays;
+  probe private-API argument orders in a throwaway dylib under /usr/bin/perl, never in the app.

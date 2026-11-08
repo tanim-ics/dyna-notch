@@ -8,6 +8,11 @@
 //   stdout: one JSON object per line describing the current Now Playing state
 //   stdin : one command per line: play | pause | toggle | next | prev | seek <seconds>
 //
+// macOS keeps a paused player as "the" now-playing app even when another app starts playing (e.g. a paused
+// YouTube Music web app while a YouTube tab plays in the same browser). When the elected app is paused, the
+// adapter asks every other now-playing client for its own info and reports one that is actually playing
+// ("override": true). Commands for that player cannot be routed to it, so they are not sent to the paused app.
+//
 // The helper exits as soon as stdin is closed (i.e. when DynaNotch quits).
 
 #import <Foundation/Foundation.h>
@@ -21,6 +26,10 @@ typedef NSString *(*MRClientStrFn)(id);
 typedef void (*MRRegisterFn)(dispatch_queue_t);
 typedef Boolean (*MRSendCommandFn)(uint32_t, NSDictionary *);
 typedef void (*MRSetElapsedFn)(double);
+typedef id   (*MRGetOriginFn)(void);
+typedef void (*MRGetClientsFn)(dispatch_queue_t, void (^)(NSArray *));
+// Argument order found by probing on macOS 27: (client, origin, player or nil, queue, completion).
+typedef void (*MRInfoForClientFn)(id, id, id, dispatch_queue_t, void (^)(NSDictionary *));
 
 static MRGetInfoFn      gGetInfo;
 static MRIsPlayingFn    gIsPlaying;
@@ -29,6 +38,10 @@ static MRClientStrFn    gClientBundle;
 static MRClientStrFn    gClientParentBundle;
 static MRSendCommandFn  gSend;
 static MRSetElapsedFn   gSetElapsed;
+static MRGetOriginFn    gLocalOrigin;
+static MRGetClientsFn   gGetClients;
+static MRInfoForClientFn gInfoForClient;
+static NSString *gOverrideBundle = nil;   // set while the report is another (playing) client, not the elected one
 
 static NSString *gLastPayload   = nil;
 static NSString *gLastArtworkId = nil;
@@ -49,10 +62,8 @@ static id jsonSafe(id v) {
     return [v description];
 }
 
-static void refresh(void) {
-    if (!gGetInfo) return;
-    gGetInfo(dispatch_get_main_queue(), ^(NSDictionary *info) {
-        void (^finish)(BOOL, NSString *, NSString *) = ^(BOOL playing, NSString *bundle, NSString *parent) {
+static void emitInfo(NSDictionary *info, BOOL playing, NSString *bundle, NSString *parent, BOOL override) {
+
             @autoreleasepool {
                 NSMutableDictionary *out = [NSMutableDictionary dictionary];
                 out[@"type"] = @"nowPlaying";
@@ -76,6 +87,7 @@ static void refresh(void) {
                     out[@"playing"]  = @(playing);
                     out[@"bundle"]   = jsonSafe(bundle);
                     out[@"parentBundle"] = jsonSafe(parent);
+                    if (override) out[@"override"] = @YES;
 
                     NSString *artId = info[@"kMRMediaRemoteNowPlayingInfoArtworkIdentifier"];
                     NSData *art = info[@"kMRMediaRemoteNowPlayingInfoArtworkData"];
@@ -104,6 +116,61 @@ static void refresh(void) {
                 }
                 emitLine(payload);
             }
+        }
+
+/// The elected app is paused: report another client that is playing, if any (each asked for its own info).
+static void findPlayingClient(NSString *electedBundle, void (^done)(NSDictionary *info, NSString *bundle)) {
+    if (!gGetClients || !gInfoForClient || !gLocalOrigin || !gClientBundle) { done(nil, nil); return; }
+    gGetClients(dispatch_get_main_queue(), ^(NSArray *clients) {
+        __block BOOL finished = NO;
+        __block NSInteger pending = 0;
+        __block NSDictionary *bestInfo = nil;
+        __block NSString *bestBundle = nil;
+        void (^complete)(void) = ^{
+            if (finished) return;
+            finished = YES;
+            done(bestInfo, bestBundle);
+        };
+        id origin = gLocalOrigin();
+        for (id client in clients) {
+            NSString *bundle = gClientBundle(client);
+            if (bundle.length == 0 || [bundle isEqualToString:electedBundle ?: @""]) continue;
+            pending += 1;
+            gInfoForClient(client, origin, nil, dispatch_get_main_queue(), ^(NSDictionary *info) {
+                NSNumber *rate = info[@"kMRMediaRemoteNowPlayingInfoPlaybackRate"];
+                NSString *title = info[@"kMRMediaRemoteNowPlayingInfoTitle"];
+                if (!bestInfo && rate.doubleValue > 0 && title.length > 0) {
+                    bestInfo = info;
+                    bestBundle = bundle;
+                }
+                pending -= 1;
+                if (pending == 0) complete();
+            });
+        }
+        if (pending == 0) { complete(); return; }
+        // Never let a client that does not answer hold up the report.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), complete);
+    });
+}
+
+static void refresh(void) {
+    if (!gGetInfo) return;
+    gGetInfo(dispatch_get_main_queue(), ^(NSDictionary *info) {
+        void (^finish)(BOOL, NSString *, NSString *) = ^(BOOL playing, NSString *bundle, NSString *parent) {
+            if (playing) {
+                gOverrideBundle = nil;
+                emitInfo(info, playing, bundle, parent, NO);
+                return;
+            }
+            findPlayingClient(bundle, ^(NSDictionary *other, NSString *otherBundle) {
+                if (other) {
+                    gOverrideBundle = otherBundle;
+                    emitInfo(other, YES, otherBundle, nil, YES);
+                } else {
+                    gOverrideBundle = nil;
+                    emitInfo(info, playing, bundle, parent, NO);
+                }
+            });
         };
 
         if (gIsPlaying) {
@@ -138,6 +205,8 @@ static void handleCommand(NSString *line) {
     NSString *cmd = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (cmd.length == 0) return;
     enum { kPlay = 0, kPause = 1, kToggle = 2, kNext = 4, kPrev = 5 };
+    // Showing another app's playback: the system would send this to the paused elected app and start it again.
+    if (gOverrideBundle && ![cmd isEqualToString:@"refresh"]) { scheduleRefresh(); return; }
     if ([cmd isEqualToString:@"play"])        { if (gSend) gSend(kPlay, nil); }
     else if ([cmd isEqualToString:@"pause"])  { if (gSend) gSend(kPause, nil); }
     else if ([cmd isEqualToString:@"toggle"]) { if (gSend) gSend(kToggle, nil); }
@@ -169,6 +238,9 @@ __attribute__((visibility("default"))) void dn_run(void *perlInterpreter, void *
         gSend               = (MRSendCommandFn)dlsym(mr, "MRMediaRemoteSendCommand");
         gSetElapsed         = (MRSetElapsedFn)dlsym(mr, "MRMediaRemoteSetElapsedTime");
         MRRegisterFn reg    = (MRRegisterFn)dlsym(mr, "MRMediaRemoteRegisterForNowPlayingNotifications");
+        gLocalOrigin        = (MRGetOriginFn)dlsym(mr, "MRMediaRemoteGetLocalOrigin");
+        gGetClients         = (MRGetClientsFn)dlsym(mr, "MRMediaRemoteGetNowPlayingClients");
+        gInfoForClient      = (MRInfoForClientFn)dlsym(mr, "MRMediaRemoteGetNowPlayingInfoForClient");
 
         if (!gGetInfo) {
             emitLine(@"{\"type\":\"error\",\"message\":\"MRMediaRemoteGetNowPlayingInfo missing\"}");

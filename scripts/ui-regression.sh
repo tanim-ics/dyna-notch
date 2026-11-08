@@ -461,6 +461,18 @@ for p in $PAGES; do
     rendered "settings $p: renders" "$SNAP/settings-$p.png" 40000
 done
 
+echo "==> Settings search jumps to an option and makes it blink"
+ss() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; v=json.load(open(sys.argv[1])).get('settingsSearch',{}).get(sys.argv[2], ''); print(','.join(v) if isinstance(v, list) else v)" "$STATE" "$1" 2>/dev/null; }
+u "settings/general" 1.0
+u "ui/search?q=history%20limit" 0.8
+check "search: finds the option" "$(ss results)" "History Limit"
+u "ui/click?window=settings&id=settings.search.option.clipboard/History%20Limit" 1.8
+check "search: opens its page" "$(ss page)" "clipboard"
+check "search: option blinks" "$(ss lastFlash)" "History Limit"
+u "ui/search?q=zzzz%20nothing" 0.6
+check "search: no match is empty" "$(ss results)" ""
+u "ui/search?q=" 0.4
+
 echo
 echo "ui-regression: $PASS passed, $FAIL failed"
 exit $FAIL
