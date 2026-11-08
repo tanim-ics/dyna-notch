@@ -44,3 +44,8 @@ Read at the start of every project. Add one line per lesson in Phase 8; merge du
 - The LG display lost its island → "every display except the primary" was only recomputed on a screen-change
   notification, not when the primary island moved, and displays can return after that notification → rebuild when
   the primary changes display, and once more ~2 s after a display change or wake.
+- Wrong lyrics for a song LRCLIB doesn't have → the title-only fallback took a same-named song by another artist
+  whose length matched → when the player names an artist, a result must be by that artist; "No lyrics" beats wrong.
+- A YouTube tab wasn't detected while the YouTube Music web app was paused → macOS keeps a paused app as the
+  elected now-playing client → when it's paused, ask every client for its own info and show one that plays;
+  probe private-API argument orders in a throwaway dylib under /usr/bin/perl, never in the app.

@@ -425,7 +425,9 @@ public enum LyricsQuery {   // 2026-11-08: browser / YouTube titles → LRCLIB q
     public static func clean(title: String, artist: String) -> (title: String, artist: String)   // drops "(Official Video)",
                                                                        // "(feat. …)", "| …", "Artist - " prefix
     public static func best(_ c: [Candidate], artist: String, duration: Double, requireArtist: Bool = false) -> Int?
-                                                                       // synced first; ±3 s of the track when known
+                                                                       // synced first; ±3 s of the track when known;
+                                                                       // a hit by another artist is never used when the
+                                                                       // player sent an artist (same-title songs)
 }
 
 // AIUsage.swift
@@ -1063,5 +1065,9 @@ serialised with the scratchpad `applock.sh` lock.
 - Every display (§6.10, 2026-11-08): `IslandWindowController.primaryDisplayChanged` is posted when the primary island
   moves to another display; the coordinator rebuilds the extras on it, and once more 2 s after a display change or
   `screensDidWakeNotification` (displays can come back after the first notification).
+- Now Playing adapter (2026-11-08): when the elected now-playing app is paused, it asks every other client
+  (`MRMediaRemoteGetNowPlayingClients` + `MRMediaRemoteGetNowPlayingInfoForClient(client, origin, nil, queue, block)`)
+  and reports one that is playing (`"override": true`). Commands are not sent while overriding: macOS only routes
+  them to the elected (paused) app, and per-client / per-player send calls had no effect when probed.
 - Hooks: `dynanotch://ui/search?q=` (socket only) types into the sidebar search; state.json `settingsSearch`
   {query, results, page, flashing, lastFlash}.
