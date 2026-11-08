@@ -36,6 +36,16 @@ final class LyricsQueryTests: XCTestCase {
         XCTAssertEqual(LyricsQuery.best(c, artist: "Kings of Leon", duration: 0), 2)
         XCTAssertNil(LyricsQuery.best(c, artist: "", duration: 500))
         XCTAssertNil(LyricsQuery.best(c, artist: "Nobody", duration: 0, requireArtist: true))
+        XCTAssertNil(LyricsQuery.best(c, artist: "Nobody", duration: 0))
+        // Same title, other artist, matching length: never used when the player names an artist.
+        let sameTitle = [
+            LyricsQuery.Candidate(artist: "Halestorm", duration: 222, hasSynced: true, hasPlain: true),
+            LyricsQuery.Candidate(artist: "Buckethead & Friends", duration: 264, hasSynced: true, hasPlain: true),
+        ]
+        XCTAssertNil(LyricsQuery.best(sameTitle, artist: "Kings of Leon", duration: 223))
+        XCTAssertNil(LyricsQuery.best(sameTitle, artist: "Kings of Leon", duration: 0))
+        XCTAssertEqual(LyricsQuery.best(sameTitle, artist: "", duration: 223), 0)   // no artist sent: length decides
+        XCTAssertNil(LyricsQuery.best(sameTitle, artist: "", duration: 0, requireArtist: true))
         XCTAssertNil(LyricsQuery.best([], artist: "", duration: 0))
         let plainOnly = [LyricsQuery.Candidate(artist: "A", duration: 200, hasSynced: false, hasPlain: true)]
         XCTAssertEqual(LyricsQuery.best(plainOnly, artist: "A", duration: 201), 0)

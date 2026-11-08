@@ -123,7 +123,7 @@ final class LyricsService: ObservableObject {
         if duration > 0 || !cleaned.artist.isEmpty {
             steps.append { [weak self] done in
                 self?.fetchSearch([URLQueryItem(name: "track_name", value: cleaned.title)],
-                                  artist: cleaned.artist, duration: duration, requireArtist: duration <= 0, completion: done)
+                                  artist: cleaned.artist, duration: duration, requireArtist: true, completion: done)
             }
         }
         run(steps, key: key, sawTransient: false, plainFallback: nil)

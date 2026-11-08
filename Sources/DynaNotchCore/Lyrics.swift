@@ -162,24 +162,30 @@ public enum LyricsQuery {
         return (t.trimmingCharacters(in: .whitespaces), a)
     }
 
-    /// Index of the best hit: synced before plain; with a known duration only hits within 3 s count (closest first),
-    /// otherwise the first hit whose artist matches (or, with `requireArtist == false`, the first one).
+    /// Index of the best hit: synced before plain. When the player sent an artist, a hit must be by that artist —
+    /// a same-named song by someone else is never used, even with a matching length. With a known duration only
+    /// hits within 3 s count (closest first). Without an artist, a hit needs a known duration within 3 s, or
+    /// `requireArtist == false` to take the first one.
     public static func best(_ candidates: [Candidate], artist: String, duration: Double,
                             requireArtist: Bool = false) -> Int? {
         let wanted = cleanArtist(artist).lowercased()
         func artistMatches(_ c: Candidate) -> Bool {
-            guard !wanted.isEmpty else { return true }
             let have = c.artist.lowercased()
-            return have.contains(wanted) || wanted.contains(cleanArtist(c.artist).lowercased())
+            let haveClean = cleanArtist(c.artist).lowercased()
+            return !haveClean.isEmpty && (have.contains(wanted) || wanted.contains(haveClean))
         }
         func pick(_ ok: (Candidate) -> Bool) -> Int? {
-            let usable = candidates.indices.filter { ok(candidates[$0]) }
-                .filter { !requireArtist || artistMatches(candidates[$0]) }
+            var usable = candidates.indices.filter { ok(candidates[$0]) }
+            if !wanted.isEmpty {
+                usable = usable.filter { artistMatches(candidates[$0]) }
+            } else if duration <= 0 && requireArtist {
+                return nil
+            }
             if duration > 0 {
                 let timed = usable.filter { candidates[$0].duration <= 0 || abs(candidates[$0].duration - duration) <= 3 }
                 return timed.min { abs(candidates[$0].duration - duration) < abs(candidates[$1].duration - duration) }
             }
-            return usable.first(where: { artistMatches(candidates[$0]) }) ?? (requireArtist ? nil : usable.first)
+            return usable.first
         }
         return pick { $0.hasSynced } ?? pick { $0.hasPlain }
     }
