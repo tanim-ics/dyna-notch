@@ -88,6 +88,18 @@ public enum PanelTab: String, Equatable, Hashable, CaseIterable, Codable {
     }
 }
 
+/// Left of the panel header: a row of tab icons, or the current tab's name with a "⋯" menu.
+public enum HeaderTabStyle: String, Equatable, Hashable, CaseIterable {
+    case icons, pill
+
+    public var title: String {
+        switch self {
+        case .icons: return "Icons"
+        case .pill: return "Name"
+        }
+    }
+}
+
 /// Optional controls on the right of the panel header (Settings → Tabs → Header Buttons).
 public enum HeaderButtonID: String, Equatable, Hashable, CaseIterable, Codable {
     case battery, timer, stopwatch, pomodoro, output, volume, keepAwake, mic, screenshot, scanQR, colorPicker, ports,

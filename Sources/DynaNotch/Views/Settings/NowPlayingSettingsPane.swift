@@ -20,7 +20,7 @@ struct NowPlayingSettingsPane: View {
                 SettingsKey.nowPlayingEnabled, SettingsKey.showCompactNowPlaying, SettingsKey.showTrackPeek,
                 SettingsKey.pausedLingerSeconds, SettingsKey.artworkStyle, SettingsKey.visualizerStyle,
                 SettingsKey.artworkGlow, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.lyricsOffset,
-                SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp,
+                SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.colorfulNowPlaying, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp,
             ])
         }
     }
@@ -87,6 +87,9 @@ struct NowPlayingSettingsPane: View {
             SettingToggle(symbol: "sun.max.fill", color: .yellow, title: "Artwork Glow",
                           detail: "A soft glow behind the player.",
                           isOn: $settings.artworkGlow)
+            SettingToggle(symbol: "paintpalette.fill", color: .green, title: "Colourful Player",
+                          detail: "The cover's colours behind the player, and a wavy progress line.",
+                          isOn: $settings.colorfulNowPlaying, testID: "setting-colorfulNowPlaying")
         }
         .disabled(!settings.nowPlayingEnabled)
     }

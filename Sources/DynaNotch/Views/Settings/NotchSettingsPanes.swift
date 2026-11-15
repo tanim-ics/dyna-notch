@@ -12,7 +12,7 @@ struct TabsSettingsPane: View {
             headerSection
             hotkeysSection
             RestoreDefaultsSection(keys: [
-                SettingsKey.panelTabs, SettingsKey.headerButtons,
+                SettingsKey.panelTabs, SettingsKey.headerButtons, SettingsKey.headerTabStyle,
             ])
         }
     }
@@ -29,6 +29,17 @@ struct TabsSettingsPane: View {
 
     private var tabsSection: some View {
         Section {
+            SettingStackedRow(symbol: "square.grid.2x2.fill", color: .blue, title: "Tabs in the Header",
+                              detail: "An icon for each tab, or the current tab's name.") {
+                Picker("Tabs in the header", selection: $settings.headerTabStyle) {
+                    ForEach(HeaderTabStyle.allCases, id: \.self) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .uiTestID("setting-headerTabStyle")
+            }
             ForEach(Array(ordered.enumerated()), id: \.element) { entry in
                 PanelTabSettingsRow(tab: entry.element,
                                     isOn: enabled.contains(entry.element),

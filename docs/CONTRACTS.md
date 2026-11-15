@@ -1071,3 +1071,24 @@ serialised with the scratchpad `applock.sh` lock.
   them to the elected (paused) app, and per-client / per-player send calls had no effect when probed.
 - Hooks: `dynanotch://ui/search?q=` (socket only) types into the sidebar search; state.json `settingsSearch`
   {query, results, page, flashing, lastFlash}.
+
+### 6.26 Tab icons in the header, colourful Now Playing (2026-11-15)
+- Core `HeaderTabStyle` (`icons` | `pill`, `title`). Settings: `headerTabStyle` = "icons" (`dn.headerTabStyle`;
+  "pill" = the old name capsule + ⋯), `colorfulNowPlaying` = true (`dn.colorfulNowPlaying`).
+- `PanelHeader` left side: `HeaderTabIcons` — one 26 pt button per enabled tab in the Settings → Tabs order
+  (`uiTestID` `header.tab.<raw>`, row `header.tabs`; the current one white with a dot) + `UpdatePill`. When the tabs
+  are wider than the room left of the notch (`HeaderTabLayout.scrolls`) the row is a sideways `ScrollView` with soft
+  edges; it scrolls only as far as needed to show the current tab (never re-centres: that would slide another icon
+  under a resting pointer). No "⋯" in icon style; ⌘1–⌘9 still work.
+- Hover opens a tab: each icon is a hover region `hover.tab.<raw>` (`IslandViewModel.tabHoverPrefix`), clipped to
+  the row. `IslandViewModel.setHeaderHover(_ region:, pointer:)` selects the tab after 0.18 s. The icon the pointer
+  is on when the panel opens is ignored until the pointer leaves it (the pointer got there to open the island).
+- `HoverRegions`: `hoverRegion(_:within:)` + `hoverClip(_:)` (a region only counts inside its clip area — views in a
+  scroll view keep their frame when scrolled out); one id may have a view per window (one header per display).
+- Colourful Now Playing: `NowPlayingBackdrop` (the cover rendered once by `BackdropRenderer` into 96 × 32 sideways
+  streaks, stretched over the panel, fading to black under the notch row so the island still merges with the notch)
+  behind the Now Playing tab, and a wavy played part in `ScrubBar` while playing (`WavyLineLayer`, a Core Animation
+  layer — no per-frame SwiftUI work; still when Reduce Motion is on).
+- state.json `header` {style, tabs (enabled, in order), scrolls (Bool)}, `nowPlayingBackdrop` (Bool).
+- state.json `scriptedPointer` (Bool): a `ui/pointer` override is active. It replaces the real pointer for hover on
+  the primary island, so `scripts/ui-regression.sh` clears it on exit (trap) and checks it at the end.

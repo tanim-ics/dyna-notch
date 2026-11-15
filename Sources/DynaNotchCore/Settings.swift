@@ -255,6 +255,8 @@ public enum SettingsKey {
     public static let driveActivity = "dn.driveActivity"
     public static let screenshotToShelf = "dn.screenshotToShelf"
     public static let headerButtons = "dn.headerButtons"
+    public static let headerTabStyle = "dn.headerTabStyle"
+    public static let colorfulNowPlaying = "dn.colorfulNowPlaying"
     /// Bookkeeping for `PanelTab.migrate` (not a user setting, so not in `all`).
     public static let knownTabs = "dn.knownTabs"
 
@@ -276,6 +278,7 @@ public enum SettingsKey {
             downloadActivity, privacyActivity, capsLockActivity, notifyActivity,
             islandMaterial, hasSeenWelcome,
             materialPreset, panelTranslucency, animationStyle, animationSpeed, colorCodedLevels, closedPillClock, timeFormat, helloIntro, defaultTab, openOnCurrentActivity, idleTimeout, invisibleUntilHover, notificationDuration, lyricsOffset, pomodoroAutoContinue, breakLookAway, breakStandUp, standUpMinutes, breakDrinkWater, drinkWaterMinutes, lowBatteryThreshold, fullChargeActivity, accessoryAlerts, clipboardIgnoredApps, clipboardAutoClearMinutes, pasteWithNumbers, meetingAlert, meetingAlertMinutes, screenTimeEnabled, quickSearchEngine, launcherApps, colorFormat, driveActivity, screenshotToShelf, headerButtons, notchDisplayStyle, pillScale, pillHeightOffset, screenSharingPrivacy, hideWhileMirroring, fullscreenScope, autoCollapse, quietDuringFocus, peekOnHover, mediaKeysControlPlayer, preventMusicAutoLaunch, meetingOnlyWithLink, hiddenCalendars, calendarHotkeys, timerHoverControls, clipboardCaptureSound, shelfRetention, screenshotFolder, unplugActivity, fullChargeLevel, clockContent, clockWithActivities, panelWidth, panelSizing, panelMaxHeight, panelFillHex, pillMatchesPanel, trackInfoMode, desktopLyrics, edgeGlow, alertSounds, hotkeyBindings, knockEnabled, knockKey, knockActions, copyTwiceToOpen, offerCleanCopy, customSearchEngines, homeCards, homeColumns, worldClocks, savedLinks, repeatTimer, repeatAlarm, pomodoroOnly, aiLimitWarnings, aiLimitWarnPercent, aiMenuBarReadout, aiHidePersonalInfo, batteryInMenuBar, drainWarnings, dmgInstallOffer, nextMeetingInMenuBar, listeningHistory, defaultMusicApp, pillWidth, pillHeight, unlockActivity, lockScreenWidgets, lockScreenWeather, lockScreenBatteries, copyProgress, smartCopy, homeCurrency, agentIsland, agentStatus, agentTimeout, alchemyZones, sensorDot, meetingMeter, meetingTalkShare, focusGuard, focusGuardApps, soundscape, soundscapeVolume, soundscapeWithPomodoro, macVitals, dailyWrap, dailyWrapMinutes, dailyWrapWeekdays, checkForUpdates, hiddenDisplays, clipboardSkipSecrets, clipboardClearOnLock,
+            headerTabStyle, colorfulNowPlaying,
         ]
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import DynaNotchCore
 
 /// Draggable progress bar; sends `seek` on release.
@@ -8,7 +9,12 @@ struct ScrubBar: View {
     let color: Color
 
     @EnvironmentObject var nowPlaying: NowPlayingService
+    @EnvironmentObject var settings: AppSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dragFraction: Double?
+
+    /// Colourful Now Playing: the played part is a wave while the music plays, a plain bar otherwise.
+    private var isWavy: Bool { settings.colorfulNowPlaying && nowPlaying.snapshot.isPlaying && !isDragging }
 
     private var isDragging: Bool { dragFraction != nil }
 
@@ -20,7 +26,7 @@ struct ScrubBar: View {
     var body: some View {
         GeometryReader { geo in
             track(width: geo.size.width)
-                .frame(width: geo.size.width, height: geo.size.height)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
                 .contentShape(Rectangle())
                 .gesture(dragGesture(width: geo.size.width))
         }
@@ -30,13 +36,29 @@ struct ScrubBar: View {
 
     private func track(width: CGFloat) -> some View {
         let barHeight: CGFloat = isDragging ? 6 : 4
+        let played = width * shownFraction
         return ZStack(alignment: .leading) {
-            Capsule()
-                .fill(Color.white.opacity(0.18))
-                .frame(width: width, height: barHeight)
-            Capsule()
-                .fill(color)
-                .frame(width: width * shownFraction, height: barHeight)
+            if isWavy {
+                // The rest of the track starts after the knob, so the wave has room to move.
+                Capsule()
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: max(0, width - played - 5), height: 3)
+                    .offset(x: played + 5)
+                WavyLineLayer(color: NSColor(color), isMoving: !reduceMotion)
+                    .frame(width: max(0, played - 1), height: 12)
+                    .allowsHitTesting(false)
+                Capsule()
+                    .fill(Color.white)
+                    .frame(width: 3, height: 11)
+                    .offset(x: max(0, played - 1))
+            } else {
+                Capsule()
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: width, height: barHeight)
+                Capsule()
+                    .fill(color)
+                    .frame(width: played, height: barHeight)
+            }
         }
     }
 

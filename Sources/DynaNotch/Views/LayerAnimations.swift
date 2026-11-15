@@ -151,3 +151,83 @@ struct SpinningDiscLayer: NSViewRepresentable {
         }
     }
 }
+
+/// A sine line that drifts to the left (the played part of the progress bar). The render server moves it; the app
+/// does no per-frame work. `isMoving` false = a still wave (Reduce Motion).
+struct WavyLineLayer: NSViewRepresentable {
+    let color: NSColor
+    let isMoving: Bool
+    var wavelength: CGFloat = 14
+    var amplitude: CGFloat = 2.2
+    var lineWidth: CGFloat = 2.6
+
+    final class WaveView: NSView {
+        let wave = CAShapeLayer()
+        var wavelength: CGFloat = 14
+        var amplitude: CGFloat = 2.2
+        private var drawnWidth: CGFloat = -1
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            wantsLayer = true
+            layer?.masksToBounds = true
+            wave.fillColor = nil
+            wave.lineCap = .round
+            wave.lineJoin = .round
+            wave.anchorPoint = .zero
+            layer?.addSublayer(wave)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func layout() {
+            super.layout()
+            // One spare wavelength on the right, so sliding left by a wavelength never shows a gap.
+            let width = bounds.width + wavelength
+            guard abs(width - drawnWidth) > 0.5 else { return }
+            drawnWidth = width
+            let path = CGMutablePath()
+            let mid = bounds.midY
+            var x: CGFloat = 0
+            path.move(to: CGPoint(x: 0, y: mid))
+            while x <= width {
+                x += 1
+                path.addLine(to: CGPoint(x: x, y: mid + amplitude * sin(2 * .pi * x / wavelength)))
+            }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            wave.path = path
+            wave.bounds = CGRect(x: 0, y: 0, width: width, height: bounds.height)
+            wave.position = .zero
+            CATransaction.commit()
+        }
+    }
+
+    func makeNSView(context: Context) -> WaveView {
+        let view = WaveView()
+        view.wavelength = wavelength
+        view.amplitude = amplitude
+        return view
+    }
+
+    func updateNSView(_ view: WaveView, context: Context) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        view.wave.strokeColor = color.cgColor
+        view.wave.lineWidth = lineWidth
+        CATransaction.commit()
+        if isMoving {
+            if view.wave.animation(forKey: "drift") == nil {
+                let drift = CABasicAnimation(keyPath: "transform.translation.x")
+                drift.fromValue = 0
+                drift.toValue = -wavelength
+                drift.duration = 1.1
+                drift.repeatCount = .infinity
+                drift.isRemovedOnCompletion = false
+                view.wave.add(drift, forKey: "drift")
+            }
+        } else {
+            view.wave.removeAnimation(forKey: "drift")
+        }
+    }
+}
