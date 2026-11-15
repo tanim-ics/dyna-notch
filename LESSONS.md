@@ -49,3 +49,16 @@ Read at the start of every project. Add one line per lesson in Phase 8; merge du
 - A YouTube tab wasn't detected while the YouTube Music web app was paused → macOS keeps a paused app as the
   elected now-playing client → when it's paused, ask every client for its own info and show one that plays;
   probe private-API argument orders in a throwaway dylib under /usr/bin/perl, never in the app.
+- The blurred cover behind Now Playing came out blocky and missed from snapshots → a SwiftUI `.blur` on a small
+  bitmap is drawn by the window server and upscales the pixels first → render the backdrop once with Core Image
+  into a tiny image and let SwiftUI only stretch it.
+- The wavy progress line sat off-centre → a ZStack is as wide as its widest child, and a wider frame centres it →
+  give the frame `alignment: .leading` when children are placed with offsets.
+- After a UI test run the island stopped opening on hover → the suite's last `ui/pointer?x=&y=` was never cleared,
+  and a scripted pointer replaces the real one → clear it in an EXIT trap, and check `scriptedPointer` at the end.
+  Any test override that changes what the owner's own input does needs the same.
+- Hovering a tab icon opened the wrong tab, then another → (1) the row re-centred on the new tab, sliding a
+  different icon under the resting pointer; (2) `NSView.visibleRect` of anchors inside a SwiftUI ScrollView was
+  off by the scroll offset → scroll only as far as needed, and clip hover areas with a separate "row" area instead.
+- "Ignore the icon the pointer opened the panel on" failed → the icons are laid out a moment after the panel
+  opens, so the first hover report saw nothing → decide by "on an icon before the pointer moved", not "first report".

@@ -114,3 +114,14 @@
 - Listening: red mic + "Listening…" left, the live words right (head-truncated so the newest stay visible; "Speak
   now" before any). Finished: green check + "Note saved" / "Reminder added" / "Timer 10 min", 2.5 s. Errors use the
   same row ("Allow Speech Recognition in System Settings › Privacy & Security").
+
+### Tab icons and the colourful player (2026-11-15, CONTRACTS §6.26)
+- Header, left of the notch: one 26 pt icon per enabled tab in the Settings → Tabs order. The current tab is white
+  with a 3 pt dot under it, the others 50 % white. Click an icon, or rest the pointer on it for 0.18 s, to open its
+  tab. More tabs than fit: the row scrolls sideways (trackpad, thumb wheel, ⇧-scroll) with 6 % soft edges, and moves
+  just enough to show the current tab. The icon under the pointer when the panel opens does nothing until the
+  pointer leaves it. Settings → Tabs → "Tabs in the Header": Icons | Name.
+- Now Playing tab: the cover, squeezed to 96 × 32, motion-blurred sideways and saturated, fills the panel at 80 %
+  and fades to black through the notch row. Cross-fades (0.6 s) when the cover changes. Off: plain panel.
+- Progress line: while playing, the played part is a wave (14 pt long, ±2.2 pt) drifting left once every 1.1 s, with
+  a white 3 × 11 pt knob; paused or while dragging it is the plain bar. Reduce Motion: the wave stands still.
