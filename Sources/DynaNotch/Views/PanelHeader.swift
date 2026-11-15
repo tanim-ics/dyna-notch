@@ -9,16 +9,31 @@ struct PanelHeader: View {
     @Binding var showsBatteries: Bool
 
     @EnvironmentObject var vm: IslandViewModel
+    @EnvironmentObject var settings: AppSettings
+    /// Redraws the icon row when the Update capsule appears (it takes room from the icons).
+    @ObservedObject private var updates = UpdateService.shared
 
-    private var horizontalPadding: CGFloat { vm.radii.top + 10 }
+    private var horizontalPadding: CGFloat { PanelHeader.horizontalPadding(vm) }
     private var gap: CGFloat { vm.notch.hasPhysicalNotch ? vm.notch.width + 16 : 12 }
-    private var sideWidth: CGFloat { max(0, (vm.islandSize.width - 2 * horizontalPadding - gap) / 2) }
+    private var sideWidth: CGFloat { PanelHeader.sideWidth(vm) }
+
+    static func horizontalPadding(_ vm: IslandViewModel) -> CGFloat { vm.radii.top + 10 }
+
+    /// Width of each half of the header, left and right of the notch.
+    static func sideWidth(_ vm: IslandViewModel) -> CGFloat {
+        let gap: CGFloat = vm.notch.hasPhysicalNotch ? vm.notch.width + 16 : 12
+        return max(0, (vm.islandSize.width - 2 * horizontalPadding(vm) - gap) / 2)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             HStack(spacing: 6) {
-                TabPill()
-                TabMenu()
+                if settings.headerTabStyle == .icons {
+                    HeaderTabIcons(layout: HeaderTabLayout.current(vm: vm, settings: settings))
+                } else {
+                    TabPill()
+                    TabMenu()
+                }
                 UpdatePill()
             }
             .frame(width: sideWidth, alignment: .leading)
@@ -88,6 +103,116 @@ struct TabPill: View {
         .background(HeaderCapsule())
         .contentTransition(.opacity)
         .animation(.easeInOut(duration: 0.15), value: vm.visibleTab)
+    }
+}
+
+/// The header's tab icons: every enabled tab, in a row that scrolls sideways when it is wider than its room
+/// (shared by the view and `dynanotch://state`).
+struct HeaderTabLayout {
+    let tabs: [PanelTab]
+    /// Room for the row, left of the notch.
+    let width: CGFloat
+
+    static let slot: CGFloat = 26
+    /// Room the Update capsule takes from the icons while it shows.
+    static let updateWidth: CGFloat = 86
+
+    var contentWidth: CGFloat { CGFloat(tabs.count) * HeaderTabLayout.slot }
+    var scrolls: Bool { contentWidth > width + 0.5 }
+
+    static func current(vm: IslandViewModel, settings: AppSettings) -> HeaderTabLayout {
+        var width = PanelHeader.sideWidth(vm)
+        if UpdateService.shared.update != nil { width -= updateWidth }
+        return HeaderTabLayout(tabs: settings.enabledTabs, width: max(slot, width))
+    }
+
+    /// For `dynanotch://state`.
+    static func state(vm: IslandViewModel) -> [String: Any] {
+        let settings = AppSettings.shared
+        guard settings.headerTabStyle == .icons else {
+            return ["style": settings.headerTabStyle.rawValue, "tabs": [String](), "scrolls": false]
+        }
+        let layout = current(vm: vm, settings: settings)
+        return ["style": settings.headerTabStyle.rawValue, "tabs": layout.tabs.map(\.rawValue),
+                "scrolls": layout.scrolls]
+    }
+}
+
+/// One icon per enabled tab, in the order from Settings → Tabs. Click or rest the pointer on one to open it; when
+/// they don't all fit, the row scrolls sideways (trackpad, thumb wheel, ⇧-scroll) and follows the current tab.
+struct HeaderTabIcons: View {
+    let layout: HeaderTabLayout
+
+    @EnvironmentObject var vm: IslandViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(layout.tabs, id: \.self) { tab in
+                        icon(tab)
+                            .id(tab)
+                    }
+                }
+            }
+            .frame(width: min(layout.contentWidth, layout.width), height: 28)
+            .mask(edgeFade)
+            // No anchor = scroll only as far as needed, and not at all when the icon is already in view. Centring
+            // it would slide another icon under a resting pointer, which would then open that tab, and so on.
+            .onAppear { proxy.scrollTo(vm.visibleTab) }
+            .onChange(of: vm.visibleTab) {
+                if reduceMotion {
+                    proxy.scrollTo(vm.visibleTab)
+                } else {
+                    withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(vm.visibleTab) }
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: vm.visibleTab)
+        .uiTestID("header.tabs")
+        .hoverClip("hover.tabs")
+    }
+
+    /// Soft edges while the row scrolls, so cut-off icons fade instead of ending abruptly.
+    @ViewBuilder
+    private var edgeFade: some View {
+        if layout.scrolls {
+            LinearGradient(stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.06),
+                .init(color: .black, location: 0.94),
+                .init(color: .clear, location: 1),
+            ], startPoint: .leading, endPoint: .trailing)
+        } else {
+            Color.black
+        }
+    }
+
+    private func icon(_ tab: PanelTab) -> some View {
+        let isCurrent = tab == vm.visibleTab
+        return Button {
+            vm.select(tab)
+        } label: {
+            Image(systemName: tab.symbolName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(isCurrent ? 1 : 0.5))
+                .frame(width: HeaderTabLayout.slot, height: 22)
+                .overlay(alignment: .bottom) {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 3, height: 3)
+                        .offset(y: 3)
+                        .opacity(isCurrent ? 1 : 0)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .help(tab.title)
+        .accessibilityLabel(tab.title)
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
+        .uiTestID("header.tab.\(tab.rawValue)")
+        .hoverRegion(IslandViewModel.tabHoverPrefix + tab.rawValue, within: "hover.tabs")
     }
 }
 

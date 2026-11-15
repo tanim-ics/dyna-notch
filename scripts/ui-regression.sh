@@ -23,6 +23,9 @@ SOCK="$HOME/Library/Application Support/DynaNotch/control.sock"
 u() {   # u <hook>[?query] [sleep]
     printf 'dynanotch://%s\n' "$1" | nc -U "$SOCK" >/dev/null; sleep "${2:-0.7}"
 }
+# A scripted pointer replaces the real one for hover, so the island would stop opening for the owner if a run
+# ended (or was interrupted) with one still set. Always hand the pointer back.
+trap 'printf "dynanotch://ui/pointer\n" | nc -U "$SOCK" >/dev/null 2>&1' EXIT
 state() { rm -f "$STATE"; u state 0.5; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get(sys.argv[2], ''))" "$STATE" "$1" 2>/dev/null; }
 check() {   # check <name> <actual> <expected-prefix>
     case "$2" in
@@ -423,6 +426,7 @@ check "security: outside state refused" "$([ -f "$STATE" ] && echo written || ec
 u "ui/pointer?x=10&y=400" 0.6
 open -g "dynanotch://notify?title=Public&body=hook&duration=3"; sleep 0.8
 check "security: notify stays public" "$(state presentation | grep -o 'Public' | head -1)" "Public"
+u "ui/pointer" 0.3
 rm -f "$SNAP/evil.png" "$SNAP/../evil.png"; u "snapshot/..%2Fevil" 1.5
 check "security: snapshot name can't leave Snapshots" "$([ -f "$SNAP/../evil.png" ] && echo escaped || echo kept)" "kept"
 rm -f "$SNAP/evil.png" "$SNAP/.evil.png" "$SNAP/..evil.png"
@@ -472,6 +476,61 @@ check "search: option blinks" "$(ss lastFlash)" "History Limit"
 u "ui/search?q=zzzz%20nothing" 0.6
 check "search: no match is empty" "$(ss results)" ""
 u "ui/search?q=" 0.4
+
+echo "==> Tab icons in the header, colourful Now Playing"
+hk() { rm -f "$STATE"; u state 0.4; python3 -c "import json,sys; v=json.load(open(sys.argv[1])).get('header',{}).get(sys.argv[2], ''); print(','.join(v) if isinstance(v, list) else v)" "$STATE" "$1" 2>/dev/null; }
+HEADER_STYLE=$(pref dn.headerTabStyle icons)
+COLORFUL=$(b dn.colorfulNowPlaying true)
+u "set?dn.headerTabStyle=icons" 0.4
+u "pin/home" 1.0
+check "header: icon style" "$(hk style)" "icons"
+FIRST=$(hk tabs | cut -d, -f1)
+SECOND=$(hk tabs | cut -d, -f2)
+check "header: icons start with the first tab" "$( [ -n "$FIRST" ] && echo yes )" "yes"
+if [ -n "$SECOND" ]; then
+    u "ui/click?window=island&id=header.tab.$SECOND" 0.8
+    check "header: clicking an icon opens that tab" "$(state visibleTab)" "$SECOND"
+    u "ui/click?window=island&id=header.tab.$FIRST" 0.8
+    check "header: and back to the first" "$(state visibleTab)" "$FIRST"
+    # Resting the pointer on an icon opens its tab, no click needed.
+    read -r TX TY <<<"$(center "header.tab.$SECOND")"
+    u "ui/pointer?x=$TX&y=$TY" 1.0
+    check "header: resting on an icon opens that tab" "$(state visibleTab)" "$SECOND"
+    u "ui/pointer?x=300&y=200" 0.5
+    check "header: leaving the icon keeps the tab" "$(state visibleTab)" "$SECOND"
+    # With more tabs than fit, the row scrolls: opening the last tab brings its icon into the row.
+    LAST=$(hk tabs | awk -F, '{print $NF}')
+    if [ "$(hk scrolls)" = "True" ]; then
+        u "tab/$LAST" 1.2; rm -f "$STATE"; u state 0.4
+        check "header: row scrolls to the open tab" "$(python3 -c "
+import json,sys
+f=json.load(open(sys.argv[1]))['frames']
+def r(k):
+    xy,wh=f[k].split(); x=float(xy.split(',')[0]); return x, x+float(wh.split('x')[0])
+a,b=r('header.tabs'); c,d=r('header.tab.'+sys.argv[2]); print('inside' if c>=a-1 and d<=b+1 else 'outside')" "$STATE" "$LAST")" "inside"
+        # An icon scrolled out of the row must not react where it would have been.
+        read -r FX FY <<<"$(center "header.tab.$FIRST")"
+        u "ui/pointer?x=$FX&y=$FY" 1.0
+        check "header: scrolled-out icon does not react" "$(state visibleTab)" "$LAST"
+        u "ui/pointer?x=300&y=200" 0.4
+    fi
+    u "tab/$FIRST" 0.6
+fi
+u "ui/pointer" 0.3
+u "set?dn.headerTabStyle=pill" 0.6
+check "header: name style has no icons" "$(hk style)/$(hk tabs)" "pill/"
+u "set?dn.headerTabStyle=bogus" 0.4
+check "header: unknown style falls back to icons" "$(hk style)" "icons"
+u "set?dn.headerTabStyle=$HEADER_STYLE" 0.4
+u "set?dn.colorfulNowPlaying=false" 0.4
+u "pin/nowPlaying" 0.8
+check "now playing: no colours when off" "$(state nowPlayingBackdrop)" "False"
+u "set?dn.colorfulNowPlaying=$COLORFUL" 0.4
+u "unpin" 0.3
+u "collapse" 0.5
+
+u "ui/pointer" 0.3
+check "pointer: handed back to the real mouse" "$(state scriptedPointer)" "False"
 
 echo
 echo "ui-regression: $PASS passed, $FAIL failed"

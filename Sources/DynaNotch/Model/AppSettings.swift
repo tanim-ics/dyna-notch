@@ -646,6 +646,14 @@ final class AppSettings: ObservableObject {
     @Published var desktopLyrics: Bool = false {
         didSet { defaults.set(desktopLyrics, forKey: SettingsKey.desktopLyrics) }
     }
+    /// Left of the panel header: a row of tab icons, or the current tab's name with a "⋯" menu.
+    @Published var headerTabStyle: HeaderTabStyle = .icons {
+        didSet { defaults.set(headerTabStyle.rawValue, forKey: SettingsKey.headerTabStyle) }
+    }
+    /// Artwork colours behind the Now Playing tab and a wavy progress line.
+    @Published var colorfulNowPlaying: Bool = true {
+        didSet { defaults.set(colorfulNowPlaying, forKey: SettingsKey.colorfulNowPlaying) }
+    }
     @Published var edgeGlow: Bool = false {
         didSet { defaults.set(edgeGlow, forKey: SettingsKey.edgeGlow) }
     }
@@ -777,6 +785,7 @@ final class AppSettings: ObservableObject {
         SettingsKey.nonNotchStyle, SettingsKey.panelTabs, SettingsKey.rememberLastTab, SettingsKey.lastTab, SettingsKey.hotkeysEnabled, SettingsKey.lyricsEnabled, SettingsKey.lyricsInCompact, SettingsKey.pomodoroWorkMinutes, SettingsKey.pomodoroShortBreakMinutes, SettingsKey.pomodoroLongBreakMinutes, SettingsKey.pomodoroCycles, SettingsKey.timerSound, SettingsKey.timerOverNowPlaying, SettingsKey.showCompactTimer, SettingsKey.clipboardEnabled, SettingsKey.clipboardLimit, SettingsKey.cleanLinks, SettingsKey.pasteOnClick, SettingsKey.shelfEnabled, SettingsKey.shelfRemoveOnDragOut, SettingsKey.weatherEnabled, SettingsKey.weatherCity, SettingsKey.temperatureUnit, SettingsKey.aiUsageEnabled, SettingsKey.downloadActivity, SettingsKey.privacyActivity, SettingsKey.capsLockActivity, SettingsKey.notifyActivity,
         SettingsKey.islandMaterial, SettingsKey.hasSeenWelcome,
         SettingsKey.materialPreset, SettingsKey.panelTranslucency, SettingsKey.animationStyle, SettingsKey.animationSpeed, SettingsKey.colorCodedLevels, SettingsKey.closedPillClock, SettingsKey.timeFormat, SettingsKey.helloIntro, SettingsKey.defaultTab, SettingsKey.openOnCurrentActivity, SettingsKey.idleTimeout, SettingsKey.invisibleUntilHover, SettingsKey.notificationDuration, SettingsKey.lyricsOffset, SettingsKey.pomodoroAutoContinue, SettingsKey.breakLookAway, SettingsKey.breakStandUp, SettingsKey.standUpMinutes, SettingsKey.breakDrinkWater, SettingsKey.drinkWaterMinutes, SettingsKey.lowBatteryThreshold, SettingsKey.fullChargeActivity, SettingsKey.accessoryAlerts, SettingsKey.clipboardIgnoredApps, SettingsKey.clipboardAutoClearMinutes, SettingsKey.pasteWithNumbers, SettingsKey.meetingAlert, SettingsKey.meetingAlertMinutes, SettingsKey.screenTimeEnabled, SettingsKey.quickSearchEngine, SettingsKey.launcherApps, SettingsKey.colorFormat, SettingsKey.driveActivity, SettingsKey.screenshotToShelf, SettingsKey.headerButtons, SettingsKey.notchDisplayStyle, SettingsKey.pillScale, SettingsKey.pillHeightOffset, SettingsKey.screenSharingPrivacy, SettingsKey.hideWhileMirroring, SettingsKey.fullscreenScope, SettingsKey.autoCollapse, SettingsKey.quietDuringFocus, SettingsKey.peekOnHover, SettingsKey.mediaKeysControlPlayer, SettingsKey.preventMusicAutoLaunch, SettingsKey.meetingOnlyWithLink, SettingsKey.hiddenCalendars, SettingsKey.calendarHotkeys, SettingsKey.timerHoverControls, SettingsKey.clipboardCaptureSound, SettingsKey.shelfRetention, SettingsKey.screenshotFolder, SettingsKey.unplugActivity, SettingsKey.fullChargeLevel, SettingsKey.clockContent, SettingsKey.clockWithActivities, SettingsKey.panelWidth, SettingsKey.panelSizing, SettingsKey.panelMaxHeight, SettingsKey.panelFillHex, SettingsKey.pillMatchesPanel, SettingsKey.trackInfoMode, SettingsKey.desktopLyrics, SettingsKey.edgeGlow, SettingsKey.alertSounds, SettingsKey.hotkeyBindings, SettingsKey.knockEnabled, SettingsKey.knockKey, SettingsKey.knockActions, SettingsKey.copyTwiceToOpen, SettingsKey.offerCleanCopy, SettingsKey.customSearchEngines, SettingsKey.homeCards, SettingsKey.homeColumns, SettingsKey.worldClocks, SettingsKey.savedLinks, SettingsKey.repeatTimer, SettingsKey.repeatAlarm, SettingsKey.pomodoroOnly, SettingsKey.aiLimitWarnings, SettingsKey.aiLimitWarnPercent, SettingsKey.aiMenuBarReadout, SettingsKey.aiHidePersonalInfo, SettingsKey.batteryInMenuBar, SettingsKey.drainWarnings, SettingsKey.dmgInstallOffer, SettingsKey.nextMeetingInMenuBar, SettingsKey.listeningHistory, SettingsKey.defaultMusicApp, SettingsKey.pillWidth, SettingsKey.pillHeight, SettingsKey.unlockActivity, SettingsKey.lockScreenWidgets, SettingsKey.lockScreenWeather, SettingsKey.lockScreenBatteries, SettingsKey.copyProgress, SettingsKey.smartCopy, SettingsKey.homeCurrency, SettingsKey.agentIsland, SettingsKey.agentStatus, SettingsKey.agentTimeout, SettingsKey.alchemyZones, SettingsKey.sensorDot, SettingsKey.meetingMeter, SettingsKey.meetingTalkShare, SettingsKey.focusGuard, SettingsKey.focusGuardApps, SettingsKey.soundscape, SettingsKey.soundscapeVolume, SettingsKey.soundscapeWithPomodoro, SettingsKey.macVitals, SettingsKey.dailyWrap, SettingsKey.dailyWrapMinutes, SettingsKey.dailyWrapWeekdays, SettingsKey.checkForUpdates, SettingsKey.hiddenDisplays, SettingsKey.clipboardSkipSecrets, SettingsKey.clipboardClearOnLock,
+        SettingsKey.headerTabStyle, SettingsKey.colorfulNowPlaying,
     ]
 
     init(defaults: UserDefaults = .standard) {
@@ -946,6 +955,8 @@ final class AppSettings: ObservableObject {
         pillMatchesPanel = defaults.object(forKey: SettingsKey.pillMatchesPanel) as? Bool ?? false
         trackInfoMode = defaults.string(forKey: SettingsKey.trackInfoMode).flatMap { TrackInfoMode(rawValue: $0) } ?? .onChange
         desktopLyrics = defaults.object(forKey: SettingsKey.desktopLyrics) as? Bool ?? false
+        headerTabStyle = defaults.string(forKey: SettingsKey.headerTabStyle).flatMap { HeaderTabStyle(rawValue: $0) } ?? .icons
+        colorfulNowPlaying = defaults.object(forKey: SettingsKey.colorfulNowPlaying) as? Bool ?? true
         edgeGlow = defaults.object(forKey: SettingsKey.edgeGlow) as? Bool ?? false
         alertSounds = defaults.string(forKey: SettingsKey.alertSounds) ?? ""
         hotkeyBindings = defaults.string(forKey: SettingsKey.hotkeyBindings) ?? ""
@@ -1149,6 +1160,8 @@ final class AppSettings: ObservableObject {
         pillMatchesPanel = defaults.object(forKey: SettingsKey.pillMatchesPanel) as? Bool ?? false
         trackInfoMode = defaults.string(forKey: SettingsKey.trackInfoMode).flatMap { TrackInfoMode(rawValue: $0) } ?? .onChange
         desktopLyrics = defaults.object(forKey: SettingsKey.desktopLyrics) as? Bool ?? false
+        headerTabStyle = defaults.string(forKey: SettingsKey.headerTabStyle).flatMap { HeaderTabStyle(rawValue: $0) } ?? .icons
+        colorfulNowPlaying = defaults.object(forKey: SettingsKey.colorfulNowPlaying) as? Bool ?? true
         edgeGlow = defaults.object(forKey: SettingsKey.edgeGlow) as? Bool ?? false
         alertSounds = defaults.string(forKey: SettingsKey.alertSounds) ?? ""
         hotkeyBindings = defaults.string(forKey: SettingsKey.hotkeyBindings) ?? ""
@@ -1373,6 +1386,8 @@ final class AppSettings: ObservableObject {
         pillMatchesPanel = false
         trackInfoMode = .onChange
         desktopLyrics = false
+        headerTabStyle = .icons
+        colorfulNowPlaying = true
         edgeGlow = false
         alertSounds = ""
         hotkeyBindings = ""

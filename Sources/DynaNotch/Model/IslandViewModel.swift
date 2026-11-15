@@ -41,6 +41,13 @@ final class IslandViewModel: ObservableObject {
 
     private var headerCardByHover = false
     private var headerHoverRegion: String?
+    /// Where the pointer was when the panel opened, whether it has moved since, and the tab icon it opened on
+    /// (see `setHeaderHover`).
+    private var hoverOrigin: CGPoint?
+    private var hoverMoved = false
+    private var blockedTabRegion: String?
+    /// Hover regions of the header's tab icons: "hover.tab.<PanelTab raw value>".
+    static let tabHoverPrefix = "hover.tab."
     private var headerHoverWork: DispatchWorkItem?
     /// Settings → Timer → Controls on hover: the compact timer grew a row of pause / +1 min / stop buttons.
     @Published private(set) var showsTimerControls: Bool = false
@@ -837,15 +844,44 @@ final class IslandViewModel: ObservableObject {
     /// Window controller, on every pointer move: the hover region under the pointer ("hover.battery",
     /// "hover.sound", "hover.card" or nil). Resting on a button opens its card; leaving button and card closes a
     /// card that hover opened.
-    func setHeaderHover(_ region: String?) {
+    func setHeaderHover(_ found: String?, pointer: CGPoint) {
         guard presentation == .expanded else {
             headerHoverRegion = nil
+            hoverOrigin = nil
+            hoverMoved = false
+            blockedTabRegion = nil
             return
+        }
+        // The icon the pointer happens to be on when the panel opens must not switch the tab: the pointer got
+        // there to open the island. That icon counts again once the pointer has left it. (The icons appear a
+        // moment after the panel opens, so "on an icon before the pointer moved" is what marks it.)
+        let origin = hoverOrigin ?? pointer
+        hoverOrigin = origin
+        if !hoverMoved && hypot(pointer.x - origin.x, pointer.y - origin.y) > 8 { hoverMoved = true }
+        var region = found
+        if let tabRegion = found, tabRegion.hasPrefix(IslandViewModel.tabHoverPrefix) {
+            if !hoverMoved && blockedTabRegion == nil { blockedTabRegion = tabRegion }
+            if tabRegion == blockedTabRegion { region = nil } else { blockedTabRegion = nil }
+        } else if hoverMoved {
+            blockedTabRegion = nil
         }
         guard region != headerHoverRegion else { return }
         headerHoverRegion = region
         headerHoverWork?.cancel()
         headerHoverWork = nil
+
+        if let region = region, region.hasPrefix(IslandViewModel.tabHoverPrefix),
+           let tab = PanelTab(rawValue: String(region.dropFirst(IslandViewModel.tabHoverPrefix.count))) {
+            guard tab != visibleTab else { return }
+            schedule(after: 0.18) { [weak self] in
+                guard let self = self, self.presentation == .expanded else { return }
+                if self.headerCard != nil && self.headerCardByHover {
+                    withAnimation(self.cardAnimation) { self.headerCard = nil }
+                }
+                self.select(tab)
+            }
+            return
+        }
 
         let hovered: HeaderCard?
         switch region {

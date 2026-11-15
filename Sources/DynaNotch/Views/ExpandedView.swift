@@ -21,6 +21,7 @@ struct ExpandedView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: vm.islandSize.width, height: vm.islandSize.height, alignment: .top)
+        .background(NowPlayingBackdrop())
         .overlay(batteryOverlay)
         .overlay(dropHighlight)
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted, perform: handleDrop)
